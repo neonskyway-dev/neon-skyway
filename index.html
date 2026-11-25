@@ -395,6 +395,7 @@
   </div>
   <div class="flex items-end justify-between gap-3 pointer-events-auto">
     <div id="sCards" class="flex gap-2 overflow-x-auto pb-1 max-w-[78vw]"></div>
+    <button id="sRank" class="mbtn shrink-0" style="display:none"><i data-i="trophy"></i>ランキング</button>
     <button id="sNext" class="start-btn text-sm sm:text-lg shrink-0">NEXT ▶</button>
   </div>
 </div>
@@ -459,6 +460,7 @@
       <div id="rStand" class="mt-2 grid grid-cols-2 gap-x-4 text-[10px] sm:text-xs tabular-nums"></div>
       <div class="mt-2 flex gap-3">
         <button id="btnReplay" class="start-btn !px-5 !py-1.5 text-sm !tracking-[.2em]">REPLAY</button>
+        <button id="btnRank" class="mbtn hidden"><i data-i="trophy"></i>ランキング</button>
         <button id="btnLobby" class="hidden start-btn !px-5 !py-1.5 text-sm !tracking-[.2em]">LOBBY</button>
         <button id="btnTitle" class="rounded-full px-5 py-1.5 text-sm font-bold tracking-[.2em] border border-white/40 bg-white/5">TITLE</button>
       </div>
@@ -3280,6 +3282,7 @@ function renderStandings() {
 function showResult() {
   game.state = 'result';
   $('hud').classList.add('hidden'); $('hud2').classList.add('hidden'); showOnly('result'); resize();
+  $('btnRank').classList.toggle('hidden', !(game.mode === 'ta' && !NET.racing && !game.split));
   $('btnLobby').classList.toggle('hidden', !NET.racing); $('btnReplay').classList.toggle('hidden', NET.racing);
   if (NET.racing) netPresence({ st: 'done' });
   SND.startMusic('title');
@@ -4265,6 +4268,7 @@ const TA = {
     for (const b of itemBoxes) b.taken = 1e9;
     const d = this.devTime(stageIdx), pb = PF.ta?.[stageIdx];
     try { this.gData = JSON.parse(localStorage.getItem('ns_ghost_' + stageIdx) || 'null'); } catch (e) { this.gData = null; }
+    const dl = GhostNet.dl[stageIdx]; if (dl) { this.gData = { r: dl.r, cp: [] }; setTimeout(() => toast(`${I('globe')} ${dl.name} のゴースト（${fmtTime(dl.t)}）と走ります`, '#9d6bff', 3800), 500); }
     if (!this.ghost) {
       this.ghost = buildCarModel('VIPER', 0x6a7cff, 0xffffff, false, 'GHOST');
       this.ghost.root.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.32; o.material.depthWrite = false; } });
@@ -4287,7 +4291,7 @@ const TA = {
   tick(dt) {
     if (game.mode !== 'ta' || game.split) return;
     const st = game.state;
-    if (st === 'play' && !player.finished) { this.recT -= dt; if (this.recT <= 0) { this.recT = 0.1; this.rec.push(Math.round(player.s * 10) / 10, Math.round(player.x * 10) / 10, Math.round(player.h * 10) / 10); } }
+    if (st === 'play' && !player.finished) { this.recT -= dt; while (this.recT <= 0) { this.recT += 0.1; this.rec.push(Math.round(player.s * 10) / 10, Math.round(player.x * 10) / 10, Math.round(player.h * 10) / 10); } }   // ぴったり0.1秒ごと
     const g = this.gData, m = this.ghost;
     if (!m || !g || !g.r || (st !== 'play' && st !== 'finish')) { if (m) m.root.visible = false; return; }
     const f = game.elapsed * 10, i = Math.floor(f), n = g.r.length / 3;
@@ -4307,6 +4311,7 @@ const TA = {
       try { localStorage.setItem('ns_ghost_' + i, JSON.stringify({ r: this.rec, cp: RUN.cpT })); } catch (e) {}
       msgs.unshift([`${I('flag')} 自己ベスト更新 ${fmtTime(t)}${pb ? `（−${(pb.t - t).toFixed(2)}秒）` : ''}`, '#3bff9d']);
     }
+    GhostNet.afterRun(i, t, this.rec);
     const M = MEDALS[m];
     $('rPos').textContent = M ? M[0][0] : '-'; $('rPos').style.color = M ? M[1] : '#fff'; $('rPosSuf').textContent = '';
     $('rTitle').textContent = (M ? M[0] + ' MEDAL' : 'NO MEDAL') + (isPB ? '　NEW RECORD' : '');
@@ -5087,7 +5092,7 @@ function resetProgress() {
 document.querySelectorAll('#metaBtns button').forEach(b => b.addEventListener('click', () => Meta.open(b.dataset.t)));
 document.querySelectorAll('#mTabs button').forEach(b => b.addEventListener('click', () => { Meta.tab = b.dataset.t; Meta.render(); SND.tick(); }));
 $('mClose').addEventListener('click', () => Meta.close());
-const setMode = m => { game.mode = m; game.practice = m === 'practice'; if (m !== 'race') game.daily = null; $('segCpu').style.display = m !== 'race' ? 'none' : ''; $('segLv').style.display = m !== 'race' ? 'none' : ''; };
+const setMode = m => { $('sRank').style.display = m === 'ta' ? '' : 'none'; game.mode = m; game.practice = m === 'practice'; if (m !== 'race') game.daily = null; $('segCpu').style.display = m !== 'race' ? 'none' : ''; $('segLv').style.display = m !== 'race' ? 'none' : ''; };
 for (const id of ['btnStart', 'btn2P', 'btnOnline']) $(id).addEventListener('click', () => { setMode('race'); if (game.menu === 'stage') renderStageSel(); }, true);
 $('btnTA').addEventListener('click', () => { setSplit(false); game.netEdit = false; setMode('ta'); openStageSel(); });
 $('btnPractice').addEventListener('click', () => { setSplit(false); game.netEdit = false; setMode('practice'); openStageSel(); toast('練習モード: CPUなし。T キー / ↺ボタンで区間リトライ。走行後にジャスト率・最大熱・区間タイムを表示', '#3bff9d', 4200); });
@@ -5100,6 +5105,57 @@ setTimeout(() => {
   Meta.renderChip();
 }, 1500);
 
+
+// ---- オンライン・ゴーストランキング（Supabase。公開用キーで安全な関数だけ呼ぶ。SQLは supabase/ghost_ranking.sql）----
+const GhostNet = {
+  cli: null, dl: {}, ver: {},
+  ok() { return !!(SUPA.url && supaKeyIsPublic(SUPA.key)); },
+  async c() { const lib = await loadSupaLib(); return this.cli || (this.cli = lib.createClient(SUPA.url, SUPA.key, { auth: { persistSession: false, autoRefreshToken: false } })); },
+  token() {
+    let t = store.get('ns_gtok', null);
+    if (typeof t !== 'string' || t.length < 32) { const a = new Uint8Array(24); crypto.getRandomValues(a); t = [...a].map(b => b.toString(16).padStart(2, '0')).join(''); store.set('ns_gtok', t); }
+    return t;
+  },
+  // コースが変わったら別ランキングになるよう「キー:ゴール位置」を版として使う
+  courseVer(i) {
+    if (this.ver[i]) return this.ver[i];
+    const K = courseKit(); STAGES[i].build(K); let s = 0, goal = 0;
+    for (const seg of K.c) { if (seg.goal) goal = s + seg.goal; s += Math.max(1, Math.round(seg.len / DS)) * DS; }
+    return (this.ver[i] = `${STAGES[i].key}:${Math.round(goal)}`);
+  },
+  async call(fn, args) { const c = await this.c(); const { data, error } = await c.rpc(fn, args); if (error) throw error; return data; },
+  // タイムアタック完走後: アシストなしの自己ベストだけ送る
+  afterRun(i, t, rec) {
+    if (!this.ok() || game.assistUsed || !rec || rec.length < 30) return;
+    const pb = PF.gsent?.[i]; if (pb && pb <= t) return;
+    this.call('ns_ghost_submit', { p_course: i, p_ver: this.courseVer(i), p_token: this.token(), p_name: safeName(store.get('ns_name', '')), p_car: game.carType, p_time_ms: Math.round(t * 1000), p_ghost: rec.slice() })
+      .then(d => { const r = d && d[0]; PF.gsent = PF.gsent || {}; PF.gsent[i] = t; savePF(); if (r) toast(`${I('globe')} オンラインランキング ${r.rank}位${r.improved ? '（記録更新）' : ''}`, '#9d6bff', 4200); })
+      .catch(e => console.warn('ghost submit', e && e.message));
+  },
+  async open(i = stageIdx) {
+    const a = $('assistAsk');
+    const shell = body => { a.innerHTML = `<div class='panel rounded-2xl px-4 py-3 w-[min(94vw,560px)] max-h-[92vh] flex flex-col jp'><div class='flex items-center justify-between gap-2'><div><div class='text-[10px] tracking-[.3em] text-violet-300 font-black'>ONLINE GHOST RANKING</div><div class='text-lg font-black'>${STAGES[i].jp}</div></div><button id='rkClose' class='mbtn'>閉じる</button></div>${body}</div>`; a.classList.remove('hidden'); a.classList.add('flex'); $('rkClose').onclick = () => { a.classList.add('hidden'); a.classList.remove('flex'); SND.tick(); }; };
+    if (!this.ok()) { shell(`<div class='text-xs text-white/70 mt-3'>オンラインランキングの設定（Supabase）がまだ入っていません。</div>`); return; }
+    shell(`<div class='text-xs text-white/60 mt-3'>読み込み中…</div>`);
+    try {
+      const v = this.courseVer(i), [top, me] = await Promise.all([this.call('ns_ghost_top', { p_course: i, p_ver: v }), this.call('ns_ghost_rank', { p_course: i, p_ver: v, p_token: this.token() })]);
+      const m = me && me[0];
+      const rows = (top || []).map((r, k) => `<div class='flex items-center gap-2 px-2 py-1 rounded ${k % 2 ? 'bg-white/5' : ''}'><b class='w-8 text-right tabular-nums ${k < 3 ? 'text-yellow-300' : 'text-white/70'}'>${k + 1}</b><span class='flex-1 truncate'>${esc(r.name)}</span><span class='text-[10px] text-white/50'>${esc(r.car)}</span><span class='tabular-nums w-20 text-right'>${fmtTime(r.time_ms / 1000)}</span><button data-gid='${r.id | 0}' data-gn='${esc(r.name)}' class='mbtn !py-0.5 !px-2 text-[10px]'>GHOST</button></div>`).join('');
+      shell(`<div class='text-xs mt-2 ${m ? 'text-cyan-200' : 'text-white/60'}'>${m ? `あなた: ${m.rank}位 / ${m.total}人　${fmtTime(m.time_ms / 1000)}` : 'まだ記録がありません。アシスト「オフ」のタイムアタックで自己ベストを出すと自動で登録されます。'}</div>
+        <div class='text-[10px] text-white/45 mt-0.5'>GHOST を押すと、次のタイムアタックでその人の走りと一緒に走れます。</div>
+        <div class='mt-2 overflow-y-auto text-xs flex-1' style='touch-action:pan-y'>${rows || "<div class='text-white/50 p-2'>まだ誰も登録していません。一番乗りのチャンス！</div>"}</div>`);
+      a.querySelectorAll('[data-gid]').forEach(b => b.onclick = async () => {
+        b.textContent = '…';
+        try { const g = (await this.call('ns_ghost_get', { p_id: +b.dataset.gid }))[0]; if (!g || !Array.isArray(g.ghost)) throw 0;
+          this.dl[i] = { r: g.ghost.map(Number), name: g.name, t: g.time_ms / 1000 }; b.textContent = 'OK'; toast(`${I('globe')} ${esc(g.name)} のゴーストをセットしました`, '#9d6bff'); SND.itemGet();
+        } catch (e) { b.textContent = '失敗'; }
+      });
+    } catch (e) { shell(`<div class='text-xs text-white/70 mt-3'>ランキングに接続できませんでした。${/function|schema|404|PGRST/i.test(String(e && (e.message || e.code))) ? '（サーバー側の準備 supabase/ghost_ranking.sql がまだ実行されていないようです）' : '通信環境を確認してください。'}</div>`); }
+  },
+};
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+$('sRank').addEventListener('click', () => { SND.tick(); GhostNet.open(stageIdx); });
+$('btnRank').addEventListener('click', () => { SND.tick(); GhostNet.open(stageIdx); });
 
 // ---- 日替わり縛り / HARDCORE のミラー / 練習モード ----
 const DAILY_RULES = {
@@ -5370,7 +5426,7 @@ toTitle();
 $('loading').remove();
 requestAnimationFrame(frame);
 // 検証用フック
-window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, get RUN() { return RUN; }, autopilot: false,
+window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, get RUN() { return RUN; }, autopilot: false,
   setQuality: q => { quality = q; applyQuality(); },
   sim: (sec, boost, items) => { for (let i = 0; i < sec * 60; i++) { if (boost && player.nitro >= 50) input.boostReq = true; if (items && player.item && player.roulette <= 0) input.itemReq = true; update(1 / 60); } } };
 </script>
