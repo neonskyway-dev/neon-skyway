@@ -1694,6 +1694,21 @@ const CAR_TYPES = {
     extras: () => [['p', box(2.7, 0.06, 0.55, 0, 0.22, -2.7)], [N, box(2.72, 0.03, 0.05, 0, 0.27, -2.98)], ...sym(k => ['p', box(0.05, 0.32, 0.62, 1.35 * k, 0.32, -2.7)]),
       ['p', box(2.4, 0.08, 0.62, 0, 1.42, 2.05)], ...sym(k => ['p', box(0.06, 0.62, 0.72, 1.2 * k, 1.16, 2.05)]), [N, box(2.42, 0.03, 0.05, 0, 1.48, 2.37)],
       ...sym(k => ['p', box(0.5, 0.38, 1.9, 0.74 * k, 0.45, 0.3)]), ...sym(k => [N, box(0.04, 0.06, 1.7, 1.0 * k, 0.55, 0.3)])] },
+  // バイク: 前後2輪・ライダー付き。加速と旋回は最強、軽いのでぶつかり合いに弱い。カーブで大きく車体を倒す
+  BIKE: { jp: 'スーパースポーツ・バイク', desc: '加速と旋回は全車種で最強。カーブでは大きく車体を倒す。軽いのでぶつかられると弱い。', paint: 0x14141c, neon: 0xff8a00, bike: true, lean: 0.5,
+    body: [[1.55, 0.55], [1.7, 0.82], [1.25, 1.2], [0.55, 1.28], [0.1, 1.12], [-0.55, 1.12], [-1.05, 1.02], [-1.5, 1.0], [-1.55, 0.78], [-0.6, 0.52], [0.6, 0.4]], w: 0.56,
+    glass: [[1.2, 1.18], [0.92, 1.52], [0.72, 1.5], [0.86, 1.2]], gw: 0.46,
+    wh: { r: 0.46, w: 0.2, x: 0, zf: -1.22, zr: 1.12 }, zf: -1.72, zr: 1.55, ny: 0.62, ty: 1.0, flameX: 0.1, flameY: 0.78,
+    stats: { top: 1.02, acc: 1.16, hdl: 1.16, mass: 0.5, dmg: 0.42 }, bars: [4, 5, 5, 1],
+    extras: () => [
+      ['d', box(0.42, 0.5, 0.42, 0, 1.55, 0.05).rotateX(-0.75)],            // ライダーの胴（前傾）
+      ['p', box(0.36, 0.34, 0.42, 0, 1.86, -0.42)],                          // ヘルメット
+      [N, box(0.3, 0.07, 0.04, 0, 1.88, -0.64)],                              // バイザーの光
+      ...sym(k => ['d', box(0.12, 0.12, 0.6, 0.24 * k, 1.42, -0.42).rotateX(0.45)]),   // 腕
+      ...sym(k => ['d', box(0.14, 0.5, 0.16, 0.22 * k, 0.95, 0.35).rotateX(0.6)]),     // 脚
+      ['d', box(0.1, 0.1, 0.9, 0, 0.62, -1.0).rotateX(-0.35)],               // フロントフォーク
+      ['d', box(0.12, 0.12, 0.9, 0, 0.55, 0.75)],                            // スイングアーム
+      [N, box(0.04, 0.05, 1.4, 0.3, 0.75, 0.1)], [N, box(0.04, 0.05, 1.4, -0.3, 0.75, 0.1)]] },
 };
 const TYPE_KEYS = Object.keys(CAR_TYPES);
 const geoCache = {};
@@ -1713,7 +1728,7 @@ function buildCarModel(typeKey, paintHex, neonHex, detailed, label) {
   const wheels = [], W = T.wh;
   const tireGeo = new THREE.CylinderGeometry(W.r, W.r, W.w, 16).rotateZ(Math.PI / 2);
   const rimGeo = new THREE.TorusGeometry(W.r * 0.67, 0.04, 6, 16).rotateY(Math.PI / 2);
-  const WP = [[-W.x, W.zf], [W.x, W.zf], [-W.x, W.zr], [W.x, W.zr]];
+  const WP = T.bike ? [[0, W.zf], [0, W.zr]] : [[-W.x, W.zf], [W.x, W.zf], [-W.x, W.zr], [W.x, W.zr]];
   if (detailed) {
     for (const [x, z] of WP) {
       const w = new THREE.Group(); w.position.set(x, W.r, z);
@@ -1752,7 +1767,7 @@ function buildCarModel(typeKey, paintHex, neonHex, detailed, label) {
     tag.scale.set(0.2, 0.05, 1); tag.position.y = 2.4; root.add(tag);
   }
   scene.add(root);
-  return { root, body, wheels, flames, flameMat, glow, shield, tag, type: typeKey };
+  return { root, body, wheels, flames, flameMat, glow, shield, tag, type: typeKey, lean: T.lean || 0.07 };
 }
 
 const CPU_DEFS = [['VOLT', 0x5a0a1a, 0xff3b5c], ['NOVA', 0x0a3a2a, 0x3bff9d], ['KAGE', 0x15121f, 0xb36bff], ['RAZOR', 0x4a3a00, 0xffd400], ['JINX', 0x3a0a4a, 0xff2bd6],
@@ -3092,7 +3107,7 @@ function updateCarTransform(c, dt, snap = false) {
   _q2.setFromAxisAngle(_yAxis, yaw); _q.multiply(_q2);
   if (c.trickT > 0) { Meta.trickQuat(c, _q2); _q.multiply(_q2); }
   if (c.air && c.airPitch) { _q2.setFromAxisAngle(_pitchAx, -c.airPitch * D2R); _q.multiply(_q2); }
-  _q2.setFromAxisAngle(_zAxis, -c.lean * 0.07); _q.multiply(_q2);
+  _q2.setFromAxisAngle(_zAxis, -c.lean * (c.model.lean || 0.07)); _q.multiply(_q2);   // バイクは大きく倒す
   if (snap) c.quat.copy(_q); else c.quat.slerp(_q, 1 - Math.exp(-(c.air ? 8 : 18) * dt));
   m.root.position.copy(c.pos); m.root.quaternion.copy(c.quat);
   m.body.visible = !(c.invuln > 0 && c.spin <= 0 && Math.floor(game.t * 16) % 2 === 0);
@@ -3596,7 +3611,7 @@ syncOpts();
    19. マルチプレイ (ローカル2P画面分割 / オンライン)
    ===================================================================== */
 // ---------- ローカル2P ----------
-const P2_COLORS = { VIPER: [0x5a0a3a, 0xff6ab0], PHANTOM: [0x3a0a00, 0xff8a00], BLITZ: [0x2a0a5a, 0xb36bff], TITAN: [0x0a3a2a, 0x3bff9d], AERO: [0x111111, 0xffd400] };
+const P2_COLORS = { VIPER: [0x5a0a3a, 0xff6ab0], PHANTOM: [0x3a0a00, 0xff8a00], BLITZ: [0x2a0a5a, 0xb36bff], TITAN: [0x0a3a2a, 0x3bff9d], AERO: [0x111111, 0xffd400], BIKE: [0x1a1a24, 0x29f3ff] };
 let p2 = null, p2Models = null;
 const camera2 = new THREE.PerspectiveCamera(68, 1, 0.1, 2600);
 const cam2 = { back: 6, pos: new V3(), up: new V3(0, 1, 0), fov: 66, kick: 0, shake: 0, intro: 0, look: new V3() };
@@ -4999,6 +5014,7 @@ function applyCusTo(k) {
   }
   if (m.cusG) { m.body.remove(m.cusG); m.cusG.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
   const G2 = m.cusG = new THREE.Group(); m.body.add(G2); m.lightbar = null;
+  if (CAR_TYPES[k].bike) return;   // バイクはホイールの色だけ
   const neon = m.rimMat, add = (geo, mat) => { const me = new THREE.Mesh(geo, mat); G2.add(me); return me; };
   const { w, rearY, rearZ, roofY, roofZ, frontY, frontZ } = d;
   if (C.wing === 'DUCK') add(box(w * 0.92, 0.1, 0.32, 0, 0, 0).rotateX(-0.3).translate(0, rearY + 0.06, rearZ), paint);
