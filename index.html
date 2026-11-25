@@ -680,7 +680,7 @@ const LANDING = { perfectDeg: 8, badDeg: 25, perfectGain: 0.12, badLoss: 0.30, m
   autoLevel: 110,           // アシスト「フル」: 機首を自動で起こす速さ(°/秒)
   autoLevelTo: 15 };        // フルはこの角度差まで起こす（HARD は防ぐが PERFECT は自分で狙う）
 // 遊園地ギミック（ドリームパーク）: 巻き上げの速さ / ドロップ・ローンチのブースト秒数
-const RIDE = { liftV: 22, dropBoost: 2.4, launchBoost: 3.2, launchV: 74, clack: 0.17 };
+const RIDE = { liftV: 22, crestV: 9, dropBoost: 2.4, launchBoost: 3.2, launchV: 74, clack: 0.17 };
 // B4. フロー・コンボ（ジャストドリフト / PERFECT LANDING / ラッシュパッド / スリップストリーム / ニアミス を繋ぐ）
 const FLOW = {
   window: 3.0,              // 次の技までの猶予(秒)
@@ -765,7 +765,7 @@ function quatFromFrame(r, u, f, q) { _nf.copy(f).negate(); _m4.makeBasis(r, u, _
 /* =====================================================================
    2. ステージ定義
    ===================================================================== */
-const F_TUNNEL = 8, F_ICE = 16, F_WIND = 32, F_LIFT = 64, F_DROP = 128, F_LAUNCH = 256, F_SPLASH = 512;
+const F_TUNNEL = 8, F_ICE = 16, F_WIND = 32, F_LIFT = 64, F_DROP = 128, F_LAUNCH = 256, F_SPLASH = 512, F_MEGA = 1024, F_CREST = 2048;
 function courseKit() {
   const c = [];
   const S = (len, o = {}) => c.push({ len, ...o });
@@ -1036,8 +1036,10 @@ const STAGES = [
       S(170, { start: true, coins: { type: 'line', x: 0, from: 70, to: 160, step: 6 } });
       TURN(200, 45, { items: [100], coins: { type: 'slalom', from: 20, to: 190, step: 7, amp: 4, period: 80 } });
       // 1. 巻き上げ（チェーンでゆっくり）→ 絶叫ファーストドロップ
-      PITCH(60, 20, { lift: true, msg: 'LIFT HILL… カタカタカタ' }); S(170, { lift: true, coins: { type: 'line', x: 0, from: 10, to: 160, step: 10 } }); PITCH(40, -20, { lift: true });
-      PITCH(80, -45, { drop: true, msg: 'FIRST DROP!!!' }); S(30, { drop: true }); PITCH(80, 45, { coins: { type: 'line', x: 0, from: 5, to: 75, step: 6, h: 1.3 } });
+      // 白鯨のように「高く、高く、高く」: 長い急勾配の巻き上げ → 頂上で一瞬止まる → 70°の絶叫ドロップ
+      PITCH(70, 32, { lift: true, msg: 'LIFT HILL… カタカタカタ' }); S(200, { lift: true, msg: 'まだ上がる…', coins: { type: 'line', x: 0, from: 10, to: 190, step: 12 } });
+      S(160, { lift: true, msg: '高い…高すぎる…！' }); PITCH(50, -32, { lift: true, crest: true, msg: '………' });
+      PITCH(110, -70, { drop: true, msg: 'FIRST DROP!!!' }); S(120, { drop: true }); PITCH(110, 70, { coins: { type: 'line', x: 0, from: 5, to: 105, step: 6, h: 1.3 } });
       // 2. 浮遊感のエアタイムヒル
       HILLS(4, 16);
       S(60, { cp: true, items: [40] });
@@ -1055,11 +1057,36 @@ const STAGES = [
       TURN(330, -165, { msg: 'HAIRPIN!', coins: { type: 'line', x: 4.5, from: 30, to: 300, step: 9 } });
       S(60, { cp: true, items: [40] });
       // 6. ドロップタワー（2回目の巻き上げはもっと高く、もっと急に）
-      PITCH(50, 25, { lift: true, msg: 'DROP TOWER…' }); S(130, { lift: true }); PITCH(40, -25, { lift: true });
-      PITCH(70, -55, { drop: true, msg: 'DROP TOWER!!!' }); S(30, { drop: true }); PITCH(70, 55);
+      PITCH(60, 36, { lift: true, msg: 'DROP TOWER…' }); S(240, { lift: true, msg: 'さらに高く…！' }); PITCH(50, -36, { lift: true, crest: true, msg: '………' });
+      PITCH(100, -80, { drop: true, msg: 'DROP TOWER!!!' }); S(110, { drop: true }); PITCH(100, 80);
       HILLS(3, 14);
       TURN(240, 90, { coins: { type: 'slalom', from: 20, to: 220, step: 7, amp: 4, period: 80 } });
       S(70, { boost: [[20, 0]] }); RAMP(19, { msg: 'FINAL JUMP!' }); PITCH(50, -16); S(80); PITCH(50, 16);
+      FINAL();
+    } },
+  { key: 'WILD FALLS', env: 'mesa', weather: 'mist', water: true, jp: 'ワイルドフォールズ', desc: '丸太ボートで渓谷の水路を下る！ 急流・暗い洞窟・滝のカーテン、そして最後は大きな巻き上げから水面へ大落下。ずぶ濡れ覚悟の絶叫ウォーターライド。', stars: 4, fever: 16, icons: 'RAPIDS / CAVE / WATERFALL / SPLASH DOWN',
+    theme: { top: [0.0, 0.02, 0.05], mid: [0.03, 0.12, 0.18], hor: [0.35, 0.75, 0.7], sunA: [0.6, 1, 0.85], sunB: [1, 0.95, 0.7], fog: 0x0b2a30, grid: [0.3, 0.9, 0.8],
+      lane: '#bff8ff', edge: '#3bd6c6', rails: [0x3bd6c6, 0xffd27a], gates: [0x3bd6c6, 0xffd27a, 0x9fe8ff], tints: [0x5a3a24, 0x3a5a2a, 0x7a5a3a, 0x2a4a3a, 0x8a6a4a] },
+    build: ({ S, TURN, PITCH, RAMP, LOOP, CORK, HILLS, FINAL }) => {
+      S(170, { start: true, coins: { type: 'line', x: 0, from: 70, to: 160, step: 6 } });
+      TURN(220, 50, { items: [110], msg: 'JUNGLE RIVER', coins: { type: 'slalom', from: 20, to: 210, step: 7, amp: 4, period: 80 } });
+      S(240, { splash: true, wind: true, msg: 'RAPIDS!', coins: { type: 'slalom', from: 20, to: 230, step: 7, amp: 5, period: 70 } });
+      // 1つめの巻き上げ → 小さな滝つぼ
+      PITCH(60, 20, { lift: true, msg: 'ザザザ… 巻き上げ' }); S(140, { lift: true }); PITCH(40, -20, { lift: true, crest: true, msg: '………' });
+      PITCH(80, -42, { drop: true, msg: 'WATERFALL DROP!!' }); S(30, { drop: true }); PITCH(80, 42, { splash: true });
+      S(60, { cp: true, items: [40] });
+      S(280, { tunnel: true, splash: true, msg: 'DARK CAVE…', coins: { type: 'line', x: 0, from: 20, to: 270, step: 8 }, jackpot: [[240, 0, 1.2]] });
+      TURN(300, -115, { splash: true, coins: { type: 'line', x: 4, from: 30, to: 280, step: 9 } });
+      HILLS(3, 12);
+      S(60, { cp: true, items: [40] });
+      S(70, { boost: [[15, -3.5], [15, 3.5], [45, 0]] }); RAMP(21, { msg: 'LOG JUMP!!' }); PITCH(60, -22); S(110); PITCH(60, 22);
+      TURN(330, 160, { msg: 'WHIRLPOOL HAIRPIN!', splash: true, coins: { type: 'line', x: -4.5, from: 30, to: 300, step: 9 } });
+      S(60, { cp: true });
+      // 最後の大落下: 長い巻き上げ → 頂上で止まる → 60°で水面へ
+      PITCH(70, 30, { lift: true, msg: 'THE BIG ONE…' }); S(300, { lift: true, msg: 'ここが一番高い…' }); PITCH(50, -30, { lift: true, crest: true, msg: '………' });
+      PITCH(110, -62, { drop: true, msg: 'SPLASH DOWN!!!' }); S(70, { drop: true }); PITCH(110, 62, { splash: true, mega: true });
+      S(220, { splash: true, msg: 'ずぶ濡れ！', coins: { type: 'slalom', from: 10, to: 210, step: 6, amp: 5, period: 70 }, boost: [[120, 0]] });
+      TURN(240, -80, { coins: { type: 'line', x: 3, from: 20, to: 220, step: 8 } });
       FINAL();
     } },
 ];
@@ -1080,7 +1107,7 @@ function buildTrack() {
     for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; const x = seg.dist === 'instant' ? (k === 0 ? 1 : 0) : Math.sin(Math.PI * t) ** 2; w.push(x); sum += x; }
     const yaw = seg.yaw || 0, pitch = seg.pitch || 0, shift = seg.shift || 0, roll = seg.roll || 0;
     const flag = (seg.loop ? F_LOOP : 0) | (seg.ramp ? F_RAMP : 0) | (seg.tunnel ? F_TUNNEL : 0) | (seg.ice ? F_ICE : 0) | (seg.wind ? F_WIND : 0)
-      | (seg.lift ? F_LIFT : 0) | (seg.drop ? F_DROP : 0) | (seg.launch ? F_LAUNCH : 0) | (seg.splash ? F_SPLASH : 0);
+      | (seg.lift ? F_LIFT : 0) | (seg.drop ? F_DROP : 0) | (seg.launch ? F_LAUNCH : 0) | (seg.splash ? F_SPLASH : 0) | (seg.mega ? F_MEGA : 0) | (seg.crest ? F_CREST : 0);
     const rise = seg.rise || 0;   // らせん（ヘリックス）用: 少しずつ真上に持ち上げて重ならないようにする
     for (let k = 0; k < n; k++) {
       const wk = w[k] / sum;
@@ -1252,6 +1279,7 @@ function stripMesh(count, fill, mat, skip) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   g.setIndex(idx); g.computeBoundingSphere();
+  if (mat && !mat.isMeshBasicMaterial) g.computeVertexNormals();   // 光の計算をする材質には面の向きが必要（ないと NaN で画面が真っ黒になる）
   const m = new THREE.Mesh(g, mat); stageRoot.add(m); return m;
 }
 const isGapQ = k => (TR.flags[k] & F_GAP) || (TR.flags[k + 1] & F_GAP);
@@ -1271,7 +1299,11 @@ function buildTrackMeshes() {
   const th = STAGE.theme;
   // 路面: 濡れたアスファルト（ネオンが映り込む）＋白線は自分で光る
   const R0 = mulberry32(99);
-  texRoad = stex(256, 512, (c, w, h) => {
+  texRoad = STAGE.water ? stex(256, 512, (c, w, h) => {   // 水路: 流れる水面（ENV.tick でスクロール）
+    const g = c.createLinearGradient(0, 0, w, 0); g.addColorStop(0, '#0a3a4a'); g.addColorStop(0.5, '#0f5a6e'); g.addColorStop(1, '#0a3a4a'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 140; i++) { const x = R0() * w, y = R0() * h, L = 20 + R0() * 60; c.strokeStyle = `rgba(220,250,255,${0.08 + R0() * 0.25})`; c.lineWidth = 1 + R0() * 2; c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 6, y + L * 0.3, x - 6, y + L * 0.6, x + 2, y + L); c.stroke(); }
+    c.fillStyle = 'rgba(235,250,255,.75)'; c.fillRect(17, 0, 4, h); c.fillRect(w - 21, 0, 4, h);
+  }, true) : stex(256, 512, (c, w, h) => {
     c.fillStyle = '#2a2734'; c.fillRect(0, 0, w, h);
     for (let i = 0; i < 9000; i++) { const v = 18 + R0() * 34 | 0; c.fillStyle = `rgba(${v},${v},${v + 6},${0.35 + R0() * 0.4})`; c.fillRect(R0() * w, R0() * h, 1 + R0() * 1.6, 1 + R0() * 1.6); }   // 骨材の粒
     c.fillStyle = 'rgba(0,0,0,.25)'; for (const x of [w * 0.3, w * 0.7]) c.fillRect(x - 14, 0, 28, h);   // タイヤの通り道（少し黒い）
@@ -1285,7 +1317,9 @@ function buildTrackMeshes() {
     c.fillStyle = th.edge; c.globalAlpha = 0.7; c.fillRect(17, 0, 4, h); c.fillRect(w - 21, 0, 4, h);
   }, true);
   const { P, U, R, N } = TR;
-  const roadMat = new THREE.MeshStandardMaterial({ map: texRoad, emissiveMap: texRoadE, emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.38, metalness: 0.25, envMapIntensity: 2.2, side: THREE.DoubleSide });
+  const roadMat = STAGE.water
+    ? new THREE.MeshStandardMaterial({ map: texRoad, emissiveMap: texRoad, emissive: 0x66ccdd, emissiveIntensity: 0.55, roughness: 0.12, metalness: 0.35, envMapIntensity: 2.6, side: THREE.DoubleSide })
+    : new THREE.MeshStandardMaterial({ map: texRoad, emissiveMap: texRoadE, emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.38, metalness: 0.25, envMapIntensity: 2.2, side: THREE.DoubleSide });
   stripMesh(N, (k, a, b, t) => { a.copy(P[k]).addScaledVector(R[k], -HALF_W); b.copy(P[k]).addScaledVector(R[k], HALF_W); t.v = k * DS / 32; }, roadMat, isGapQ);
   // 縁石（テーマ色と白のしま）
   const texCurb = stex(16, 64, (c, w, h) => { c.fillStyle = '#f2f2f6'; c.fillRect(0, 0, w, h); c.fillStyle = th.edge; c.fillRect(0, 0, w, h / 2); c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, 2, h); c.fillRect(w - 2, 0, 2, h); }, true);
@@ -2507,10 +2541,23 @@ function hitCar(c, owner) {
    14. 物理
    ===================================================================== */
 /* ---- 遊園地ギミック ---- */
+// 画面に水滴がつく（大着水）
+function screenDrops() {
+  let d = $('drops'); if (!d) { d = document.createElement('div'); d.id = 'drops'; d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9;transition:opacity 2.2s ease-in'; document.body.appendChild(d); }
+  d.style.transition = 'none'; d.style.opacity = '1';
+  const g = []; for (let i = 0; i < 46; i++) { const x = Math.random() * 100, y = Math.random() * 100, r = 6 + Math.random() * 34; g.push(`radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,.55) 0, rgba(190,235,255,.28) ${r * 0.45}px, rgba(120,200,255,.12) ${r * 0.8}px, transparent ${r}px)`); }
+  d.style.background = g.join(',') + ',linear-gradient(180deg,rgba(160,220,255,.18),rgba(160,220,255,.05))';
+  requestAnimationFrame(() => { d.style.transition = 'opacity 2.6s ease-in 0.6s'; d.style.opacity = '0'; });
+}
 const Ride = {
   tick(c, fl, dt) {
     const prev = c.rideF || 0, fx = c.isPlayer && live(), near = nearCam(c);
-    c.rideF = fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH);
+    c.rideF = fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH | F_CREST | F_MEGA);
+    if ((fl & F_CREST) && fx) {   // 頂上: ほぼ止まって、心臓の音だけ
+      c.beatT = (c.beatT || 0) - dt;
+      if (c.beatT <= 0) { c.beatT = 0.55; if (SND.ok()) { const t = SND.t(); SND.tone(62, t, 0.13, 'sine', 0.6); SND.tone(58, t + 0.17, 0.12, 'sine', 0.45); } vib([40, 120, 30]); cam.shake = Math.max(cam.shake, 0.12); }
+      if (!(prev & F_CREST)) { SND.duck && SND.duck(true); say(['頂上……！ 下が、見えない……', 'ここから落ちるのか……！'], 2); }
+    } else if ((prev & F_CREST) && fx) SND.duck && SND.duck(false);
     if ((fl & F_LIFT) && fx) {   // カタカタ…（音と振動を同期）
       c.clackT = (c.clackT || 0) - dt;
       if (c.clackT <= 0) { c.clackT = RIDE.clack; if (SND.ok()) { const t = SND.t(); SND.tone(95, t, 0.04, 'square', 0.12); SND.noiseHit(t, 0.03, 0.18, 'highpass', 3000, null, SND.sfx); } vibSoft(9); cam.shake = Math.max(cam.shake, 0.08); }
@@ -2532,6 +2579,12 @@ const Ride = {
         if (SND.ok()) { const t = SND.t(); SND.noiseHit(t, 0.9, 0.7, 'bandpass', 200, 6000, SND.sfx, 3); }
         vib([60, 20, 60, 20, 300]); say(['射出！！ 一瞬で最高速！', 'ローンチ！ 背中がシートに張りつく！'], 2);
       }
+    }
+    if ((fl & F_MEGA) && !(prev & F_MEGA)) {   // 大落下の着水
+      if (near) emit(c.pos, c.isPlayer ? 260 : 60, { speed: 30, color: 0x9fe8ff, color2: 0xffffff, size: 1.3, life: 1.4, grav: 22, vel: c.up.clone().multiplyScalar(26) });
+      if (fx) { RUN.splashdown = (RUN.splashdown || 0) + 1; Flow.ev('pad'); pop('SPLASH DOWN!!!', '#9fe8ff', 52); flash('#dff8ff', 0.75); cam.shake = 1.4; cam.kick = 30; screenDrops();
+        if (SND.ok()) { const t = SND.t(); SND.noiseHit(t, 1.6, 0.9, 'lowpass', 2400, 200, SND.sfx, 1); SND.noiseHit(t + 0.05, 1.2, 0.5, 'bandpass', 800, 3000, SND.sfx, 2); }
+        vib([220, 60, 160, 60, 300]); say(['ざっぱーーーん！！ 全身ずぶ濡れ！！', '大着水！！ 水しぶきがすごい！'], 3); }
     }
     if (fl & F_SPLASH) {
       if (near && Math.random() < 0.6) emit(c.pos, c.isPlayer ? 6 : 2, { speed: 9, color: 0x6fd3ff, color2: 0xffffff, size: 0.55, life: 0.7, grav: 18, vel: c.up.clone().multiplyScalar(9) });
@@ -2743,8 +2796,8 @@ function physics(c, dt, ctl) {
   if (!c.air) {
     const rateV = c.v < target ? (boosting(c) ? 2.4 : 0.36 * c.stats.acc) : (ending ? 1.0 : 0.45);
     c.v += (target - c.v) * rateV * dt;
-    if (fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH) || c.rideF) Ride.tick(c, fl, dt);
-    if (fl & F_LIFT) { c.v = damp(c.v, RIDE.liftV, 3, dt); c.boostT = 0; c.padT = 0; }
+    if (fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH | F_CREST) || c.rideF) Ride.tick(c, fl, dt);
+    if (fl & F_LIFT) { c.v = damp(c.v, (fl & F_CREST) ? RIDE.crestV : RIDE.liftV, 3, dt); c.boostT = 0; c.padT = 0; }
     else if (fl & F_RAMP) c.v = damp(c.v, V_RAMP, 8, dt);
     else if (fl & F_LOOP) c.v = Math.max(c.v, V_MIN_LOOP);
     else c.v += -fr.fwd.y * SLOPE_ACC * dt;
@@ -4819,6 +4872,20 @@ const ENV = {
       }
       stageRoot.add(im);
     }
+    this.falls = [];
+    if (STAGE.water) {   // コース脇の滝（水のカーテン）
+      const tex = stex(64, 256, (c, w, h) => { c.fillStyle = 'rgba(0,0,0,0)'; c.clearRect(0, 0, w, h); for (let i = 0; i < 70; i++) { const x = Math.random() * w; c.fillStyle = `rgba(210,245,255,${0.15 + Math.random() * 0.5})`; c.fillRect(x, Math.random() * h, 1 + Math.random() * 2.5, 30 + Math.random() * 90); } }, true);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, color: 0xbff4ff });
+      const R = mulberry32(31 + stageIdx), fr = FR();
+      for (let s = 260; s < goalS - 100; s += 240 + R() * 160) {
+        if (flagAt(s) & (F_LOOP | F_TUNNEL)) continue;
+        frameAt(s, fr); const side = R() < 0.5 ? -1 : 1, H = 50 + R() * 40;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(14 + R() * 12, H), mat);
+        m.position.copy(fr.pos).addScaledVector(fr.right, side * (HALF_W + 16 + R() * 20)); m.position.y += H / 2 - 6;
+        m.lookAt(m.position.clone().addScaledVector(fr.right, -side)); stageRoot.add(m);
+      }
+      this.falls.push(tex);
+    }
     this.wheels = [];
     if (STAGE.env === 'park') {   // 観覧車（ゆっくり回る）
       const R = mulberry32(777 + stageIdx), cols = STAGE.theme.tints;
@@ -4849,6 +4916,8 @@ const ENV = {
   },
   tick(dt) {
     for (const h of this.wheels || []) h.rotation.z += dt * 0.12;
+    for (const t of this.falls || []) t.offset.y += dt * 1.6;   // 滝が流れ落ちる
+    if (STAGE.water && texRoad) texRoad.offset.y -= dt * 0.9;   // 水路の水が流れる
     if (STAGE.weather === 'fireworks' && game.state !== 'result') {   // 打ち上げ花火
       this.fwT = (this.fwT || 1) - dt;
       if (this.fwT <= 0) {
@@ -4872,6 +4941,7 @@ const ENV = {
       if (w === 'bubble') spawn(2, () => { _wP.y -= 4; emit(_wP, 1, { speed: 0.5, color: 0x9ff6ff, size: 0.5, life: 2, vel: _wV.set(0, 5, 0) }); });
       if (w === 'confetti') spawn(3, () => { _wP.y += 10 + Math.random() * 10; emit(_wP, 1, { speed: 1, color: _wC.setHSL(Math.random(), 1, 0.6).getHex(), size: 0.5, life: 2, vel: _wV.set(0, -6, 0) }); });
       if (w === 'spark') spawn(2, () => { _wP.y += Math.random() * 8; emit(_wP, 1, { speed: 2, color: _wC.setHSL(Math.random(), 1, 0.65).getHex(), size: 0.35, life: 0.8, vel: _wV.copy(fw).multiplyScalar(-30) }); });
+      if (w === 'mist') spawn(2, () => { _wP.y += Math.random() * 5; emit(_wP, 1, { speed: 0.4, color: 0xdff8ff, size: 1.6, life: 2.4, vel: _wV.set(0, 0.6, 0) }); });
       if (w === 'dust') spawn(1, () => { _wP.y += Math.random() * 6; emit(_wP, 1, { speed: 0.5, color: 0xffb070, size: 0.3, life: 1.5, vel: _wV.copy(rt).multiplyScalar(6) }); });
     }
     // 稲妻 (ストーム)
