@@ -195,6 +195,33 @@
   .capsule-big{font-size:60px;filter:drop-shadow(0 0 20px #ff2bd6);animation:floaty 2s ease-in-out infinite}
   .gcard{width:94px;padding:8px 6px;border-radius:12px;text-align:center;background:rgba(10,2,25,.88);border:2px solid var(--rc);box-shadow:0 0 14px var(--rc);animation:cardin .45s cubic-bezier(.2,1.5,.4,1) both}
   .gcard.r-UR{animation:cardin .45s cubic-bezier(.2,1.5,.4,1) both,huespin 1.2s linear infinite}
+  .gcard.r-GOD{background:linear-gradient(160deg,#3a2600,#140c00);border-color:#ffe680;box-shadow:0 0 22px #ffd400,0 0 44px #ffb000;animation:cardin .45s cubic-bezier(.2,1.5,.4,1) both,godpulse .8s ease-in-out infinite}
+  @keyframes godpulse{50%{box-shadow:0 0 34px #fff3b0,0 0 70px #ffc400}}
+  /* ---- ドーパミンスロット ---- */
+  .dslot{position:relative;padding:14px 16px 12px;border-radius:22px;background:linear-gradient(180deg,#2a0a4a,#0b0220);border:3px solid var(--sc,#ff2bd6);box-shadow:0 0 28px var(--sc,#ff2bd6),inset 0 0 30px rgba(0,0,0,.6);transition:border-color .25s,box-shadow .25s}
+  .dslot .ttl{font-weight:900;letter-spacing:.35em;font-size:13px;text-align:center;color:#fff;text-shadow:0 0 10px var(--sc,#ff2bd6),0 0 22px var(--sc,#ff2bd6)}
+  .dslot .lamps{display:flex;justify-content:space-between;margin:6px 4px 8px}
+  .dslot .lamps i{width:9px;height:9px;border-radius:50%;background:var(--sc,#ff2bd6);box-shadow:0 0 8px var(--sc,#ff2bd6);animation:lampb .5s steps(2) infinite}
+  .dslot .lamps i:nth-child(2n){animation-delay:.25s}
+  @keyframes lampb{50%{opacity:.2}}
+  .dslot .reels{display:flex;gap:8px}
+  .dreel{width:84px;height:96px;border-radius:12px;background:linear-gradient(180deg,#000 0%,#1c1030 18%,#f5f0ff 50%,#1c1030 82%,#000 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,.25)}
+  .dreel b{font-size:46px;font-weight:900;font-family:Impact,'Arial Black',sans-serif;line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+  .dreel.spin b{animation:reelspin .07s linear infinite;filter:blur(1.5px)}
+  .dreel.stop b{animation:reelstop .28s cubic-bezier(.2,1.6,.4,1)}
+  .dreel.slow b{animation:reelspin .2s linear infinite;filter:blur(.6px)}
+  .dreel.hit{box-shadow:0 0 22px var(--sc,#fff),inset 0 0 18px var(--sc,#fff);border-color:var(--sc,#fff)}
+  @keyframes reelspin{from{transform:translateY(-60%)}to{transform:translateY(60%)}}
+  @keyframes reelstop{0%{transform:translateY(-40%)}100%{transform:translateY(0)}}
+  .dslot.rainbow{animation:huespin .5s linear infinite}
+  .dslot.shake{animation:capshake .25s ease-in-out infinite}
+  .dmsg{font-weight:900;letter-spacing:.2em;text-align:center;min-height:30px;font-size:22px;margin-top:10px}
+  .dmsg.reach{animation:reachp .35s ease-in-out infinite;color:#ff2050;text-shadow:0 0 14px #ff2050}
+  @keyframes reachp{50%{transform:scale(1.18)}}
+  .godL{display:inline-block;font-size:92px;font-weight:900;font-family:Impact,'Arial Black',sans-serif;color:#ffe680;text-shadow:0 0 20px #ffc400,0 0 50px #ff9a00,0 4px 0 #8a5a00;animation:godin .5s cubic-bezier(.2,1.8,.4,1) both;margin:0 6px}
+  @keyframes godin{0%{transform:scale(4) rotate(-12deg);opacity:0}100%{transform:none;opacity:1}}
+  .gold-rain{position:fixed;top:-20px;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6c0,#ffc400 55%,#b07800);pointer-events:none;animation:grain linear forwards;z-index:60}
+  @keyframes grain{to{transform:translateY(110vh) rotate(720deg)}}
   @keyframes cardin{from{transform:rotateY(90deg) scale(.6);opacity:0}}
   .swatch{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:middle;border:1px solid rgba(255,255,255,.6)}
   .cchip{display:inline-flex;align-items:center;gap:5px;padding:.35em .7em;border-radius:10px;border:1px solid var(--rc);background:rgba(0,0,0,.4);font-size:11px;font-weight:800}
@@ -289,7 +316,7 @@
   <div id='profChip' class='absolute z-[1] rounded-2xl bg-black/55 border border-white/15 px-3 py-1.5 text-left' style='top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left))'></div>
   <div id='metaBtns' class='absolute z-[1] top-1/2 -translate-y-1/2 flex flex-col gap-2 jp' style='right:max(8px,env(safe-area-inset-right))'>
     <button data-t='mis' class='metab'><i data-i='mission'></i><span>ミッション</span><i id='badgeMis'></i></button>
-    <button data-t='gacha' class='metab'><i data-i='gacha'></i><span>ガチャ</span><i id='badgeGacha'></i></button>
+    <button data-t='gacha' class='metab'><i data-i='gacha'></i><span>スロット</span><i id='badgeGacha'></i></button>
     <button data-t='cus' class='metab'><i data-i='palette'></i><span>カスタム</span></button>
     <button data-t='ach' class='metab'><i data-i='trophy'></i><span>実績</span></button>
     <button data-t='set' class='metab'><i data-i='gear'></i><span>設定</span></button>
@@ -478,7 +505,7 @@
 <div id='meta' class='fixed inset-0 z-30 hidden items-center justify-center bg-black/60 backdrop-blur-sm px-2'>
   <div class='panel rounded-2xl w-full max-w-[880px] h-[94vh] flex flex-col overflow-hidden'>
     <div class='flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap'>
-      <div id='mTabs' class='seg bg-black/50 jp'><button data-t='mis'>ミッション</button><button data-t='gacha'>ガチャ</button><button data-t='cus'>カスタム</button><button data-t='ach'>実績</button><button data-t='set'>設定</button></div>
+      <div id='mTabs' class='seg bg-black/50 jp'><button data-t='mis'>ミッション</button><button data-t='gacha'>スロット</button><button data-t='cus'>カスタム</button><button data-t='ach'>実績</button><button data-t='set'>設定</button></div>
       <div class='flex-1'></div>
       <div id='mWallet' class='text-xs sm:text-sm font-black'></div>
       <button id='mClose' class='jp rounded-full px-4 py-1.5 text-xs font-bold border border-white/40 bg-black/40'>閉じる</button>
@@ -3936,7 +3963,8 @@ const DLINES = {
   rank: r => [`脳汁ランク${r}！`, `${r}ランク突入！ノッてきた！`],
   max: ['脳汁マックス！！脳が溶けるぞ！', '脳汁マックス到達！もう誰にも止められない！'],
   reach: ['リーチ！', 'リーチだ！そろうか！？'], slot: ['スロット大当たり！', 'そろったー！大当たり！'], seven: ['スリーセブン！！超大当たり！'],
-  ur: ['ウルトラレア！神引きだ！'], ssr: ['エスエスアール！金色きたー！'],
+  ur: ['ウルトラレア！ 虹色だー！ 神引き！'], ssr: ['エスエスアール！ 金色きたー！'],
+  god: ['セブン！セブン！セブン！ ゴッド降臨！！！', 'まさかの777！ ゴッドだーーー！！'], reach: ['リーチ！', 'きたきたリーチ！', 'そろうか！？'],
 };
 let RUN = { maxTier: 0 };
 const dopaCol = t => t >= 7 ? `hsl(${Math.floor(game.t * 400) % 360},100%,62%)` : DOPA_COLS[t];
@@ -4041,9 +4069,12 @@ const Slot = {
 };
 
 // ---- コレクション (ガチャ景品) ----
-const RAR = { N: { w: 52, c: '#c4cad8', rf: 20 }, R: { w: 30, c: '#29f3ff', rf: 50 }, SR: { w: 12, c: '#c77dff', rf: 120 }, SSR: { w: 5, c: '#ffd400', rf: 300 }, UR: { w: 1, c: '#ff2bd6', rf: 800 } };
-const RAR_ORDER = ['N', 'R', 'SR', 'SSR', 'UR'];
-const PITY = 40, MIS_RW = 200;
+// ドーパミンスロットの排出率（w は 10000 分率）。UR(虹)はめったに出ない、SSR(金)はそれよりは出る、GOD(7が3つ)は隠しシークレット
+const RAR = { N: { w: 5500, c: '#c4cad8', rf: 20 }, R: { w: 3100, c: '#29f3ff', rf: 50 }, SR: { w: 1150, c: '#c77dff', rf: 120 }, SSR: { w: 220, c: '#ffd400', rf: 400 },
+  UR: { w: 28, c: '#ff2bd6', rf: 1500 }, GOD: { w: 2, c: '#ffe680', rf: 7777 } };
+const RAR_ORDER = ['N', 'R', 'SR', 'SSR', 'UR', 'GOD'];
+const PITY = 80, MIS_RW = 200;   // 80回でSSR以上確定
+const ratePct = k => { const t = RAR_ORDER.reduce((a, r) => a + RAR[r].w, 0); const v = RAR[k].w / t * 100; return (v >= 1 ? v.toFixed(1).replace(/\.0$/, '') : v.toFixed(2)) + '%'; };
 const COS = [
   { id: 'DEFAULT', k: 'paint', n: 'ノーマル', r: 'N', g: false },
   { id: 'P_MID', k: 'paint', n: 'ミッドナイト', r: 'N', c: 0x16163e }, { id: 'P_RED', k: 'paint', n: 'クリムゾン', r: 'N', c: 0x9a0a22 }, { id: 'P_SEA', k: 'paint', n: 'オーシャン', r: 'N', c: 0x0a46a8 },
@@ -4052,6 +4083,8 @@ const COS = [
   { id: 'P_GOLD', k: 'paint', n: '純金', r: 'SSR', c: 0xffc400, metal: true }, { id: 'P_VOID', k: 'paint', n: 'ヴォイド', r: 'SSR', c: 0x030006, metal: true },
   { id: 'P_PRSM', k: 'paint', n: 'プリズム(虹)', r: 'UR', c: 'rainbow', metal: true },
   { id: 'P_SSS', k: 'paint', n: 'SSSネオン（全コースSSS）', r: 'UR', c: 'sss', metal: true, g: false },
+  // 隠しシークレット: ドーパミンスロットで 7・7・7 がそろったときだけ
+  { id: 'P_GOD', k: 'paint', n: 'GODゴールド', r: 'GOD', c: 'god', metal: true }, { id: 'TR_GOD', k: 'trail', n: 'GODオーラ', r: 'GOD', c: [0xffe680, 0xffffff] }, { id: 'T_GOD777', k: 'title', n: 'GOD', r: 'GOD' },
   { id: 'NONE', k: 'trail', n: 'なし', r: 'N', g: false },
   { id: 'TR_CYAN', k: 'trail', n: 'シアン', r: 'N', c: [0x29f3ff] }, { id: 'TR_PINK', k: 'trail', n: 'ピンク', r: 'N', c: [0xff2bd6] },
   { id: 'TR_LIME', k: 'trail', n: 'ライム', r: 'R', c: [0x3bff9d] }, { id: 'TR_FIRE', k: 'trail', n: 'フレイム', r: 'R', c: [0xff4a00, 0xffd400] },
@@ -4120,7 +4153,8 @@ const ACH = [
   cnt('mDaily', '日替わりの鬼', '日替わり縛りを7回クリア', 'daily', 7, 1500, 'M_DAILY'),
   cnt('mSSS', 'SSSコレクター', '3コースでSSSランク', 'sss', 3, 2000, 'M_SSS'),
   cnt('mCoast', '絶叫マシン中毒', 'ドリームパークのドロップを30回', 'drop', 30, 600, 'M_COAST'),
-  { id: 'comp', n: 'コンプリート', d: 'ガチャ景品を全部そろえる', f: () => COS.every(c => c.g === false || PF.owned[c.id]), rw: 5000 },
+  { id: 'comp', n: 'コンプリート', d: 'スロット景品を全部そろえる（GODを除く）', f: () => COS.every(c => c.g === false || c.r === 'GOD' || PF.owned[c.id]), rw: 5000 },
+  { id: 'god777', n: 'GOD降臨', d: '？？？', secret: true, f: t => (t.god777 || 0) >= 1, rw: 7777 },
 ];
 const MISSIONS = [
   { id: 'coin', t: 'コインを{n}枚あつめる', n: [120, 220], key: 'coins' },
@@ -4236,7 +4270,7 @@ function checkAch(msgs) {
 const cosIcon = (c, big) => {
   const sz = big ? 'width:30px;height:30px;' : '';
   if (c.k === 'title') return I('tag');
-  const bg = c.c === 'sss' ? 'conic-gradient(#ff2bd6,#29f3ff,#ffffff,#ff2bd6)' : c.c === 'rainbow' ? (c.k === 'paint' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : 'linear-gradient(90deg,#ff2bd6,#ffd400,#3bff9d,#29f3ff)')
+  const bg = c.c === 'god' ? 'conic-gradient(#fff6c0,#ffc400,#b07800,#fff6c0,#ffc400)' : c.c === 'sss' ? 'conic-gradient(#ff2bd6,#29f3ff,#ffffff,#ff2bd6)' : c.c === 'rainbow' ? (c.k === 'paint' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : 'linear-gradient(90deg,#ff2bd6,#ffd400,#3bff9d,#29f3ff)')
     : c.k === 'paint' ? (c.c ? hex(c.c) : '#2b1660') : (c.c ? `linear-gradient(90deg,${hex(c.c[0])},${hex(c.c[1] ?? c.c[0])})` : 'transparent');
   return `<span class='swatch' style='${sz}background:${bg}'></span>`;
 };
@@ -4247,6 +4281,7 @@ function rollOne(minIdx = 0) {
   const pool = RAR_ORDER.slice(minIdx); let x = Math.random() * pool.reduce((a, k) => a + RAR[k].w, 0), rar = pool[pool.length - 1];
   for (const k of pool) if ((x -= RAR[k].w) <= 0) { rar = k; break; }
   if (RAR_ORDER.indexOf(rar) >= 3) PF.pity = 0;
+  if (rar === 'GOD') PF.tot.god777 = (PF.tot.god777 || 0) + 1;
   const items = COS.filter(c => c.r === rar && c.g !== false), it = items[(Math.random() * items.length) | 0];
   const dup = !!PF.owned[it.id];
   if (dup) PF.neon += RAR[rar].rf; else PF.owned[it.id] = 1;
@@ -4261,27 +4296,88 @@ function pull(n, useTix) {
   for (let i = 0; i < n; i++) res.push(rollOne(n === 10 && i === 9 && !res.some(r => RAR_ORDER.indexOf(r.it.r) >= 2) ? 2 : 0));
   savePF(); gachaFx(res);
 }
-// カプセル演出: 光の色が 青→紫→金→虹 と「昇格」していく
+// ---- ドーパミンスロット: 結果のレア度で絵柄が決まる（バラバラ=N / 2つ=R / ★★★♥♥♥=SR / BAR×3=SSR / ◆×3=UR / 7×3=GOD）----
+const DS_SYM = { '7': '#ff2050', BAR: '#ffb000', '◆': '#29f3ff', '★': '#3bff9d', '♥': '#ff2bd6', '●': '#9d6bff' };
+const DS_KEYS = Object.keys(DS_SYM), DS_LOW = ['★', '♥', '●'];
+const RAR_SC = { N: '#ff2bd6', R: '#29f3ff', SR: '#c77dff', SSR: '#ffd400', UR: '#ff2bd6', GOD: '#ffe680' };
+function dsCombo(rar) {
+  const pk = a => a[(Math.random() * a.length) | 0];
+  if (rar === 'GOD') return ['7', '7', '7'];
+  if (rar === 'UR') return ['◆', '◆', '◆'];
+  if (rar === 'SSR') return ['BAR', 'BAR', 'BAR'];
+  if (rar === 'SR') { const k = pk(DS_LOW); return [k, k, k]; }
+  if (rar === 'R') { if (Math.random() < 0.25) return ['7', '7', pk(['BAR', '◆', ...DS_LOW])]; const k = pk(DS_LOW); return [k, k, pk(DS_KEYS.filter(x => x !== k && x !== '7'))]; }   // R はたまに「7・7リーチ」からハズれるガセ演出
+  const a = pk(DS_KEYS), b = pk(DS_KEYS.filter(x => x !== a)), c = pk(DS_KEYS.filter(x => x !== b && !(a === '7' && x === '7')));
+  return [a, b, c];
+}
+const dsCell = k => `<b style='color:${DS_SYM[k]}'>${k}</b>`;
+const dsMachine = (sc = '#ff2bd6', syms = ['7', '7', '7'], live = true) => `<div class='dslot' ${live ? "id='dsM'" : ''} style='--sc:${sc}'><div class='ttl'>DOPAMINE SLOT</div><div class='lamps'>${'<i></i>'.repeat(9)}</div>
+  <div class='reels'>${syms.map((k, i) => `<div class='dreel' ${live ? `id='dsR${i}'` : ''}>${dsCell(k)}</div>`).join('')}</div></div>`;
+function dsSound(kind) {
+  if (!SND.ok()) return; const t = SND.t();
+  if (kind === 'lever') { SND.noiseHit(t, 0.18, 0.4, 'bandpass', 600, 2400, SND.sfx, 2); SND.tone(180, t, 0.15, 'square', 0.12); }
+  if (kind === 'stop') { SND.tone(110, t, 0.08, 'square', 0.2); SND.noiseHit(t, 0.06, 0.3, 'highpass', 2500, null, SND.sfx); }
+  if (kind === 'reach') for (let i = 0; i < 6; i++) SND.tone(i % 2 ? 1320 : 990, t + i * 0.16, 0.14, 'square', 0.1);
+  if (kind === 'heart') { SND.tone(70, t, 0.12, 'sine', 0.5); SND.tone(65, t + 0.18, 0.12, 'sine', 0.4); }
+  if (kind === 'god') { SND.tone(55, t, 1.6, 'sawtooth', 0.25, SND.sfx, 400); [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => SND.tone(f, t + 0.15 + i * 0.09, 0.5, 'square', 0.12)); }
+}
+function goldRain(n = 80) {
+  for (let i = 0; i < n; i++) { const d = document.createElement('i'); d.className = 'gold-rain'; d.style.left = (Math.random() * 100) + 'vw'; const z = 6 + Math.random() * 12; d.style.width = d.style.height = z + 'px';
+    d.style.animationDuration = (1.4 + Math.random() * 1.8) + 's'; d.style.animationDelay = (Math.random() * 1.2) + 's'; document.body.appendChild(d); setTimeout(() => d.remove(), 4500); }
+}
 function gachaFx(res) {
-  const top = Math.max(...res.map(r => RAR_ORDER.indexOf(r.it.r)));
-  const fx = $('gFx'); fx.classList.remove('hidden'); fx.classList.add('flex'); fx.onclick = null;
-  fx.innerHTML = `<div id='gCap' class='capsule shake-cap' style='--gc:#29f3ff'>${CAPSULE}</div><div id='gHint' class='jp mt-4 text-base font-black tracking-[.2em] text-white/80'>OPENING…</div>`;
-  const steps = [0]; if (top >= 2) steps.push(2); if (top >= 3) steps.push(3); if (top >= 4) steps.push(4);
-  const COLS = { 2: '#c77dff', 3: '#ffd400', 4: '#ff2bd6' }, TXT = { 2: '昇格！ SR以上確定！', 3: '金色きた！？ SSR以上！', 4: '虹色ーーーー！！！' };
-  SND.tick(); vibSoft(20);
-  steps.forEach((lv, i) => { if (!i) return; setTimeout(() => {
-    const cap = $('gCap'), h = $('gHint'); if (!cap) return;
-    cap.style.setProperty('--gc', COLS[lv]); cap.classList.toggle('rbglow', lv === 4); h.textContent = TXT[lv]; h.style.color = COLS[lv];
-    if (SND.ok()) SND.tone(300 + lv * 150, SND.t(), 0.5, 'sawtooth', 0.16, SND.sfx, 1200 + lv * 500);
-    SND.whoosh(); vib(lv >= 3 ? [40, 30, 80] : 30);
-  }, i * 800); });
-  setTimeout(() => {
-    const head = ['GET!', 'GET!', 'GREAT!', 'AMAZING!!', '神引き!!!'][top];
-    fx.innerHTML = `<div class='burst'></div><div class='text-lg font-black tracking-[.3em] mb-3' style='color:${RAR[RAR_ORDER[top]].c};text-shadow:0 0 16px ${RAR[RAR_ORDER[top]].c}'>${head}</div><div class='flex flex-wrap gap-2 justify-center max-w-[560px] px-2'>${res.map(gcardHtml).join('')}</div><div class='jp mt-4 text-xs text-white/60 animate-pulse'>タップで閉じる</div>`;
-    SND.explode(0.35); if (top >= 3) SND.jackpot(); if (top >= 4) { SND.fanfare(); say(DLINES.ur, 3); } else if (top === 3) say(DLINES.ssr, 2);
-    vib(top >= 4 ? [100, 50, 100, 50, 300] : top >= 3 ? [60, 40, 120] : 40);
-    setTimeout(() => { fx.onclick = () => { fx.classList.add('hidden'); fx.classList.remove('flex'); fx.innerHTML = ''; const msgs = []; checkAch(msgs); savePF(); showMsgs(msgs, 200); Meta.render(); Meta.renderChip(); }; }, 500);
-  }, steps.length * 800 + 350);
+  const top = Math.max(...res.map(r => RAR_ORDER.indexOf(r.it.r))), rar = RAR_ORDER[top], combo = dsCombo(rar);
+  const reach = combo[0] === combo[1], fx = $('gFx'), timers = [];
+  const T = (ms, f) => timers.push(setTimeout(f, ms));
+  fx.classList.remove('hidden'); fx.classList.add('flex'); fx.onclick = null;
+  fx.innerHTML = `${dsMachine('#ff2bd6', ['7', 'BAR', '◆'])}<div id='dsMsg' class='dmsg jp'>　</div><div class='jp text-[10px] text-white/40 mt-1'>タップでスキップ</div>`;
+  let done = false;
+  const reels = [0, 1, 2].map(i => $('dsR' + i)), msg = $('dsMsg'), mach = $('dsM');
+  const spin = [0, 1, 2].map(i => setInterval(() => { if (reels[i].classList.contains('spin') || reels[i].classList.contains('slow')) reels[i].innerHTML = dsCell(DS_KEYS[(Math.random() * DS_KEYS.length) | 0]); }, 70));
+  const stopReel = i => { reels[i].classList.remove('spin', 'slow'); reels[i].classList.add('stop'); reels[i].innerHTML = dsCell(combo[i]); dsSound('stop'); vib(i === 2 ? 40 : 18); };
+  const finish = () => {
+    if (done) return; done = true; timers.forEach(clearTimeout); spin.forEach(clearInterval);
+    showCards(res, top);
+  };
+  dsSound('lever'); vib([30, 20, 30]);
+  reels.forEach(r => r.classList.add('spin'));
+  // 期待度で台の色が変わる（金・虹は事前に光ることがある）
+  if (top >= 3 && Math.random() < 0.6) T(500, () => { mach.style.setProperty('--sc', top >= 4 ? '#ff2bd6' : '#ffd400'); msg.textContent = top >= 5 ? '……？' : 'チャンス！'; msg.style.color = '#ffd400'; vib(25); });
+  T(900, () => stopReel(0));
+  T(1500, () => stopReel(1));
+  let end = 2100;
+  if (reach) {
+    const godR = combo[0] === '7';
+    T(1650, () => { msg.className = 'dmsg jp reach'; msg.textContent = godR ? '激アツ 7 リーチ！！' : 'リーチ！'; reels[2].classList.remove('spin'); reels[2].classList.add('slow'); dsSound('reach'); vib([60, 40, 60]); say(DLINES.reach, 1);
+      mach.classList.add('shake'); if (godR) mach.style.setProperty('--sc', '#ff2050'); });
+    const hb = godR ? 6 : top >= 3 ? 4 : 2;
+    for (let k = 0; k < hb; k++) T(1900 + k * 500, () => { dsSound('heart'); vib([30, 120, 20]); });
+    end = 1900 + hb * 500;
+  }
+  T(end, () => {
+    stopReel(2); mach.classList.remove('shake'); msg.className = 'dmsg jp';
+    const sc = RAR_SC[rar]; mach.style.setProperty('--sc', sc);
+    if (top >= 2) reels.forEach(r => { r.classList.add('hit'); r.style.setProperty('--sc', sc); });
+    if (rar === 'GOD') {
+      fx.innerHTML = `<div class='burst'></div><div id='godT' class='text-center'></div>`; flash('#ffe680', 0.9); dsSound('god'); vib([300, 80, 300, 80, 600]);
+      ['G', 'O', 'D'].forEach((L, k) => T(700 + k * 450, () => { $('godT').insertAdjacentHTML('beforeend', `<span class='godL'>${L}</span>`); SND.explode(0.6); vib(120); }));
+      T(2200, () => { $('godT').insertAdjacentHTML('beforeend', `<div class='jp text-sm font-black text-yellow-100 tracking-[.3em] mt-2'>7・7・7　SECRET RARE</div>`); goldRain(120); SND.jackpot(); SND.fanfare(); say(DLINES.god, 3); });
+      T(4600, finish); return;
+    }
+    if (rar === 'UR') { mach.classList.add('rainbow'); msg.textContent = '虹色ーーー！！！'; msg.style.color = '#fff'; SND.jackpot(); SND.fanfare(); vib([100, 50, 100, 50, 300]); flash('#ff2bd6', 0.5); goldRain(40); say(DLINES.ur, 3); T(1800, finish); return; }
+    if (rar === 'SSR') { msg.textContent = 'BIG BONUS!!'; msg.style.color = '#ffd400'; SND.jackpot(); vib([60, 40, 120]); flash('#ffd400', 0.4); goldRain(50); say(DLINES.ssr, 2); T(1500, finish); return; }
+    if (rar === 'SR') { msg.textContent = 'BONUS!'; msg.style.color = '#c77dff'; SND.itemGet(); vib([30, 20, 60]); T(1000, finish); return; }
+    msg.textContent = rar === 'R' ? (reach && combo[0] === '7' ? 'おしい…！' : 'あと1つ！') : 'GET'; msg.style.color = '#fff'; SND.tick(); T(800, finish);
+  });
+  T(300, () => { fx.onclick = finish; });
+}
+function showCards(res, top) {
+  const fx = $('gFx'), rar = RAR_ORDER[top];
+  const head = ['GET!', 'GET!', 'BONUS!', 'BIG BONUS!!', '虹色!!!', 'G O D'][top];
+  fx.innerHTML = `<div class='text-lg font-black tracking-[.3em] mb-3' style='color:${RAR[rar].c};text-shadow:0 0 16px ${RAR[rar].c}'>${head}</div><div class='flex flex-wrap gap-2 justify-center max-w-[560px] px-2'>${res.map(gcardHtml).join('')}</div><div class='jp mt-4 text-xs text-white/60'>タップで閉じる</div>`;
+  SND.explode(0.3);
+  fx.onclick = null;
+  setTimeout(() => { fx.onclick = () => { fx.classList.add('hidden'); fx.classList.remove('flex'); fx.innerHTML = ''; const msgs = []; checkAch(msgs); savePF(); showMsgs(msgs, 200); Meta.render(); Meta.renderChip(); }; }, 500);
 }
 function htmlMis() {
   const D = ensureDaily(), need = needXP(PF.lv), t = PF.tot;
@@ -4302,18 +4398,18 @@ function htmlMis() {
     </div></div>`;
 }
 function htmlGacha() {
-  const pool = COS.filter(c => c.g !== false), own = pool.filter(c => PF.owned[c.id]).length;
+  const pool = COS.filter(c => c.g !== false && (c.r !== 'GOD' || PF.owned[c.id])), own = pool.filter(c => PF.owned[c.id]).length;
   return `<div class='flex flex-col items-center text-center gap-2 mt-2'>
-    <div class='capsule-big'>${CAPSULE}</div>
-    <div class='text-xl font-black neon-pink tracking-wider'>ドパミン・カプセル</div>
-    <div class='text-[11px] text-white/70'>ボディカラー・トレイル・称号が出る！ かぶったらネオンに自動変換</div>
+    <div style='transform:scale(.72);margin:-18px 0 -22px'>${dsMachine('#ff2bd6', ['7', '7', '7'], false)}</div>
+    <div class='text-xl font-black neon-pink tracking-wider'>ドーパミンスロット</div>
+    <div class='text-[11px] text-white/70'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？　かぶったらネオンに自動変換</div>
     <div class='flex flex-wrap gap-2 justify-center mt-1'>
       <button id='gx1' class='mbtn' ${PF.neon < 300 ? 'disabled' : ''}>1回　${NE()}300</button>
       <button id='gx10' class='start-btn !px-5 !py-2 text-sm !tracking-[.08em]' ${PF.neon < 2700 ? `disabled style='opacity:.45;animation:none'` : ''}>10連　${NE()}2700</button>
       <button id='gxT' class='mbtn' ${PF.tix < 1 ? 'disabled' : ''}>${TK()} チケットで1回（${PF.tix}枚）</button>
     </div>
     <div class='text-xs font-black text-yellow-300'>SSR以上 確定まで あと ${PITY - PF.pity} 回</div>
-    <div class='text-[10px] text-white/50'>排出率　N 52% ／ R 30% ／ SR 12% ／ SSR 5% ／ UR 1%　・10連はSR以上が1つ確定</div>
+    <div class='text-[10px] text-white/50'>排出率　N ${ratePct('N')} ／ R ${ratePct('R')} ／ SR ${ratePct('SR')} ／ SSR ${ratePct('SSR')} ／ UR ${ratePct('UR')} ／ ？？？ ${ratePct('GOD')}　・10連はSR以上が1つ確定</div>
     <div class='text-[10px] text-white/50'>コレクション ${own} / ${pool.length}　・ネオンはレース・ミッション・実績・ログインでもらえるゲーム内通貨です</div>
   </div>`;
 }
@@ -4322,6 +4418,7 @@ function htmlCus() {
     const list = COS.filter(c => c.k === k), own = list.filter(c => PF.owned[c.id]).length;
     return `<div class='mhd mt-2'>${KIND_JP[k]} <span class='text-white/45'>${own}/${list.length}</span></div><div class='flex flex-wrap gap-1.5'>${list.map(c => PF.owned[c.id]
       ? `<button class='cchip ${PF.eq[k] === c.id ? 'on' : ''}' data-k='${k}' data-id='${c.id}' style='--rc:${RAR[c.r].c}'>${cosIcon(c)}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small class='opacity-60'>${c.r}</small></button>`
+      : c.r === 'GOD' ? `<div class='cchip lock' style='--rc:#555'>${I('lock')}<span class='opacity-60'>？？？</span><small class='opacity-60'>SECRET</small></div>`
       : `<div class='cchip lock' style='--rc:${RAR[c.r].c}'>${I('lock')}${k === 'title' ? '' : `<span class='opacity-50'>${cosIcon(c)}</span>`}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small style='color:${RAR[c.r].c}'>${c.g === false ? '実績で解放' : c.r}</small></div>`).join('')}</div>`;
   };
   return `<div class='text-[11px] text-white/60 mt-1'>タップで装備。ボディカラーは全車種に反映、トレイルは走ると光の帯が出ます。</div>` + sec('paint') + sec('trail') + sec('title');
@@ -4872,7 +4969,7 @@ const TUT = {
     const P = [
       ['trophy', 'おつかれさま！', 'これでレースの技は全部。ここからはメニューの機能を紹介します。'],
       ['mission', 'レベルとミッション', 'レースを走るとXPとネオン（ゲーム内通貨）がもらえてレベルアップ。毎日3つのデイリーミッションと連続ログインボーナスもあります。タイトル右の「ミッション」から。'],
-      ['gacha', 'ガチャとカスタム', 'ネオンでドパミン・カプセルを回すとボディカラー・トレイル・称号が当たります。車選び画面の「CUSTOMIZE」ではホイール・ウイング・ルーフ・ネオンの色も変えられます（レベルで解放）。'],
+      ['gacha', 'スロットとカスタム', 'ネオンでドーパミンスロットを回すとボディカラー・トレイル・称号が当たります。車選び画面の「CUSTOMIZE」ではホイール・ウイング・ルーフ・ネオンの色も変えられます（レベルで解放）。'],
       ['trophy', '実績と称号', '「鬼殺し」「ゴッドトリック」など、条件を満たすと実績と称号がもらえます。中には「？？？」としか書かれていないものも…。'],
       ['flag', 'タイムアタック', 'CPUなし・アイテムなしの純粋な腕前勝負。銅・銀・金・プラチナのメダルと、自己ベストの走りが半透明のゴーストで一緒に走ります。'],
       ['users', '難易度と対戦', 'CPUの強さは かんたん〜神 の6段階。「むずかしい」以上はCPUが手加減しません。2P画面分割対戦と、部屋コードで遊ぶオンライン対戦も。'],
@@ -4979,6 +5076,7 @@ const Meta = {
     if ((st === 'play' || st === 'countdown' || st === 'finish') && !game.split) Dopa.draw();
     const pe = COS_BY[PF.eq.paint];
     if (pe && pe.c === 'rainbow') player.model.body.children[0].material.color.setHSL((game.t * 0.18) % 1, 0.95, 0.5);
+    else if (pe && pe.c === 'god') player.model.body.children[0].material.color.setHSL(0.12 + 0.02 * Math.sin(game.t * 2), 1, 0.42 + 0.14 * Math.abs(Math.sin(game.t * 4)));
     else if (pe && pe.c === 'sss') { const k = 0.5 + 0.5 * Math.sin(game.t * 3); player.model.body.children[0].material.color.setHSL(lerp(0.92, 0.52, k), 1, 0.45 + 0.15 * Math.abs(Math.sin(game.t * 6))); }
     const tr = COS_BY[PF.eq.trail];
     if (tr && tr.c && player.v > 12 && st !== 'result') {
@@ -4992,7 +5090,7 @@ const Meta = {
     const p = COS_BY[PF.eq.paint];
     for (const k of TYPE_KEYS) {
       const m = playerModels[k].body.children[0].material;
-      if (!p || !p.c) m.color.setHex(CAR_TYPES[k].paint); else if (p.c !== 'rainbow' && p.c !== 'sss') m.color.setHex(p.c);
+      if (!p || !p.c) m.color.setHex(CAR_TYPES[k].paint); else if (p.c !== 'rainbow' && p.c !== 'sss' && p.c !== 'god') m.color.setHex(p.c);
       m.metalness = p && p.metal ? 1 : 0.85; m.roughness = p && p.metal ? 0.1 : 0.25;
     }
   },
