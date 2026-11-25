@@ -366,6 +366,11 @@
     <!-- 入室後 -->
     <div id="netRoomBox" class="jp mt-3 hidden flex-col gap-3">
       <div class="flex items-baseline gap-3"><span class="text-xs text-white/60">ROOM</span><span id="netRoomCode" class="text-3xl font-black tracking-[.35em] neon-pink"></span><span id="netHostTag" class="text-xs text-yellow-300"></span></div>
+      <div class="flex flex-wrap items-center gap-2"><span class="text-[10px] tracking-[.25em] text-white/60">MODE</span>
+        <div class="seg bg-black/50 jp" id="netModes"><button data-md="normal" class="on">通常</button><button data-md="gachi">ガチマッチ 1vs1</button><button data-md="party">ワイワイ</button><button data-md="team">チーム戦</button></div></div>
+      <div id="netModeDesc" class="text-[11px] text-white/65 -mt-1"></div>
+      <div id="netPickRow" class="hidden flex-wrap items-center gap-2 text-xs"><span class="text-white/70">あなたの希望マップ</span><select id="netPick" class="netinput !py-1 text-xs"></select></div>
+      <div id="netTeamRow" class="hidden flex-wrap items-center gap-2 text-xs"><span class="text-white/70">チーム</span><div class="seg bg-black/50" id="netTeams"><button data-tm="0" style="color:#ff4a6a">RED</button><button data-tm="1" style="color:#3b9dff">BLUE</button></div></div>
       <div id="netPlayers" class="grid grid-cols-2 gap-1 text-sm"></div>
       <div id="netSettings" class="text-xs text-white/75"></div>
       <div class="flex flex-wrap items-center gap-2">
@@ -458,9 +463,11 @@
       <div id='rReward' class='mt-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-1.5'></div>
       <div id='rMsgs' class='mt-1 flex flex-wrap gap-1'></div>
       <div id="rStand" class="mt-2 grid grid-cols-2 gap-x-4 text-[10px] sm:text-xs tabular-nums"></div>
+      <div id="netSer"></div>
       <div class="mt-2 flex gap-3">
         <button id="btnReplay" class="start-btn !px-5 !py-1.5 text-sm !tracking-[.2em]">REPLAY</button>
         <button id="btnRank" class="mbtn hidden"><i data-i="trophy"></i>ランキング</button>
+        <button id="btnSerNext" class="start-btn !px-5 !py-1.5 text-sm hidden">NEXT RACE ▶</button>
         <button id="btnLobby" class="hidden start-btn !px-5 !py-1.5 text-sm !tracking-[.2em]">LOBBY</button>
         <button id="btnTitle" class="rounded-full px-5 py-1.5 text-sm font-bold tracking-[.2em] border border-white/40 bg-white/5">TITLE</button>
       </div>
@@ -2120,7 +2127,7 @@ const Assist = {
   mode: store.get('ns_assist', null) || ASSIST.def,
   chosen: store.get('ns_assist', null) !== null,
   // そのレースで実際に効いているモード（チュートリアル中は操作を覚えるため「一部」に固定）
-  of(c) { if (!c || !c.ctrl || c.remote) return 'off'; if (game.tut) return 'partial'; if (LV().noAssist) return 'off'; return this.mode; },
+  of(c) { if (!c || !c.ctrl || c.remote) return 'off'; if (game.tut) return 'partial'; if (LV().noAssist || (NET.racing && NET.rules.noAssist)) return 'off'; return this.mode; },
   on() { return this.of(player) !== 'off'; },
   set(m, quiet) {
     if (!ASSIST_LABEL[m]) return;
@@ -2328,7 +2335,8 @@ const ITEM_KEYS = Object.keys(ITEMS);
 function rollItem(c) {
   if (game.tut && c.isPlayer) return 'MISSILE';
   const p = cars.length > 1 ? (c.rank - 1) / (cars.length - 1) : 0;
-  const table = p < 0.2 ? [['BOMB', 35], ['SHIELD', 35], ['TURBO', 30]]
+  const table = NET.racing && NET.rules.party ? [['MISSILE', 30], ['BOMB', 30], ['TRIPLE', 20], ['SHIELD', 10], ['TURBO', 10]]   // ワイワイ: 攻撃アイテム多め
+    : p < 0.2 ? [['BOMB', 35], ['SHIELD', 35], ['TURBO', 30]]
     : p < 0.65 ? [['TURBO', 25], ['BOMB', 25], ['MISSILE', 25], ['SHIELD', 15], ['TRIPLE', 10]]
     : [['TRIPLE', 35], ['MISSILE', 35], ['TURBO', 20], ['BOMB', 10]];
   let r = Math.random() * table.reduce((a, b) => a + b[1], 0);
@@ -2735,7 +2743,7 @@ function physics(c, dt, ctl) {
   // アイテムボックス
   for (const b of itemBoxes) {
     if (b.taken > 0 || Math.abs(c.s - b.s) > 2.6 || Math.abs(c.x - b.x) > 2.1 || c.h > 3) continue;
-    b.taken = 2.5;
+    b.taken = NET.racing && NET.rules.party ? 0.8 : 2.5;   // ワイワイ: すぐ復活
     if (nearCam(c)) emit(b.pos, 30, { speed: 12, color: 0xffd400, color2: 0x29f3ff, size: 0.7, life: 0.6 });
     if (!c.item && c.roulette <= 0) { c.roulette = c.isPlayer ? 1.1 : 0.8; if (fxOn) SND.itemGet(); }
   }
@@ -3283,6 +3291,7 @@ function showResult() {
   game.state = 'result';
   $('hud').classList.add('hidden'); $('hud2').classList.add('hidden'); showOnly('result'); resize();
   $('btnRank').classList.toggle('hidden', !(game.mode === 'ta' && !NET.racing && !game.split));
+  NetSeries.render();
   $('btnLobby').classList.toggle('hidden', !NET.racing); $('btnReplay').classList.toggle('hidden', NET.racing);
   if (NET.racing) netPresence({ st: 'done' });
   SND.startMusic('title');
@@ -3333,7 +3342,15 @@ $('netCreate').addEventListener('click', () => netEnter(randCode(), true));
 $('netJoin').addEventListener('click', () => netEnter($('netCode').value, false));
 $('netCode').addEventListener('keydown', e => { if (e.key === 'Enter') netEnter($('netCode').value, false); });
 $('netLeave').addEventListener('click', () => netLeave());
-$('netStart').addEventListener('click', netHostStart);
+$('netStart').addEventListener('click', () => { if (NET.host && NET.ser && NET.ser.done) NET.ser = null; netHostStart(); });
+$('btnSerNext').addEventListener('click', () => { SND.tick(); NetSeries.next(); });
+document.querySelectorAll('#netModes button').forEach(b => b.addEventListener('click', () => {
+  if (!NET.host) { netStatus('モードはホストが決めます。'); return; }
+  NET.md = b.dataset.md; NET.ser = null; netPresence({ md: NET.md, ser: null }); SND.tick(); renderNet();
+}));
+$('netPick').innerHTML = STAGES.map((st, i) => `<option value='${i}'>${st.jp}</option>`).join('');
+$('netPick').addEventListener('change', e => { NET.myPk = +e.target.value; netPresence({ pk: NET.myPk }); renderNet(); });
+document.querySelectorAll('#netTeams button').forEach(b => b.addEventListener('click', () => { NET.myTm = +b.dataset.tm; netPresence({ tm: NET.myTm }); SND.tick(); renderNet(); }));
 $('netCar').addEventListener('click', () => { game.netEdit = true; openGarage(); });
 $('netStage').addEventListener('click', () => { game.netEdit = true; openStageSel(); });
 $('netName').addEventListener('change', () => { store.set('ns_name', safeName($('netName').value)); netPresence({ n: safeName($('netName').value) }); renderNet(); });
@@ -3479,7 +3496,8 @@ function setSplit(on) {
 }
 // ---------- オンライン ----------
 const NET = { api: null, mode: '', r: null, code: '', host: false, me: null, active: false, racing: false, raceId: 0, seenRace: 0,
-  peers: [], data: new Map(), remotes: new Map(), cpuData: null, cpuT: 0, hitsOut: [], hitSeq: 0, seenHits: new Set(), order: [], unsub: null };
+  peers: [], data: new Map(), remotes: new Map(), cpuData: null, cpuT: 0, hitsOut: [], hitSeq: 0, seenHits: new Set(), order: [], unsub: null,
+  md: 'normal', ser: null, cfg: null, rules: {}, teams: null, myPk: null, myTm: null, hostSer: null };
 const NET_CPU_MAX = 5;
 const randCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += A[(Math.random() * A.length) | 0]; return s; };
 const safeName = n => (String(n || '').replace(/[^\p{L}\p{N} _\-]/gu, '').trim().slice(0, 10) || 'PLAYER');
@@ -3623,7 +3641,7 @@ function openNet() {
 }
 async function netEnter(code, asHost) {
   if (!NET.api) { netStatus(netUnavailMsg()); return; }
-  const name = safeName($('netName').value); store.set('ns_name', name);
+  const name = safeName($('netName').value); store.set('ns_name', name); NET.myName = name;
   code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   if (code.length !== 4) { netStatus('部屋コードは4文字です。'); return; }
   netStatus('接続中…');
@@ -3632,7 +3650,8 @@ async function netEnter(code, asHost) {
   } catch (e) { netStatus('接続できませんでした（' + (e && e.code || 'error') + '）。少し待ってもう一度試してください。'); return; }
   NET.code = code; NET.host = !!asHost; NET.active = true; NET.seenRace = 0; NET.synced = !!asHost; NET.joinT = performance.now(); NET.noHostT = 0; NET.raceId = 0; NET.seenHits.clear(); NET.hitsOut = [];
   NET.unsub = NET.r.onPeers(ch => onNetPeers(ch), err => { netStatus('接続が切れました（' + err.code + '）'); netLeave(true); });
-  netPresence({ v: 1, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0 });
+  if (NET.myPk === null) NET.myPk = stageIdx;
+  netPresence({ v: 1, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
   netStatus(asHost ? '部屋を作りました。友達にコードを伝えてください。' : '部屋に入りました。ホストのスタートを待っています。');
   vib([20, 30, 20]); renderNet();
 }
@@ -3661,9 +3680,12 @@ function onNetPeers(ch) {
       const key = p.peer + ':' + hk[0]; if (NET.seenHits.has(key)) continue; NET.seenHits.add(key);
       if (!NET.racing || game.state === 'title') continue;
       const atk = NET.remotes.get(p.peer) || null;
+      if (hk[1] === NET.me && NET.teams && NET.teams[p.peer] !== undefined && NET.teams[p.peer] === NET.teams[NET.me]) continue;   // チーム戦: 味方の攻撃は当たらない
       if (hk[1] === NET.me) { hitCar(player, atk); emit(player.pos, 80, { speed: 26, color: 0xff6a00, color2: 0xffd400, size: 1.3, life: 0.9, grav: 8 }); SND.explode(0.9); }
       else if (NET.host && typeof hk[1] === 'string' && hk[1].startsWith('cpu:')) { const c = cpuPool[+hk[1].slice(4)]; if (c && cars.includes(c)) hitCar(c, atk); }
     }
+    // ホストのシリーズ（3レースの合計）
+    if (pr.h && pr.ser && typeof pr.ser === 'object' && JSON.stringify(pr.ser) !== JSON.stringify(NET.hostSer)) { NET.hostSer = pr.ser; if (game.state === 'result' && NET.racing) NetSeries.render(); }
     // ホストのCPU位置
     if (pr.h && Array.isArray(pr.c)) { if (NET.cpuData !== pr.c) { NET.cpuData = pr.c; NET.cpuT = now; } }
   }
@@ -3676,7 +3698,7 @@ function onNetPeers(ch) {
     NET.noHostT = NET.noHostT || performance.now();
     if (performance.now() - NET.noHostT > 3000) {
       const first = humans.map(p => p.peer).sort()[0];
-      if (first === NET.me) { NET.host = true; netPresence({ h: 1 }); netStatus('ホストがいなくなったので、ホストを引き継ぎました。'); }
+      if (first === NET.me) { NET.host = true; NET.md = 'normal'; NET.ser = null; netPresence({ h: 1, md: NET.md }); netStatus('ホストがいなくなったので、ホストを引き継ぎました。'); }
     }
   }
   // ホストのスタート合図
@@ -3700,16 +3722,28 @@ function renderNet() {
   $('netHostTag').textContent = NET.host ? 'HOST（あなた）' : '';
   const box = $('netPlayers'); box.textContent = '';
   for (const p of netHumans()) {
-    const pr = p.isMe ? { n: safeName($('netName').value || store.get('ns_name', '')), car: game.carType, h: NET.host ? 1 : 0, st: 'lobby' } : (p.presence || {});
+    const pr = p.isMe ? { n: safeName($('netName').value || store.get('ns_name', '')), car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', pk: NET.myPk, tm: NET.myTm } : (p.presence || {});
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1';
     const car = CAR_TYPES[pr.car] ? pr.car : 'VIPER';
     const dot = document.createElement('span'); dot.className = 'inline-block w-2.5 h-2.5 rounded-full'; dot.style.background = hex(CAR_TYPES[car].neon); dot.style.boxShadow = '0 0 6px ' + hex(CAR_TYPES[car].neon);
     const nm = document.createElement('span'); nm.className = 'font-bold truncate flex-1'; nm.textContent = (pr.h ? '[HOST] ' : '') + safeName(pr.n) + (p.isMe ? ' (あなた)' : '') + (p.guest ? ' ・ゲスト' : '');
     const cr = document.createElement('span'); cr.className = 'text-[10px] text-white/60'; cr.textContent = car + (pr.st === 'race' ? ' ・走行中' : '');
-    row.append(dot, nm, cr); box.appendChild(row);
+    const md = NetSeries.hostMd(), ex = document.createElement('span'); ex.className = 'text-[10px] font-black';
+    if (md === 'gachi' && STAGES[pr.pk]) { ex.textContent = '希望: ' + STAGES[pr.pk].jp; ex.style.color = '#ffd400'; }
+    if (md === 'team') { ex.textContent = pr.tm === 0 || pr.tm === 1 ? TEAM_NM[pr.tm] : 'おまかせ'; ex.style.color = pr.tm === 0 || pr.tm === 1 ? TEAM_COL[pr.tm] : '#aaa'; }
+    row.append(dot, nm, ex, cr); box.appendChild(row);
   }
   $('netSettings').textContent = `ステージ: ${STAGE.jp}　CPU: ${Math.min(game.nCpu, NET_CPU_MAX)}台　強さ: ${LV().name}` + (NET.host ? '' : '（ホストが決めます）');
+  const md = NetSeries.hostMd(), M = NET_MODES[md];
+  document.querySelectorAll('#netModes button').forEach(b => { b.classList.toggle('on', b.dataset.md === md); b.disabled = !NET.host; b.style.opacity = NET.host || b.dataset.md === md ? '' : '.45'; });
+  $('netModeDesc').textContent = M.d + (NET.host ? '' : '（モードはホストが決めます）');
+  $('netPickRow').classList.toggle('hidden', md !== 'gachi'); $('netPickRow').classList.toggle('flex', md === 'gachi');
+  $('netTeamRow').classList.toggle('hidden', md !== 'team'); $('netTeamRow').classList.toggle('flex', md === 'team');
+  if (NET.myPk !== null) $('netPick').value = NET.myPk;
+  document.querySelectorAll('#netTeams button').forEach(b => b.classList.toggle('on', +b.dataset.tm === NET.myTm));
+  if (md === 'gachi') $('netSettings').textContent = `ガチマッチ: 2人の希望マップ＋ランダム1つ＝3コース（順番はランダム）　人数 ${netHumans().length}/2`;
+  else if (md !== 'normal') $('netSettings').textContent = `${M.n}: ${md === 'party' ? `${STAGE.jp}＋ランダム2コース` : `${STAGE.jp}＋ランダム2コース`}　CPU: ${Math.min(game.nCpu, NET_CPU_MAX)}台　強さ: ${LV().name}` + (NET.host ? '' : '（ホストが決めます）');
   $('netStart').style.display = NET.host ? '' : 'none';
   $('netStage').style.display = NET.host ? '' : 'none';
 }
@@ -3717,8 +3751,9 @@ function renderNet() {
 function netHostStart() {
   if (!NET.host || !NET.r) return;
   const ids = netHumans().map(p => p.peer).sort();
+  const ser = NetSeries.prepare(ids); if (ser === false) return;
   NET.raceId = Math.max(NET.raceId, NET.seenRace) + 1; NET.seenRace = NET.raceId;
-  const cfg = { st: 'race', rid: NET.raceId, stg: stageIdx, lv: game.lv, cpu: Math.min(game.nCpu, NET_CPU_MAX), ord: ids.slice(0, 12) };
+  const cfg = { st: 'race', rid: NET.raceId, stg: ser ? ser.maps[ser.i] : stageIdx, lv: game.lv, cpu: ser && ser.md === 'gachi' ? 0 : Math.min(game.nCpu, NET_CPU_MAX), ord: ids.slice(0, 12), ser: ser || null };
   netPresence(cfg);
   netBeginRace(cfg);
 }
@@ -3727,6 +3762,10 @@ function netBeginRace(cfg) {
   if (typeof cfg.stg === 'number' && cfg.stg !== stageIdx && STAGES[cfg.stg]) { buildStage(cfg.stg); game.stage = cfg.stg; }
   if (LEVELS[cfg.lv]) game.lv = cfg.lv;
   NET.cpuN = clamp(cfg.cpu | 0, 0, NET_CPU_MAX);
+  NET.cfg = cfg; const md = cfg.ser && NET_MODES[cfg.ser.md] ? cfg.ser.md : 'normal';
+  NET.rules = { md, noAssist: md === 'gachi', noItems: md === 'gachi', party: md === 'party' };
+  NET.teams = md === 'team' && cfg.ser.tm && typeof cfg.ser.tm === 'object' ? cfg.ser.tm : null;
+  NET.hostSer = cfg.ser || null;
   NET.order = Array.isArray(cfg.ord) ? cfg.ord.filter(x => typeof x === 'string') : [];
   if (NET.me && !NET.order.includes(NET.me)) NET.order.push(NET.me);
   // 他プレイヤーの車を用意
@@ -3777,7 +3816,7 @@ function netSendHit(target, owner) {
   return true;
 }
 function netBackToLobby() {
-  NET.racing = false;
+  NET.racing = false; NET.rules = {}; NET.teams = null; if (NET.host && NET.ser && !NET.ser.done && game.state === 'result') NET.ser = null;
   for (const r of NET.remotes.values()) scene.remove(r.model.root);
   NET.remotes.clear();
   for (const c of cpuPool) c.remote = null;
@@ -3785,6 +3824,83 @@ function netBackToLobby() {
   setupRace(game.nCpu);
   openNet();
 }
+
+// ---------- オンラインのモード（通常 / ガチマッチ 1vs1 / ワイワイ / チーム戦）----------
+const NET_MODES = {
+  normal: { n: '通常', d: 'ホストが選んだステージで1レース。' },
+  gachi: { n: 'ガチマッチ 1vs1', d: '2人専用。お互いに希望マップを1つずつ出し、もう1つはランダム。3コースの勝ち数で決着（同点は合計タイム）。CPU・アイテム・アシストなし。', races: 3, pts: [1, 0] },
+  party: { n: 'ワイワイ', d: '最大12人＋CPU。ランダム3コースのグランプリ。アイテムが攻撃多め＆すぐ復活。順位ポイントの合計で優勝決定。', races: 3, pts: [10, 8, 6, 5, 4, 3, 2, 1] },
+  team: { n: 'チーム戦', d: 'RED と BLUE に分かれて3コース。全員の順位ポイントをチームで合計。味方のアイテムは当たらない。', races: 3, pts: [10, 8, 6, 5, 4, 3, 2, 1] },
+};
+const TEAM_COL = ['#ff4a6a', '#3b9dff'], TEAM_NM = ['RED', 'BLUE'];
+const NetSeries = {
+  hostMd() { if (NET.host) return NET.md; const h = netHumans().find(p => p.presence && p.presence.h); return h && NET_MODES[h.presence.md] ? h.presence.md : 'normal'; },
+  // ホストがSTARTを押したとき: シリーズを作る / 続きを返す。条件が合わなければ false
+  prepare(ids) {
+    const md = NET.md;
+    if (md === 'normal') { NET.ser = null; return null; }
+    if (NET.ser && !NET.ser.done && NET.ser.md === md && NET.ser.i < NET.ser.maps.length) return NET.ser;
+    const rand = ex => { const pool = STAGES.map((_, i) => i).filter(i => !ex.includes(i)); return pool[(Math.random() * pool.length) | 0]; };
+    let maps;
+    if (md === 'gachi') {
+      if (ids.length !== 2) { netStatus('ガチマッチは2人ちょうどで遊べます（いま ' + ids.length + '人）。'); SND.buzz(); return false; }
+      const pk = ids.map(id => id === NET.me ? NET.myPk : ((NET.data.get(id) || {}).pr || {}).pk).map(v => STAGES[v] ? v : null);
+      maps = [];
+      for (const v of pk) maps.push(v !== null && !maps.includes(v) ? v : rand(maps));
+      maps.push(rand(maps));
+      for (let i = maps.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [maps[i], maps[j]] = [maps[j], maps[i]]; }   // 順番はランダム
+    } else { maps = [stageIdx]; while (maps.length < 3) maps.push(rand(maps)); }
+    const ser = { md, maps, i: 0, pts: {}, t: {}, names: {}, done: false };
+    for (const id of ids) { ser.pts[id] = 0; ser.t[id] = 0; ser.names[id] = id === NET.me ? (NET.myName || safeName(store.get('ns_name', ''))) : safeName(((NET.data.get(id) || {}).pr || {}).n); }
+    if (md === 'team') {
+      const tm = {}, want = ids.map(id => id === NET.me ? NET.myTm : ((NET.data.get(id) || {}).pr || {}).tm);
+      ids.forEach((id, k) => tm[id] = want[k] === 0 || want[k] === 1 ? want[k] : -1);
+      for (const id of ids) if (tm[id] < 0) { const n0 = ids.filter(x => tm[x] === 0).length, n1 = ids.filter(x => tm[x] === 1).length; tm[id] = n0 <= n1 ? 0 : 1; }
+      if (ids.length >= 2 && (ids.every(id => tm[id] === 0) || ids.every(id => tm[id] === 1))) tm[ids[ids.length - 1]] = 1 - tm[ids[0]];   // 片方が空にならないように
+      ser.tm = tm;
+    }
+    return (NET.ser = ser);
+  },
+  // このレースの人間の順位（CPUは除く）
+  order() {
+    return computeRanks().filter(c => c.isPlayer || (typeof c.remote === 'string' && !c.remote.startsWith('cpu:')))
+      .map(c => ({ id: c.isPlayer ? NET.me : c.remote, t: c.finished ? c.finishTime : 999 }));
+  },
+  // ホストが NEXT を押したとき: 点数を足して次のレース / 最終結果
+  next() {
+    const S = NET.ser; if (!NET.host || !S || S.done) return;
+    const P = NET_MODES[S.md].pts;
+    this.order().forEach((o, k) => { if (!(o.id in S.pts)) return; S.pts[o.id] += P[k] || 0; S.t[o.id] += o.t; });
+    S.i++;
+    if (S.i >= S.maps.length) { S.done = true; netPresence({ ser: S }); NET.hostSer = JSON.parse(JSON.stringify(S)); this.render(); SND.fanfare(); return; }
+    netPresence({ ser: S }); netHostStart();
+  },
+  standings(S) {
+    const ids = Object.keys(S.pts).sort((a, b) => (S.pts[b] - S.pts[a]) || (S.t[a] - S.t[b]));
+    if (S.md !== 'team') return { ids };
+    const tp = [0, 0]; for (const id of ids) tp[S.tm[id]] += S.pts[id];
+    return { ids, tp, win: tp[0] === tp[1] ? -1 : tp[0] > tp[1] ? 0 : 1 };
+  },
+  render() {
+    const box = $('netSer'), btn = $('btnSerNext'), S = NET.host ? NET.ser : NET.hostSer;
+    if (!box) return;
+    if (!NET.racing || !S || !NET_MODES[S.md] || S.md === 'normal') { box.innerHTML = ''; btn.classList.add('hidden'); return; }
+    const M = NET_MODES[S.md], st = this.standings(S), nm = id => esc(S.names[id] || '?') + (id === NET.me ? '（あなた）' : '');
+    const raceNo = S.done ? S.maps.length : (S.i | 0) + 1;
+    const mapLine = S.maps.map((m, k) => `<span class='${k < (S.done ? 99 : S.i) ? 'text-white/40 line-through' : k === S.i ? 'text-yellow-200 font-black' : 'text-white/70'}'>${k + 1}. ${STAGES[m] ? STAGES[m].jp : '?'}</span>`).join('　');
+    const rows = st.ids.map((id, k) => `<div class='flex items-center gap-2'><b class='w-5 text-right'>${k + 1}</b>${S.tm ? `<span class='w-2 h-2 rounded-full' style='background:${TEAM_COL[S.tm[id]]}'></span>` : ''}<span class='flex-1 truncate ${id === NET.me ? 'text-cyan-300 font-black' : ''}'>${nm(id)}</span><b class='tabular-nums'>${S.pts[id]}${S.md === 'gachi' ? '勝' : 'pt'}</b></div>`).join('');
+    const team = S.tm ? `<div class='flex gap-3 text-sm font-black'>${[0, 1].map(t => `<span style='color:${TEAM_COL[t]}'>${TEAM_NM[t]} ${st.tp[t]}pt</span>`).join('<span class="text-white/50">vs</span>')}</div>` : '';
+    let head = `${M.n}　${S.done ? 'FINAL' : `RACE ${raceNo} / ${S.maps.length}`}`;
+    if (S.done) {
+      const myWin = S.tm ? st.win === S.tm[NET.me] : st.ids[0] === NET.me;
+      head += S.tm ? (st.win < 0 ? '　引き分け！' : `　${TEAM_NM[st.win]} の勝利！`) : `　優勝 ${nm(st.ids[0])}`;
+      if (!box.dataset.fin) { box.dataset.fin = 1; if (myWin) { flash('#ffd400', 0.5); SND.jackpot(); vib([100, 50, 100, 50, 300]); say(['シリーズ優勝！ おめでとう！'], 3); } }
+    } else delete box.dataset.fin;
+    box.innerHTML = `<div class='panel rounded-xl px-3 py-2 mt-2 jp text-xs'><div class='text-[11px] font-black text-fuchsia-300'>${head}</div><div class='text-[10px] mt-0.5'>${mapLine}</div>${team}<div class='grid grid-cols-2 gap-x-4 mt-1'>${rows}</div>
+      ${!S.done ? `<div class='text-[10px] text-white/50 mt-1'>${NET.host ? 'みんながゴールしたら NEXT RACE を押してください（このレースの点数が加算されます）。' : 'ホストが次のレースを始めるのを待っています。'}</div>` : ''}</div>`;
+    btn.classList.toggle('hidden', !(NET.host && !S.done)); btn.textContent = S.i + 1 >= S.maps.length ? '最終結果 ▶' : 'NEXT RACE ▶';
+  },
+};
 
 // ---------- 画面分割描画 ----------
 function renderSplit() {
@@ -5174,7 +5290,8 @@ const Modes = {
     game.mirror = !!(LV().mirror || this.has('mirror'));
     renderer.domElement.style.transform = game.mirror ? 'scaleX(-1)' : '';
     G = (STAGE.grav || 30) * (this.has('lowg') ? 0.4 : 1);
-    if (this.has('noitem')) for (const b of itemBoxes) b.taken = 1e9;
+    if (this.has('noitem') || (NET.racing && NET.rules.noItems)) for (const b of itemBoxes) b.taken = 1e9;
+    if (NET.racing && NET.rules.md !== 'normal') setTimeout(() => toast(NET_MODES[NET.rules.md].n + `　RACE ${(NET.cfg.ser.i | 0) + 1} / ${NET.cfg.ser.maps.length}`, '#ff2bd6', 3600), 700);
     player.retired = false; if (p2) p2.retired = false;
     if (game.practice) Practice.begin();
     $('practiceUI').style.display = game.practice ? '' : 'none';
