@@ -197,24 +197,60 @@
   .gcard.r-UR{animation:cardin .45s cubic-bezier(.2,1.5,.4,1) both,huespin 1.2s linear infinite}
   .gcard.r-GOD{background:linear-gradient(160deg,#3a2600,#140c00);border-color:#ffe680;box-shadow:0 0 22px #ffd400,0 0 44px #ffb000;animation:cardin .45s cubic-bezier(.2,1.5,.4,1) both,godpulse .8s ease-in-out infinite}
   @keyframes godpulse{50%{box-shadow:0 0 34px #fff3b0,0 0 70px #ffc400}}
-  /* ---- ドーパミンスロット ---- */
-  .dslot{position:relative;padding:14px 16px 12px;border-radius:22px;background:linear-gradient(180deg,#2a0a4a,#0b0220);border:3px solid var(--sc,#ff2bd6);box-shadow:0 0 28px var(--sc,#ff2bd6),inset 0 0 30px rgba(0,0,0,.6);transition:border-color .25s,box-shadow .25s}
-  .dslot .ttl{font-weight:900;letter-spacing:.35em;font-size:13px;text-align:center;color:#fff;text-shadow:0 0 10px var(--sc,#ff2bd6),0 0 22px var(--sc,#ff2bd6)}
-  .dslot .lamps{display:flex;justify-content:space-between;margin:6px 4px 8px}
-  .dslot .lamps i{width:9px;height:9px;border-radius:50%;background:var(--sc,#ff2bd6);box-shadow:0 0 8px var(--sc,#ff2bd6);animation:lampb .5s steps(2) infinite}
-  .dslot .lamps i:nth-child(2n){animation-delay:.25s}
-  @keyframes lampb{50%{opacity:.2}}
-  .dslot .reels{display:flex;gap:8px}
-  .dreel{width:84px;height:96px;border-radius:12px;background:linear-gradient(180deg,#000 0%,#1c1030 18%,#f5f0ff 50%,#1c1030 82%,#000 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,.25)}
-  .dreel b{font-size:46px;font-weight:900;font-family:Impact,'Arial Black',sans-serif;line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.35)}
-  .dreel.spin b{animation:reelspin .07s linear infinite;filter:blur(1.5px)}
-  .dreel.stop b{animation:reelstop .28s cubic-bezier(.2,1.6,.4,1)}
-  .dreel.slow b{animation:reelspin .2s linear infinite;filter:blur(.6px)}
-  .dreel.hit{box-shadow:0 0 22px var(--sc,#fff),inset 0 0 18px var(--sc,#fff);border-color:var(--sc,#fff)}
-  @keyframes reelspin{from{transform:translateY(-60%)}to{transform:translateY(60%)}}
-  @keyframes reelstop{0%{transform:translateY(-40%)}100%{transform:translateY(0)}}
-  .dslot.rainbow{animation:huespin .5s linear infinite}
-  .dslot.shake{animation:capshake .25s ease-in-out infinite}
+  /* ---- ドーパミンスロット（筐体） ---- */
+  .cabw{position:relative;transition:transform .6s cubic-bezier(.2,1,.3,1)}
+  .cabw.zoom{transform:scale(1.1)}
+  .cab{--sc:#ff2bd6;--cell:min(46px,11.5vh);position:relative;width:calc(var(--cell)*5.6);padding:8px 10px 10px;border-radius:18px 18px 14px 14px;
+    background:linear-gradient(90deg,#3a3f4a,#cfd6e0 10%,#7b8290 20%,#2a2e36 50%,#7b8290 80%,#cfd6e0 90%,#3a3f4a);box-shadow:0 0 0 2px #000a,0 0 30px var(--sc),0 18px 40px #000c;transition:box-shadow .3s,filter .4s}
+  .cab-top{margin:-2px -2px 6px;padding:5px 8px 6px;border-radius:14px 14px 6px 6px;background:radial-gradient(ellipse at 50% 130%,var(--sc),#1a0630 70%);text-align:center;border:2px solid #000a;transition:background .3s}
+  .cab-logo{font:900 calc(var(--cell)*.46)/1 Impact,'Arial Black',sans-serif;font-style:italic;letter-spacing:.05em;color:#fff;text-shadow:0 0 6px #fff,0 0 14px var(--sc),0 0 28px var(--sc)}
+  .cab-logo small{display:block;margin-top:2px;font:900 calc(var(--cell)*.17)/1 sans-serif;letter-spacing:.7em;color:#ffe680;text-shadow:0 0 8px #ffc400;font-style:normal}
+  .bulbs{display:flex;justify-content:space-between;padding:0 2px;margin-bottom:4px}
+  .bulbs i{width:7px;height:7px;border-radius:50%;background:#ffe680;box-shadow:0 0 6px #ffd400;animation:chase 1s linear infinite}
+  @keyframes chase{0%,40%{opacity:1}50%,100%{opacity:.12}}
+  .cab.hot .bulbs i{animation-duration:.3s;background:#fff}
+  .cab-face{display:flex;gap:6px;align-items:stretch}
+  .sled{width:8px;border-radius:4px;background:linear-gradient(180deg,var(--sc),transparent,var(--sc));background-size:100% 200%;animation:sled 1.2s linear infinite;box-shadow:0 0 10px var(--sc)}
+  .cab.hot .sled{animation-duration:.3s}
+  @keyframes sled{to{background-position:0 200%}}
+  .reelwin{position:relative;flex:1;display:flex;gap:4px;padding:5px;border-radius:10px;background:#07020f;box-shadow:inset 0 0 0 2px #000,inset 0 6px 18px #000}
+  .dsreel{position:relative;flex:1;height:calc(var(--cell)*3);overflow:hidden;border-radius:6px;background:linear-gradient(90deg,#b8b8c4,#fff 30%,#fff 70%,#b8b8c4);transition:box-shadow .2s}
+  .dsreel::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent 30%,transparent 70%,rgba(0,0,0,.7));pointer-events:none}
+  .dsreel.blur .strip{filter:blur(1.8px)}
+  .dsreel.hit{box-shadow:inset 0 0 0 3px var(--sc),0 0 18px var(--sc)}
+  .dsreel.hit::before{content:'';position:absolute;left:0;right:0;top:33.3%;height:33.4%;background:var(--sc);opacity:.28;z-index:1;animation:lampb .3s steps(2) infinite}
+  .strip{will-change:transform}
+  .sy{height:var(--cell);display:flex;align-items:center;justify-content:center;font:900 calc(var(--cell)*.7)/1 Impact,'Arial Black',sans-serif}
+  .sy.s7{color:#ff1a3c;-webkit-text-stroke:2px #ffcf3a;text-shadow:0 3px 0 #7a0010;font-size:calc(var(--cell)*.86)}
+  .sy.sbar b{display:inline-block;padding:2px 5px;border-radius:5px;background:#111;color:#ffd400;font-size:calc(var(--cell)*.32);letter-spacing:.06em;border:2px solid #ffd400;box-shadow:0 0 0 2px #111}
+  .sy.sdia{color:#29c8ff;text-shadow:0 0 0 #000,0 2px 0 #075a8a}
+  .sy.sstar{color:#20d070;text-shadow:0 2px 0 #0a5a30}
+  .sy.sheart{color:#ff2bd6;text-shadow:0 2px 0 #7a0060}
+  .sy.sorb{color:#8a4bff;text-shadow:0 2px 0 #3a1070}
+  .payline{position:absolute;left:2px;right:2px;top:50%;height:2px;margin-top:-1px;background:var(--sc);box-shadow:0 0 8px var(--sc);opacity:.75;pointer-events:none;z-index:2}
+  .glass{position:absolute;inset:0;border-radius:10px;background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 32%);pointer-events:none;z-index:2}
+  .cab-panel{display:flex;gap:5px;margin-top:6px}
+  .led{flex:1;background:#140303;border-radius:5px;padding:2px 5px;border:1px solid #000;box-shadow:inset 0 0 6px #000}
+  .led small{display:block;font-size:7px;letter-spacing:.2em;color:#ff9a9a99}
+  .led b{display:block;text-align:right;font:700 13px/1.15 'Courier New',monospace;color:#ff3b3b;text-shadow:0 0 6px #ff2020}
+  .led.win b{color:#ffd400;text-shadow:0 0 6px #ffb000}
+  .cab-btns{display:flex;justify-content:space-around;margin-top:6px}
+  .stopb{width:calc(var(--cell)*.62);height:calc(var(--cell)*.62);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ff6b86 30%,#8a0020);border:2px solid #300;box-shadow:0 3px 0 #300;opacity:.3;font:900 8px sans-serif;color:#fff;transition:opacity .2s}
+  .stopb.on{opacity:1;box-shadow:0 3px 0 #300,0 0 10px #ff2050}
+  .stopb.push{opacity:1;animation:pushb .3s ease-in-out infinite;background:radial-gradient(circle at 35% 30%,#fff,#ffe680 30%,#b07800);box-shadow:0 0 16px #ffd400,0 0 30px #ffb000}
+  @keyframes pushb{50%{transform:scale(1.3)}}
+  .lever{position:absolute;right:calc(var(--cell)*-.5);top:32%;width:6px;height:calc(var(--cell)*1.5);background:linear-gradient(90deg,#777,#eee,#777);border-radius:3px;transform-origin:50% 100%;transition:transform .18s}
+  .lever::before{content:'';position:absolute;top:-12px;left:-7px;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ff2050 40%,#600)}
+  .lever.pull{transform:scaleY(.35)}
+  .cab.freeze{filter:brightness(.12) saturate(0)}
+  .cab.reach{animation:capshake .18s ease-in-out infinite}
+  .cab.rainbow{animation:huespin .45s linear infinite}
+  .dsvig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,#000 85%);opacity:0;transition:opacity .5s}
+  .dsvig.on{opacity:.85}
+  .dsvig.red{background:radial-gradient(ellipse at center,transparent 30%,#7a0010 90%)}
+  .dsbg{position:fixed;inset:0;pointer-events:none;opacity:.0;background:repeating-conic-gradient(from 0deg,var(--sc,#ff2bd6) 0 10deg,transparent 10deg 20deg);animation:bgspin 6s linear infinite;transition:opacity .4s}
+  .dsbg.on{opacity:.16}
+  @keyframes bgspin{to{transform:rotate(360deg) scale(1.6)}}
   .dmsg{font-weight:900;letter-spacing:.2em;text-align:center;min-height:30px;font-size:22px;margin-top:10px}
   .dmsg.reach{animation:reachp .35s ease-in-out infinite;color:#ff2050;text-shadow:0 0 14px #ff2050}
   @keyframes reachp{50%{transform:scale(1.18)}}
@@ -4294,11 +4330,12 @@ function pull(n, useTix) {
   else { const cost = n === 10 ? 2700 : 300; if (PF.neon < cost) { SND.buzz(); toast(`${NE()} ネオンが足りません。レースで稼ごう！`, '#ff2050'); return; } PF.neon -= cost; }
   const res = [];
   for (let i = 0; i < n; i++) res.push(rollOne(n === 10 && i === 9 && !res.some(r => RAR_ORDER.indexOf(r.it.r) >= 2) ? 2 : 0));
-  savePF(); gachaFx(res);
+  savePF(); gachaFx(res, useTix ? 'TICKET' : n === 10 ? 2700 : 300);
 }
-// ---- ドーパミンスロット: 結果のレア度で絵柄が決まる（バラバラ=N / 2つ=R / ★★★♥♥♥=SR / BAR×3=SSR / ◆×3=UR / 7×3=GOD）----
-const DS_SYM = { '7': '#ff2050', BAR: '#ffb000', '◆': '#29f3ff', '★': '#3bff9d', '♥': '#ff2bd6', '●': '#9d6bff' };
-const DS_KEYS = Object.keys(DS_SYM), DS_LOW = ['★', '♥', '●'];
+// ---- ドーパミンスロット: 結果のレア度で絵柄が決まる（バラバラ=N / 2つ=R / ★★★♥♥♥●●●=SR / BAR×3=SSR / ◆×3=UR / 7×3=GOD）----
+const DS_CLS = { '7': 's7', BAR: 'sbar', '◆': 'sdia', '★': 'sstar', '♥': 'sheart', '●': 'sorb' };
+const DS_KEYS = Object.keys(DS_CLS), DS_LOW = ['★', '♥', '●'];
+const DS_STRIP = ['7', '★', 'BAR', '♥', '◆', '●', '★', '♥', 'BAR', '●', '◆', '★', '♥', '●', 'BAR', '★'];   // リールの帯（下に流れる）
 const RAR_SC = { N: '#ff2bd6', R: '#29f3ff', SR: '#c77dff', SSR: '#ffd400', UR: '#ff2bd6', GOD: '#ffe680' };
 function dsCombo(rar) {
   const pk = a => a[(Math.random() * a.length) | 0];
@@ -4306,70 +4343,150 @@ function dsCombo(rar) {
   if (rar === 'UR') return ['◆', '◆', '◆'];
   if (rar === 'SSR') return ['BAR', 'BAR', 'BAR'];
   if (rar === 'SR') { const k = pk(DS_LOW); return [k, k, k]; }
-  if (rar === 'R') { if (Math.random() < 0.25) return ['7', '7', pk(['BAR', '◆', ...DS_LOW])]; const k = pk(DS_LOW); return [k, k, pk(DS_KEYS.filter(x => x !== k && x !== '7'))]; }   // R はたまに「7・7リーチ」からハズれるガセ演出
+  if (rar === 'R') { if (Math.random() < 0.25) return ['7', '7', pk(['BAR', '◆', ...DS_LOW])]; const k = pk(DS_LOW); return [k, k, pk(DS_KEYS.filter(x => x !== k && x !== '7'))]; }   // R はたまに「7・7リーチ」からハズれるガセ
   const a = pk(DS_KEYS), b = pk(DS_KEYS.filter(x => x !== a)), c = pk(DS_KEYS.filter(x => x !== b && !(a === '7' && x === '7')));
   return [a, b, c];
 }
-const dsCell = k => `<b style='color:${DS_SYM[k]}'>${k}</b>`;
-const dsMachine = (sc = '#ff2bd6', syms = ['7', '7', '7'], live = true) => `<div class='dslot' ${live ? "id='dsM'" : ''} style='--sc:${sc}'><div class='ttl'>DOPAMINE SLOT</div><div class='lamps'>${'<i></i>'.repeat(9)}</div>
-  <div class='reels'>${syms.map((k, i) => `<div class='dreel' ${live ? `id='dsR${i}'` : ''}>${dsCell(k)}</div>`).join('')}</div></div>`;
-function dsSound(kind) {
+const dsCell = k => `<div class='sy ${DS_CLS[k]}'>${k === 'BAR' ? '<b>BAR</b>' : k}</div>`;
+// 筐体（live=false はメニューの飾り）
+const dsMachine = (sc = '#ff2bd6', live = true) => `<div class='cabw' ${live ? "id='dsW'" : ''}><div class='cab' ${live ? "id='dsM'" : ''} style='--sc:${sc}'>
+  <div class='cab-top'><div class='bulbs'>${Array.from({ length: 14 }, (_, k) => `<i style='animation-delay:${(-k * 0.07).toFixed(2)}s'></i>`).join('')}</div><div class='cab-logo'>DOPAMINE<small>SLOT MACHINE</small></div></div>
+  <div class='cab-face'><div class='sled'></div><div class='reelwin'>${[0, 1, 2].map(i => `<div class='dsreel' ${live ? `id='dsR${i}'` : ''}>${live ? '' : `<div class='strip'>${['★', '7', 'BAR'].map(dsCell).join('')}</div>`}</div>`).join('')}<div class='payline'></div><div class='glass'></div></div><div class='sled'></div></div>
+  <div class='cab-panel'><div class='led'><small>CREDIT</small><b ${live ? "id='dsCr'" : ''}>${PF.neon}</b></div><div class='led'><small>BET</small><b ${live ? "id='dsBet'" : ''}>300</b></div><div class='led win'><small>WIN</small><b ${live ? "id='dsWin'" : ''}>---</b></div></div>
+  <div class='cab-btns'>${[0, 1, 2].map(i => `<button class='stopb' ${live ? `id='dsS${i}'` : ''}>STOP</button>`).join('')}</div>
+  <div class='lever' ${live ? "id='dsLv'" : ''}></div></div></div>`;
+// リール: pos は「真ん中の段に来ている帯の位置（セル単位）」。回転中は減っていく（絵柄が下へ流れる）
+class DReel {
+  constructor(el, cell) {
+    this.el = el; this.cell = cell; this.n = DS_STRIP.length; this.pos = Math.random() * this.n; this.v = 0; this.anim = null;
+    el.innerHTML = `<div class='strip'>${[...DS_STRIP, ...DS_STRIP, ...DS_STRIP].map(dsCell).join('')}</div>`; this.st = el.firstChild; this.draw();
+  }
+  draw() { const y = ((this.pos % this.n) + this.n) % this.n; this.st.style.transform = `translateY(${(-(y + this.n - 1) * this.cell).toFixed(1)}px)`; this.el.classList.toggle('blur', Math.abs(this.v) > 8); }
+  spin(v = 22) { this.anim = null; this.v = v; }
+  stop(sym, dur = 500, extra = 4) {
+    return new Promise(done => {
+      const idx = []; DS_STRIP.forEach((k, i) => { if (k === sym) idx.push(i); });
+      const dir = this.v >= 0 ? 1 : -1, from = this.pos, min = from - dir * extra;
+      let to = null;   // 回転方向に extra セル以上進んだ先で、sym が真ん中に来る位置
+      for (let k = 0; k < 6 && to === null; k++) for (const i of idx) {
+        const base = Math.floor(min / this.n) * this.n - dir * k * this.n + i;
+        if ((dir > 0 && base <= min) || (dir < 0 && base >= min)) { if (to === null || (dir > 0 ? base > to : base < to)) to = base; }
+      }
+      this.v = 0; this.anim = { from, to, t0: performance.now(), dur, done };
+    });
+  }
+  tick(dt) {
+    if (this.anim) {
+      const A = this.anim, k = Math.min(1, (performance.now() - A.t0) / A.dur);   // フレームが落ちても時間どおりに止まる
+      const e = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);   // 少し行き過ぎて戻る（easeOutBack）
+      this.pos = A.from + (A.to - A.from) * e; this.el.classList.remove('blur');
+      if (k >= 1) { this.pos = A.to; this.anim = null; A.done(); }
+    } else this.pos -= this.v * dt;
+    this.draw();
+  }
+}
+function dsSound(kind, x = 0) {
   if (!SND.ok()) return; const t = SND.t();
-  if (kind === 'lever') { SND.noiseHit(t, 0.18, 0.4, 'bandpass', 600, 2400, SND.sfx, 2); SND.tone(180, t, 0.15, 'square', 0.12); }
-  if (kind === 'stop') { SND.tone(110, t, 0.08, 'square', 0.2); SND.noiseHit(t, 0.06, 0.3, 'highpass', 2500, null, SND.sfx); }
-  if (kind === 'reach') for (let i = 0; i < 6; i++) SND.tone(i % 2 ? 1320 : 990, t + i * 0.16, 0.14, 'square', 0.1);
-  if (kind === 'heart') { SND.tone(70, t, 0.12, 'sine', 0.5); SND.tone(65, t + 0.18, 0.12, 'sine', 0.4); }
+  if (kind === 'lever') { SND.noiseHit(t, 0.18, 0.4, 'bandpass', 600, 2400, SND.sfx, 2); SND.tone(180, t, 0.15, 'square', 0.12); SND.tone(90, t + 0.05, 0.2, 'sine', 0.3); }
+  if (kind === 'stop') { SND.tone(110, t, 0.08, 'square', 0.22); SND.noiseHit(t, 0.06, 0.35, 'highpass', 2500, null, SND.sfx); }
+  if (kind === 'reach') for (let i = 0; i < 8; i++) SND.tone(i % 2 ? 1320 : 990, t + i * 0.13, 0.12, 'square', 0.1);
+  if (kind === 'heart') { SND.tone(62, t, 0.13, 'sine', 0.55); SND.tone(58, t + 0.16, 0.12, 'sine', 0.42); }
+  if (kind === 'freeze') { SND.tone(40, t, 1.6, 'sawtooth', 0.22, SND.sfx, 220); SND.noiseHit(t, 1.5, 0.15, 'lowpass', 200, 60, SND.sfx); }
+  if (kind === 'blast') { SND.noiseHit(t, 0.8, 0.6, 'bandpass', 300, 6000, SND.sfx, 2); SND.tone(1047, t, 0.3, 'square', 0.12); }
+  if (kind === 'rise') SND.tone(200 + x * 60, t, 0.12, 'sawtooth', 0.08, SND.sfx, 2000);
   if (kind === 'god') { SND.tone(55, t, 1.6, 'sawtooth', 0.25, SND.sfx, 400); [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => SND.tone(f, t + 0.15 + i * 0.09, 0.5, 'square', 0.12)); }
+  if (kind === 'coin') SND.tone(1800 + Math.random() * 600, t, 0.05, 'square', 0.06);
 }
 function goldRain(n = 80) {
   for (let i = 0; i < n; i++) { const d = document.createElement('i'); d.className = 'gold-rain'; d.style.left = (Math.random() * 100) + 'vw'; const z = 6 + Math.random() * 12; d.style.width = d.style.height = z + 'px';
     d.style.animationDuration = (1.4 + Math.random() * 1.8) + 's'; d.style.animationDelay = (Math.random() * 1.2) + 's'; document.body.appendChild(d); setTimeout(() => d.remove(), 4500); }
 }
-function gachaFx(res) {
-  const top = Math.max(...res.map(r => RAR_ORDER.indexOf(r.it.r))), rar = RAR_ORDER[top], combo = dsCombo(rar);
-  const reach = combo[0] === combo[1], fx = $('gFx'), timers = [];
-  const T = (ms, f) => timers.push(setTimeout(f, ms));
-  fx.classList.remove('hidden'); fx.classList.add('flex'); fx.onclick = null;
-  fx.innerHTML = `${dsMachine('#ff2bd6', ['7', 'BAR', '◆'])}<div id='dsMsg' class='dmsg jp'>　</div><div class='jp text-[10px] text-white/40 mt-1'>タップでスキップ</div>`;
-  let done = false;
-  const reels = [0, 1, 2].map(i => $('dsR' + i)), msg = $('dsMsg'), mach = $('dsM');
-  const spin = [0, 1, 2].map(i => setInterval(() => { if (reels[i].classList.contains('spin') || reels[i].classList.contains('slow')) reels[i].innerHTML = dsCell(DS_KEYS[(Math.random() * DS_KEYS.length) | 0]); }, 70));
-  const stopReel = i => { reels[i].classList.remove('spin', 'slow'); reels[i].classList.add('stop'); reels[i].innerHTML = dsCell(combo[i]); dsSound('stop'); vib(i === 2 ? 40 : 18); };
-  const finish = () => {
-    if (done) return; done = true; timers.forEach(clearTimeout); spin.forEach(clearInterval);
-    showCards(res, top);
-  };
-  dsSound('lever'); vib([30, 20, 30]);
-  reels.forEach(r => r.classList.add('spin'));
-  // 期待度で台の色が変わる（金・虹は事前に光ることがある）
-  if (top >= 3 && Math.random() < 0.6) T(500, () => { mach.style.setProperty('--sc', top >= 4 ? '#ff2bd6' : '#ffd400'); msg.textContent = top >= 5 ? '……？' : 'チャンス！'; msg.style.color = '#ffd400'; vib(25); });
-  T(900, () => stopReel(0));
-  T(1500, () => stopReel(1));
-  let end = 2100;
-  if (reach) {
-    const godR = combo[0] === '7';
-    T(1650, () => { msg.className = 'dmsg jp reach'; msg.textContent = godR ? '激アツ 7 リーチ！！' : 'リーチ！'; reels[2].classList.remove('spin'); reels[2].classList.add('slow'); dsSound('reach'); vib([60, 40, 60]); say(DLINES.reach, 1);
-      mach.classList.add('shake'); if (godR) mach.style.setProperty('--sc', '#ff2050'); });
-    const hb = godR ? 6 : top >= 3 ? 4 : 2;
-    for (let k = 0; k < hb; k++) T(1900 + k * 500, () => { dsSound('heart'); vib([30, 120, 20]); });
-    end = 1900 + hb * 500;
-  }
-  T(end, () => {
-    stopReel(2); mach.classList.remove('shake'); msg.className = 'dmsg jp';
-    const sc = RAR_SC[rar]; mach.style.setProperty('--sc', sc);
-    if (top >= 2) reels.forEach(r => { r.classList.add('hit'); r.style.setProperty('--sc', sc); });
-    if (rar === 'GOD') {
-      fx.innerHTML = `<div class='burst'></div><div id='godT' class='text-center'></div>`; flash('#ffe680', 0.9); dsSound('god'); vib([300, 80, 300, 80, 600]);
-      ['G', 'O', 'D'].forEach((L, k) => T(700 + k * 450, () => { $('godT').insertAdjacentHTML('beforeend', `<span class='godL'>${L}</span>`); SND.explode(0.6); vib(120); }));
-      T(2200, () => { $('godT').insertAdjacentHTML('beforeend', `<div class='jp text-sm font-black text-yellow-100 tracking-[.3em] mt-2'>7・7・7　SECRET RARE</div>`); goldRain(120); SND.jackpot(); SND.fanfare(); say(DLINES.god, 3); });
-      T(4600, finish); return;
+const DS_WIN = { N: 'GET', R: 'GET', SR: 'BONUS', SSR: 'BIG', UR: 'MEGA', GOD: 'GOD' };
+async function gachaFx(res, bet = 300) {
+  const top = Math.max(...res.map(r => RAR_ORDER.indexOf(r.it.r))), rar = RAR_ORDER[top];
+  // 昇格演出: 一度そろってから、暗転→逆回転でランクアップ
+  let stages = [rar];
+  if (rar === 'GOD') stages = ['UR', 'GOD'];
+  else if (rar === 'UR' && Math.random() < 0.5) stages = ['SSR', 'UR'];
+  else if (rar === 'SSR' && Math.random() < 0.3) stages = ['SR', 'SSR'];
+  const fx = $('gFx'); fx.classList.remove('hidden'); fx.classList.add('flex');
+  fx.innerHTML = `<div class='dsbg' id='dsBg'></div><div class='dsvig' id='dsVig'></div>${dsMachine('#ff2bd6')}<div id='dsMsg' class='dmsg jp'>　</div><div class='jp text-[10px] text-white/40'>タップでスキップ</div>`;
+  const cab = $('dsM'), wrap = $('dsW'), msgEl = $('dsMsg'), vig = $('dsVig'), bg = $('dsBg');
+  $('dsBet').textContent = bet; $('dsCr').textContent = PF.neon;
+  const cell = parseFloat(getComputedStyle(cab).getPropertyValue('--cell')) || $('dsR0').offsetHeight / 3;
+  const R = [0, 1, 2].map(i => new DReel($('dsR' + i), $('dsR' + i).getBoundingClientRect().height / 3 || cell));
+  const btn = i => $('dsS' + i);
+  let skipped = false, finished = false, pushRes = null, last = performance.now(), raf = 0;
+  const loop = now => { const dt = Math.min(0.05, (now - last) / 1000); last = now; R.forEach(r => r.tick(dt)); if (!finished) raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+  const finish = () => { if (finished) return; finished = true; cancelAnimationFrame(raf); showCards(res, top); };
+  const W = ms => new Promise((ok, ng) => setTimeout(() => skipped ? ng('skip') : ok(), ms));
+  const msg = (t, col = '#fff', cls = '') => { msgEl.className = 'dmsg jp ' + cls; msgEl.textContent = t; msgEl.style.color = col; };
+  const setSc = c => cab.style.setProperty('--sc', c);
+  fx.onclick = e => { if (pushRes) { pushRes(); return; } if (e.target.closest && e.target.closest('.stopb')) return; skipped = true; finish(); };
+  try {
+    // 1. レバーフリーズ（GODは必ず / 虹は半分）
+    if (rar === 'GOD' || (rar === 'UR' && Math.random() < 0.5)) {
+      cab.classList.add('freeze'); vig.classList.add('on'); msg('………', '#666'); dsSound('freeze'); vib([400]);
+      await W(1700); cab.classList.remove('freeze'); vig.classList.remove('on'); flash('#ffffff', 0.8); dsSound('blast'); vib([60, 40, 60]); msg('！！', '#ff2050');
     }
-    if (rar === 'UR') { mach.classList.add('rainbow'); msg.textContent = '虹色ーーー！！！'; msg.style.color = '#fff'; SND.jackpot(); SND.fanfare(); vib([100, 50, 100, 50, 300]); flash('#ff2bd6', 0.5); goldRain(40); say(DLINES.ur, 3); T(1800, finish); return; }
-    if (rar === 'SSR') { msg.textContent = 'BIG BONUS!!'; msg.style.color = '#ffd400'; SND.jackpot(); vib([60, 40, 120]); flash('#ffd400', 0.4); goldRain(50); say(DLINES.ssr, 2); T(1500, finish); return; }
-    if (rar === 'SR') { msg.textContent = 'BONUS!'; msg.style.color = '#c77dff'; SND.itemGet(); vib([30, 20, 60]); T(1000, finish); return; }
-    msg.textContent = rar === 'R' ? (reach && combo[0] === '7' ? 'おしい…！' : 'あと1つ！') : 'GET'; msg.style.color = '#fff'; SND.tick(); T(800, finish);
-  });
-  T(300, () => { fx.onclick = finish; });
+    $('dsLv').classList.add('pull'); setTimeout(() => $('dsLv') && $('dsLv').classList.remove('pull'), 250);
+    dsSound('lever'); vib([25, 15, 25]); R.forEach((r, i) => { r.spin(20 + i * 2); btn(i).classList.add('on'); });
+    // 2. 予告ランプ
+    if (top >= 3 && Math.random() < 0.6) { await W(450); setSc(top >= 4 ? '#ff2bd6' : '#ffd400'); cab.classList.add('hot'); bg.classList.add('on'); msg(top >= 5 ? '？？？' : 'チャンス！', '#ffd400'); vib(30); dsSound('rise', 6); }
+    await W(650);
+    for (let si = 0; si < stages.length; si++) {
+      const st = stages[si], combo = dsCombo(st), reach = combo[0] === combo[1], hotReach = combo[0] === '7' || st === 'UR' || st === 'GOD';
+      if (si > 0) {   // 昇格: 暗転 → 逆回転
+        await W(900); cab.classList.add('freeze'); vig.classList.add('on'); msg('……！？', '#aaa'); dsSound('heart'); vib([200]);
+        await W(1100); cab.classList.remove('freeze'); vig.classList.remove('on'); flash('#ffffff', 0.9); dsSound('blast'); vib([80, 40, 160]);
+        msg('まだだ！！', '#ff2050', 'reach'); [0, 1, 2].forEach(i => { R[i].el.classList.remove('hit'); R[i].spin(-26); btn(i).classList.add('on'); }); $('dsWin').textContent = '---';
+        await W(1000);
+      }
+      for (let i = 0; i < 2; i++) { await R[i].stop(combo[i], 420); btn(i).classList.remove('on'); dsSound('stop'); vib(i ? 22 : 15); await W(i ? 120 : 260); }
+      if (reach) {
+        // 3. リーチ: ズーム・暗転・加速する心音・最後は自分で止める
+        cab.classList.add('reach', 'hot'); wrap.classList.add('zoom'); vig.classList.add('on'); vig.classList.toggle('red', hotReach); bg.classList.add('on');
+        if (hotReach) setSc(combo[0] === '7' ? '#ff2050' : '#ff2bd6');
+        msg(combo[0] === '7' ? '激アツ 7 リーチ！！' : st === 'UR' ? '虹リーチ！！' : 'リーチ！', hotReach ? '#ff2050' : '#ffd400', 'reach'); dsSound('reach'); vib([60, 40, 60]); say(DLINES.reach, 1);
+        R[2].v = 9;
+        await W(700);
+        btn(2).classList.remove('on'); btn(2).classList.add('push'); btn(2).textContent = 'PUSH';
+        const beats = hotReach ? 9 : 5; let pushed = false;
+        const pushP = new Promise(ok => { pushRes = () => { pushed = true; pushRes = null; ok(); }; });
+        btn(2).onclick = e => { e.stopPropagation(); if (pushRes) pushRes(); };
+        for (let k = 0; k < beats && !pushed; k++) {   // だんだん速くなる心音
+          dsSound('heart'); dsSound('rise', k); vib([35, 110, 25]);
+          await Promise.race([W(Math.max(220, 620 - k * 55)), pushP]);
+        }
+        pushRes = null; btn(2).classList.remove('push'); btn(2).textContent = 'STOP';
+        await R[2].stop(combo[2], hotReach ? 1100 : 800, hotReach ? 7 : 5);
+        cab.classList.remove('reach'); wrap.classList.remove('zoom'); vig.classList.remove('on', 'red');
+      } else { await R[2].stop(combo[2], 420); }
+      btn(2).classList.remove('on'); dsSound('stop'); vib(40);
+      // 4. 結果
+      const sc = RAR_SC[st]; setSc(sc); cab.classList.remove('hot');
+      const all = combo[0] === combo[1] && combo[1] === combo[2];
+      if (all) R.forEach(r => r.el.classList.add('hit'));
+      $('dsWin').textContent = all ? DS_WIN[st] : '---';
+      const lastStage = si === stages.length - 1;
+      if (!all) { msg(st === 'R' ? (combo[0] === '7' ? 'おしい…！' : 'あと1つ！') : 'GET', '#fff'); SND.tick(); bg.classList.remove('on'); await W(900); continue; }
+      if (st === 'SR') { msg('BONUS!', '#c77dff'); SND.itemGet(); vib([30, 20, 60]); bg.classList.add('on'); await W(lastStage ? 1100 : 900); continue; }
+      if (st === 'SSR') { msg('BIG BONUS!!', '#ffd400'); SND.jackpot(); vib([60, 40, 120]); flash('#ffd400', 0.45); bg.classList.add('on'); cab.classList.add('hot'); goldRain(50); if (lastStage) say(DLINES.ssr, 2);
+        for (let k = 0; k < 12; k++) setTimeout(() => dsSound('coin'), k * 60); await W(lastStage ? 1700 : 1200); continue; }
+      if (st === 'UR') { msg('虹色ーーー！！！', '#fff'); cab.classList.add('rainbow', 'hot'); bg.classList.add('on'); SND.jackpot(); SND.fanfare(); vib([100, 50, 100, 50, 300]); flash('#ff2bd6', 0.55); goldRain(60); if (lastStage) say(DLINES.ur, 3);
+        await W(lastStage ? 2000 : 1300); cab.classList.remove('rainbow'); continue; }
+      if (st === 'GOD') {
+        fx.querySelector('.cabw').style.opacity = '0.15'; msg('　');
+        fx.insertAdjacentHTML('beforeend', `<div class='burst'></div><div id='godT' class='text-center' style='position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none'><div id='godL'></div></div>`);
+        flash('#ffe680', 0.95); dsSound('god'); vib([300, 80, 300, 80, 600]);
+        for (const [k, L] of ['G', 'O', 'D'].entries()) { await W(k ? 420 : 650); $('godL').insertAdjacentHTML('beforeend', `<span class='godL'>${L}</span>`); SND.explode(0.6); vib(120); }
+        await W(500); $('godT').insertAdjacentHTML('beforeend', `<div class='jp text-sm font-black text-yellow-100 tracking-[.3em] mt-2'>7・7・7　SECRET RARE</div>`); goldRain(140); SND.jackpot(); SND.fanfare(); say(DLINES.god, 3);
+        await W(2600);
+      }
+    }
+    finish();
+  } catch (e) { if (e !== 'skip') { console.error(e); finish(); } }
 }
 function showCards(res, top) {
   const fx = $('gFx'), rar = RAR_ORDER[top];
@@ -4400,7 +4517,7 @@ function htmlMis() {
 function htmlGacha() {
   const pool = COS.filter(c => c.g !== false && (c.r !== 'GOD' || PF.owned[c.id])), own = pool.filter(c => PF.owned[c.id]).length;
   return `<div class='flex flex-col items-center text-center gap-2 mt-2'>
-    <div style='transform:scale(.72);margin:-18px 0 -22px'>${dsMachine('#ff2bd6', ['7', '7', '7'], false)}</div>
+    <div style='transform:scale(.62);margin:-58px 0 -62px'>${dsMachine('#ff2bd6', false)}</div>
     <div class='text-xl font-black neon-pink tracking-wider'>ドーパミンスロット</div>
     <div class='text-[11px] text-white/70'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？　かぶったらネオンに自動変換</div>
     <div class='flex flex-wrap gap-2 justify-center mt-1'>
