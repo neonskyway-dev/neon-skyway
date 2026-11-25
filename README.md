@@ -40,3 +40,23 @@
 3. 終わり。ゲーム側の設定は不要（今の公開用キーのまま動きます）
 
 テーブルは RLS を有効にしてポリシーを作らないので、公開用キーからは直接読み書きできません。使えるのは入力チェック付きの4つの関数（上位100件・自分の順位・ゴースト取得・登録）だけです。SQL を実行するまでは、ゲームのランキング画面に「サーバー側の準備がまだ」と出ます。
+
+
+## 公開用ビルド（コード保護）
+
+公開するのは難読化した `dist/index.html` だけです。元の `index.html` は非公開リポジトリにだけ置きます。
+
+- ビルド: `npm install && npm run build` → `dist/index.html`
+- Cloudflare Pages の設定: Build command `npm install && npm run build` ／ Build output directory `dist`
+- 公開版では検証用フック（`window.__game`）を外しています
+- 難読化はゲームの速さを落とさない設定です（制御フロー平坦化・ダミーコードなし）
+
+© 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。
+
+### 公式ドメイン判定（コピー対策）
+
+公開版（dist）には、公式の場所以外で開かれたときに「非公式コピー」と表示してオンライン機能を止める仕組みが入っています。ゲーム自体は止めません。
+
+- 既定の公式ドメイン: `neon-skyway.pages.dev`（とそのプレビュー用サブドメイン）、`neonskyway-dev.github.io`、`localhost`
+- Cloudflare Pages のプロジェクト名が違うときや独自ドメインを使うときは、環境変数 `OFFICIAL_HOSTS`（カンマ区切り）で上書きする
+- `public/_headers`・`public/robots.txt` は dist にコピーされる（テスト公開中は検索エンジンに載せない）

@@ -1,0 +1,11 @@
+{
+  "name": "neon-skyway",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "node tools/build.mjs"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1"
+  }
+}
