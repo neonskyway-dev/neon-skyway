@@ -18,6 +18,32 @@ const HOOK = '// 検証用フック';
 const h = code.indexOf(HOOK);
 if (h >= 0) code = code.slice(0, h);
 
+// ---- 公式ドメイン判定（コピー対策） ----
+// 公式の場所以外で開かれたら「非公式コピー」と表示し、オンライン機能（Supabase）を止める。
+// ゲーム自体は動かすので、公式サイトで誤作動しても遊べなくなることはない。
+// 公式ドメインを増やすときは OFFICIAL_HOSTS（カンマ区切り）で上書きする。
+const OFFICIAL = (process.env.OFFICIAL_HOSTS || 'neon-skyway.pages.dev,neonskyway-dev.github.io,localhost,127.0.0.1')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const BUILD_ID = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 8);
+const guard = `
+const __NS_SIG = 'NEON SKYWAY (c) 2026 neonskyway-dev / build ${BUILD_ID}';
+(() => {
+  const h = location.hostname, ok = ${JSON.stringify(OFFICIAL)};
+  const official = location.protocol === 'file:' || ok.some(d => h === d || h.endsWith('.' + d));
+  window.__NS_UNOFFICIAL = !official;
+  if (official) return;
+  const show = () => { const d = document.createElement('div');
+    d.textContent = 'この NEON SKYWAY は非公式コピーです。オンライン機能は使えません。';
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;padding:6px 10px;text-align:center;font:600 12px sans-serif;color:#fff;background:#b00020;pointer-events:none';
+    document.body.appendChild(d); };
+  document.body ? show() : addEventListener('DOMContentLoaded', show);
+})();
+`;
+const NET_LINE = 'NET.api = makeSupaRoomApi();';
+if (code.includes(NET_LINE)) code = code.replace(NET_LINE, 'NET.api = window.__NS_UNOFFICIAL ? await Promise.resolve(null) : makeSupaRoomApi();');
+else console.warn('[build] 注意: オンライン機能の停止位置が見つかりません（' + NET_LINE + '）');
+code = guard + code;
+
 let obf;
 try {
   obf = (await import('javascript-obfuscator')).default;
@@ -52,4 +78,6 @@ const banner = '/* © 2026 NEON SKYWAY. All rights reserved. 無断での複製�
 const out = html.slice(0, start) + OPEN + banner + code + html.slice(end);
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(`${OUT_DIR}/index.html`, out);
-console.log(`[build] ${OUT_DIR}/index.html を出力しました（${(out.length / 1024).toFixed(0)} KB）`);
+for (const f of ['_headers', 'robots.txt']) { try { writeFileSync(`${OUT_DIR}/${f}`, readFileSync(`public/${f}`)); } catch {} }
+console.log(`[build] ${OUT_DIR}/index.html を出力しました（${(out.length / 1024).toFixed(0)} KB, build ${BUILD_ID}）`);
+console.log(`[build] 公式ドメイン: ${OFFICIAL.join(', ')}`);
