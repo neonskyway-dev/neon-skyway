@@ -19,3 +19,14 @@
 | `LANDING` | 着地アングル（8°以内で +12%、25°超で −30%）、空中で BOOST を押したときの機首上げ |
 | `FLOW` | フロー・コンボ（3秒以内に繋ぐと ×1.0 → 最大 ×3.0） |
 | `WALL` | 壁ペナルティ（難易度 Lv ごとの減速、Lv3〜 はコンボ切れ、Lv5〜 はニトロ熱 +20%） |
+
+## 公開用ビルド（コード保護）
+
+公開するのは難読化した `dist/index.html` だけです。元の `index.html` は非公開リポジトリにだけ置きます。
+
+- ビルド: `npm install && npm run build` → `dist/index.html`
+- Cloudflare Pages の設定: Build command `npm install && npm run build` ／ Build output directory `dist`
+- 公開版では検証用フック（`window.__game`）を外しています
+- 難読化はゲームの速さを落とさない設定です（制御フロー平坦化・ダミーコードなし）
+
+© 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。
