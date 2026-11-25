@@ -309,6 +309,8 @@
     <div class="mt-3 sm:mt-6 flex flex-wrap items-center justify-center gap-3">
       <button id="btnStart" class="start-btn text-base sm:text-xl">START</button>
       <button id="btnTA" class="mbtn"><i data-i="flag"></i>タイムアタック</button>
+      <button id="btnDaily" class="mbtn"><i data-i="mission"></i>日替わり縛り</button>
+      <button id="btnPractice" class="mbtn"><i data-i="target"></i>練習</button>
       <button id="btn2P" class="mbtn"><i data-i="users"></i>2P対戦</button>
       <button id="btnOnline" class="mbtn"><i data-i="globe"></i>オンライン</button>
     </div>
@@ -388,7 +390,7 @@
     <div class="flex flex-col items-end gap-2">
       <button id="sBack" class="rounded-full px-4 py-1.5 text-xs font-bold tracking-[.2em] border border-white/40 bg-black/40">BACK</button>
       <div class="seg bg-black/50 jp" id="segCpu"><button data-n="5" class="on">CPU 5台</button><button data-n="10">CPU 10台</button></div>
-      <div class="seg bg-black/50 jp" id="segLv"><button data-l="1">かんたん</button><button data-l="2" class="on">ふつう</button><button data-l="3">むずかしい</button><button data-l="4">エキスパート</button><button data-l="5">鬼</button><button data-l="6">神</button></div>
+      <div class="seg bg-black/50 jp" id="segLv"><button data-l="1">かんたん</button><button data-l="2" class="on">ふつう</button><button data-l="3">むずかしい</button><button data-l="4">エキスパート</button><button data-l="5">鬼</button><button data-l="6">神</button><button data-l="7" style="color:#ff2050;font-weight:900">HARDCORE</button></div>
     </div>
   </div>
   <div class="flex items-end justify-between gap-3 pointer-events-auto">
@@ -613,6 +615,17 @@ const FLOW = {
   step: 0.25,               // 1つ繋ぐごとの倍率アップ
   max: 3.0,                 // 最大倍率
   tiers: [1.5, 2.0, 2.5, 3.0],   // 実況・画面演出・BGM が強くなる段
+};
+// コース別ランク C〜SSS（タイム40点 + 最大フロー20点 + ノーヒット20点 + ジャスト率20点 = 100点）
+const CRANK = {
+  names: ['C', 'B', 'A', 'S', 'SS', 'SSS'],
+  cut: [0, 48, 64, 78, 88, 95],                 // この点数以上でそのランク
+  cols: ['#9aa4b8', '#29f3ff', '#3bff9d', '#ffd400', '#ff8a00', '#ff2bd6'],
+  time: { full: 1.02, zero: 1.30, pts: 40 },    // 開発者タイム比 1.02 以下で満点、1.30 で 0 点
+  flow: { full: 2.5, pts: 20 },                 // 最大フロー倍率 ×2.5 で満点
+  noHit: { pts: 20, per: 5 },                   // 被弾・壁・転倒 1回ごとに −5
+  just: { full: 0.8, pts: 20 },                 // ジャスト率 80% で満点
+  assistCap: 'A',                               // アシスト中はAまで
 };
 // B5. 壁ペナルティ（難易度 Lv ごと。hit = 当たった瞬間の減速率、scrape = こすり続けたときの減速/秒）
 const WALL = {
@@ -2105,7 +2118,7 @@ const Assist = {
   mode: store.get('ns_assist', null) || ASSIST.def,
   chosen: store.get('ns_assist', null) !== null,
   // そのレースで実際に効いているモード（チュートリアル中は操作を覚えるため「一部」に固定）
-  of(c) { if (!c || !c.ctrl || c.remote) return 'off'; if (game.tut) return 'partial'; return this.mode; },
+  of(c) { if (!c || !c.ctrl || c.remote) return 'off'; if (game.tut) return 'partial'; if (LV().noAssist) return 'off'; return this.mode; },
   on() { return this.of(player) !== 'off'; },
   set(m, quiet) {
     if (!ASSIST_LABEL[m]) return;
@@ -2130,6 +2143,8 @@ const LEVELS = {
   4: { name: 'エキスパート', skill: [1.02, 1.06], rb: [-0.01, 0.14], boost: [3.5, 5.5], item: [0.4, 1.2], look: 70, aim: 1.2, wob: 0.6, bmax: 1.05, drift: 0.8, rocket: 0.8 },
   5: { name: '鬼',           skill: [1.06, 1.10], rb: [0, 0.14], boost: [2.6, 4], item: [0.2, 0.7], look: 80, aim: 1.5, wob: 0.4, bmax: 1.08, drift: 1.0, rocket: 0.9 },
   6: { name: '神',           skill: [1.10, 1.13], rb: [0, 0.12], boost: [2.2, 3.2], item: [0.15, 0.5], look: 90, aim: 1.8, wob: 0.25, bmax: 1.11, drift: 1.2, rocket: 1.0 },
+  // Lv7: アシスト不可・ミラー・CPUは最適ライン（カーブの内側を突く／手加減なし）
+  7: { name: 'HARDCORE',     skill: [1.12, 1.15], rb: [0, 0.10], boost: [1.8, 2.6], item: [0.1, 0.4], look: 100, aim: 2.0, wob: 0.2, bmax: 1.13, drift: 1.4, rocket: 1.0, opt: true, mirror: true, noAssist: true },
 };
 const LV = () => LEVELS[game.lv] || LEVELS[2];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
@@ -2175,7 +2190,7 @@ const nearCam = c => Math.abs(c.s - player.s) < 140;
 
 function setupRace(n) {
   if (NET.racing) n = NET.cpuN || 0;
-  else if (game.mode === 'ta' && !game.split) n = 0;
+  else if ((game.mode === 'ta' || game.mode === 'practice') && !game.split) n = 0;
   if (game.tut) n = 2;
   const cpus = cpuPool.slice(0, n);
   let humans = [player];
@@ -2236,7 +2251,10 @@ function rumbleTick(dt) {
   else {
     ms = clamp((c.v - 20) / 80, 0, 1) * 7;
     if (boosting(c)) ms += 14;
-    if (c.drifting) ms += 12 + Math.min(c.driftT, 3) * 6;
+    if (c.drifting) ms += 12 + (c.cStage || 0) * 7 + (c.counter ? 6 : 0);
+    if ((c.heat || 0) >= HEAT.win[0] && boosting(c)) ms += (Math.floor(game.t * 8) % 2) * 18;   // 熱いときはドクドク
+    if (c.heatStall > 0) ms += 10 + (Math.floor(game.t * 12) % 2) * 20;
+    ms += (Flow.tier || 0) * 3;
     if (c.scraping) ms += 45;
     const f = flagAt(c.s);
     if (f & F_TUNNEL) ms += 8 + (Math.floor(game.t * 9) % 2) * 10;   // トンネルはストロボと同期してガガガ
@@ -2289,6 +2307,7 @@ function tryBoost(c = player) {
   if (c.ctrl && c.air && Assist.of(c) === 'full' && Skill.autoTrick(c)) return;
   if (c.ctrl && c.air) return;   // 空中の BOOST は「機首上げ」（押している間）。ニトロは使わない
   if (c.ctrl && c.heatStall > 0) { if (c === player) { SND.buzz(); pop('OVERHEAT', '#ff2050', 22); } return; }
+  if (c.ctrl && Modes.has('nonitro')) { if (c === player) { SND.buzz(); pop('ニトロ禁止！', '#ff2050', 22); } return; }
   if (c !== player) { if (c.nitro >= 25) { c.nitro -= 25; startBoost(c, 1.9, false); SND.boost(); } else SND.buzz(); return; }
   if (player.nitro >= 25) {
     player.nitro -= 25; startBoost(player, 1.9, false); Dopa.ev('boost'); SND.boost(); pop('BOOST!', '#29f3ff', 38); vib(50);
@@ -2472,7 +2491,9 @@ const Skill = {
     const own = c.boostT > 0;
     if (c.heatStall > 0) { c.heatStall -= dt; c.heat = Math.max(0, c.heat - (60 / HEAT.stallT) * dt); c.wasBoost = false; return; }
     if (own) {
-      c.heat = (c.heat || 0) + HEAT.rate * dt; c.heatCoolT = HEAT.coolDelay;
+      const h0 = c.heat || 0;
+      c.heat = h0 + HEAT.rate * dt; c.heatCoolT = HEAT.coolDelay;
+      if (this.fx(c)) { RUN.maxHeat = Math.max(RUN.maxHeat || 0, c.heat); if (h0 < HEAT.win[0] && c.heat >= HEAT.win[0]) { vib([12, 30, 12]); SND.tick(); } }   // 急冷の枠に入った合図
       if (c.heat >= 100) this.overheat(c);
       else if (Assist.of(c) === 'full' && c.heat >= HEAT.win[1] - 2) c.boostT = 0;   // フル: 急冷の枠で自動的に離す
     } else {
@@ -2514,8 +2535,10 @@ const Skill = {
     if (c.wasScraping || c.wallCd > 0) return;
     c.wallCd = WALL.cooldown; c.v *= 1 - WALL.hit[lv];
     if (!this.fx(c)) return;
+    if (Modes.has('walldeath')) { Modes.retire('壁ヒット'); return; }
     RUN.wall = (RUN.wall || 0) + 1;
     if (lv >= WALL.breakLv) Flow.brk();
+    vib(20 + lv * 6);
     if (lv >= WALL.heatLv) { c.heat = (c.heat || 0) + WALL.heatAdd; pop(`WALL  HEAT +${WALL.heatAdd}%`, '#ff6b3d', 20); if (c.heat >= 100) this.overheat(c); }
     vibSoft(25);
   },
@@ -2527,7 +2550,7 @@ const Skill = {
     let st = 0; while (st < 4 && c.charge >= DRIFT.stages[st]) st++;
     if (st > c.cStage) {
       c.cStage = st; c.justT = DRIFT.justWin; c.pulseT = DRIFT.neonPulse;
-      if (this.fx(c)) { if (SND.ok()) SND.tone(440 * Math.pow(2, st * 4 / 12), SND.t(), 0.09, 'square', 0.08); vibSoft(8 + st * 4); }
+      if (this.fx(c)) { if (SND.ok()) SND.tone(440 * Math.pow(2, st * 4 / 12), SND.t(), 0.09, 'square', 0.08); vib(st >= 4 ? [25, 20, 25] : 10 + st * 6); }
     } else if (c.cStage >= 4) {
       c.pulseT -= dt; if (c.pulseT <= 0) { c.pulseT = DRIFT.neonPulse; c.justT = DRIFT.justWin; }
     }
@@ -2539,6 +2562,7 @@ const Skill = {
     startBoost(c, DRIFT.boost[st - 1] * (just ? DRIFT.justMul : 1), true);
     if (!this.fx(c)) return;
     const nm = DRIFT.names[st - 1], col = just ? '#ffffff' : DRIFT.cols[st - 1];
+    RUN.dr = (RUN.dr || 0) + 1;
     Dopa.ev('drift', st >= 3 ? 2 : 1); SND.pad();
     addScore(DRIFT.score[st - 1] * (just ? DRIFT.justMul : 1));
     if (just) {
@@ -2865,6 +2889,7 @@ function aiControl(c, dt) {
   const L = c.isPlayer ? LEVELS[3] : LV();
   a.laneT -= dt; if (a.laneT < 0) { a.lane = (Math.random() * 2 - 1) * 5; a.laneT = (2 + Math.random() * 3) / L.wob; }
   let tx = a.lane;
+  if (L.opt && !c.isPlayer) { const k2 = latKAt(c.s + 25 + c.v * 0.45); tx = Math.abs(k2) > 0.0015 ? Math.sign(k2) * 5.4 : clamp(c.x * 0.5, -3, 3); }   // 最適ライン: 次のカーブのイン側
   if (!c.item && c.roulette <= 0) {
     const row = itemRows.find(s => s > c.s + 4 && s < c.s + 70);
     if (row !== undefined) { let bx = 0, bd = 99; for (const b of itemBoxes) if (b.s === row && !b.taken && Math.abs(b.x - c.x) < bd) { bd = Math.abs(b.x - c.x); bx = b.x; } if (bd < 99) tx = bx; }
@@ -3130,7 +3155,7 @@ function fmtTime(t) { const m = Math.floor(t / 60), s = t - m * 60; return `${m}
 function updateHUD(dt) {
   const c = player, kmh = Math.round(c.v * KMH), b = boosting(c);
   if (kmh !== lastKmh || b !== lastBoostState) { drawSpeedo(kmh, b); lastKmh = kmh; lastBoostState = b; }
-  if (game.mode === 'ta') { setText('hPos', 'TA'); setText('hPosSuf', ''); setText('hPosTot', Meta.taTarget()); } else { setText('hPos', String(c.rank)); setText('hPosSuf', ordinal(c.rank)); setText('hPosTot', '/' + cars.length); }
+  if (game.practice) { setText('hPos', 'PR'); setText('hPosSuf', ''); setText('hPosTot', ` 区間 ${Practice.idx + 1}/${Math.max(1, Practice.bounds.length - 1)}`); } else if (game.mode === 'ta') { setText('hPos', 'TA'); setText('hPosSuf', ''); setText('hPosTot', Meta.taTarget()); } else { setText('hPos', String(c.rank)); setText('hPosSuf', ordinal(c.rank)); setText('hPosTot', '/' + cars.length); }
   setText('hScore', Math.floor(game.score).toLocaleString());
   setText('hCoins', String(game.coins));
   setText('hTime', fmtTime(game.elapsed));
@@ -3200,7 +3225,7 @@ function updateScreenFX(dt) {
    ===================================================================== */
 function showOnly(id) { for (const k of ['title', 'result', 'pause', 'garage', 'stageSel', 'netPanel', 'meta']) { const el = $(k); el.classList.toggle('hidden', k !== id); el.classList.toggle('flex', k === id); } }
 function computeRanks() {
-  const key = c => c.finished ? 1e7 - (c.finishTime || 0) * 100 - c.finishOrder * 0.001 : c.s;
+  const key = c => c.retired ? -1e7 + c.s : c.finished ? 1e7 - (c.finishTime || 0) * 100 - c.finishOrder * 0.001 : c.s;
   const arr = [...cars].sort((a, b) => key(b) - key(a));
   arr.forEach((c, i) => c.rank = i + 1); return arr;
 }
@@ -3208,6 +3233,7 @@ function startGame() {
   SND.init(); Voice.unlock();
   if (isTouch) { try { document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {}); } catch (e) {} }
   setupRace(game.nCpu);
+  Modes.apply();
   showOnly(null);
   $('hud').classList.toggle('hidden', !!game.split); $('hud2').classList.toggle('hidden', !game.split);
   if (game.split) { cam2.intro = 1; input2.kl = input2.kr = false; }
@@ -3282,7 +3308,7 @@ function toTitle() {
   if (game.split) setSplit(false);
   $('hud2').classList.add('hidden');
   SND.stopUser && SND.ctx && SND.stopUser();
-  TUT.cleanup(); game.state = 'title'; paused = false; Meta.renderChip(); $('hud').classList.add('hidden'); showOnly('title');
+  TUT.cleanup(); Modes.clear(); game.state = 'title'; paused = false; Meta.renderChip(); $('hud').classList.add('hidden'); showOnly('title');
   setupRace(game.nCpu); for (const c of cars) c.v = 40; SND.startMusic('title');
   if (Voice.synth) Voice.synth.cancel();
 }
@@ -3804,6 +3830,7 @@ const Dopa = {
     if (!live()) return;
     RUN[kind] = (RUN[kind] || 0) + (kind === 'trick' || kind === 'pass' ? n : 1);
     if (kind === 'fail') {
+      if (Modes.has('fragile')) setTimeout(() => Modes.retire('被弾・転倒'), 0);
       const t = Math.max(0, this.tier - 2);
       if (this.tier >= 2) pop(`RANK DOWN ▼ ${DOPA_RANKS[t]}`, '#ff2050', 20);
       this.tier = t; this.v = t * 100; this.idle = 0; return;
@@ -3849,6 +3876,7 @@ const Slot = {
   hide() { this.busy = false; $('slot').classList.add('hidden'); },
   spin() {
     if (game.mode === 'ta') { TA.split(); return; }
+    if (game.practice) return;
     if (this.busy || game.split || !live()) return;
     const r = Math.random(), a = (Math.random() * 5) | 0;
     let res;
@@ -3904,6 +3932,7 @@ const COS = [
   { id: 'P_CHRM', k: 'paint', n: 'クローム', r: 'SR', c: 0xe4ebf5, metal: true }, { id: 'P_TOX', k: 'paint', n: 'トキシック', r: 'SR', c: 0xa8ff00 },
   { id: 'P_GOLD', k: 'paint', n: '純金', r: 'SSR', c: 0xffc400, metal: true }, { id: 'P_VOID', k: 'paint', n: 'ヴォイド', r: 'SSR', c: 0x030006, metal: true },
   { id: 'P_PRSM', k: 'paint', n: 'プリズム(虹)', r: 'UR', c: 'rainbow', metal: true },
+  { id: 'P_SSS', k: 'paint', n: 'SSSネオン（全コースSSS）', r: 'UR', c: 'sss', metal: true, g: false },
   { id: 'NONE', k: 'trail', n: 'なし', r: 'N', g: false },
   { id: 'TR_CYAN', k: 'trail', n: 'シアン', r: 'N', c: [0x29f3ff] }, { id: 'TR_PINK', k: 'trail', n: 'ピンク', r: 'N', c: [0xff2bd6] },
   { id: 'TR_LIME', k: 'trail', n: 'ライム', r: 'R', c: [0x3bff9d] }, { id: 'TR_FIRE', k: 'trail', n: 'フレイム', r: 'R', c: [0xff4a00, 0xffd400] },
@@ -3912,7 +3941,7 @@ const COS = [
   { id: 'TR_RBOW', k: 'trail', n: 'レインボー', r: 'UR', c: 'rainbow' },
   { id: 'T_ROOKIE', k: 'title', n: 'ルーキー', r: 'N', g: false },
   { id: 'T_SPD', k: 'title', n: 'スピード狂', r: 'N' }, { id: 'T_COIN', k: 'title', n: 'コイン中毒', r: 'N' }, { id: 'T_NITRO', k: 'title', n: 'ニトロ依存症', r: 'N' },
-  { id: 'T_DRIFT', k: 'title', n: 'ドリフト職人', r: 'R' }, { id: 'T_SKY', k: 'title', n: '空の支配者', r: 'R' }, { id: 'T_NEAR', k: 'title', n: 'ギリギリの美学', r: 'R' },
+  { id: 'T_DRIFT', k: 'title', n: 'ドリフト野郎', r: 'R' }, { id: 'T_SKY', k: 'title', n: '空の支配者', r: 'R' }, { id: 'T_NEAR', k: 'title', n: 'ギリギリの美学', r: 'R' },
   { id: 'T_BRAIN', k: 'title', n: '脳汁製造機', r: 'SR' }, { id: 'T_NEON', k: 'title', n: 'ネオンの申し子', r: 'SR' },
   { id: 'T_DEST', k: 'title', n: '破壊神', r: 'SSR' }, { id: 'T_LIGHT', k: 'title', n: '光速の貴公子', r: 'SSR' },
   { id: 'T_GOD', k: 'title', n: 'ドーパミンの神', r: 'UR' },
@@ -3920,6 +3949,14 @@ const COS = [
   { id: 'T_777', k: 'title', n: 'スリーセブン', r: 'SSR', g: false }, { id: 'T_ONI', k: 'title', n: '鬼殺し', r: 'SSR', g: false }, { id: 'T_ALLS', k: 'title', n: '全ステージ制覇', r: 'SSR', g: false },
   { id: 'T_GODK', k: 'title', n: '神殺し', r: 'UR', g: false }, { id: 'T_SC', k: 'title', n: '抜け道ハンター', r: 'UR', g: false }, { id: 'T_STYLE', k: 'title', n: 'エアマスター', r: 'SSR', g: false }, { id: 'T_GODTR', k: 'title', n: 'トリックの神', r: 'UR', g: false }, { id: 'T_TAG', k: 'title', n: 'タイムアタッカー', r: 'SSR', g: false }, { id: 'T_TAP', k: 'title', n: 'プラチナドライバー', r: 'UR', g: false },
 ];
+// 熟練度称号（実績でだけもらえる）
+COS.push(
+  { id: 'M_DRIFT', k: 'title', n: 'ドリフト職人', r: 'SSR', g: false }, { id: 'M_LAND', k: 'title', n: '着地マスター', r: 'SSR', g: false },
+  { id: 'M_NOHIT', k: 'title', n: 'ノーヒッター', r: 'SSR', g: false }, { id: 'M_NEAR', k: 'title', n: 'ギリギリ職人', r: 'SSR', g: false },
+  { id: 'M_COOL', k: 'title', n: '冷却の達人', r: 'SR', g: false }, { id: 'M_FLOW', k: 'title', n: 'フローの化身', r: 'SSR', g: false },
+  { id: 'M_HC', k: 'title', n: 'ハードコア', r: 'UR', g: false }, { id: 'M_DAILY', k: 'title', n: '日替わりの鬼', r: 'SR', g: false },
+  { id: 'M_SSS', k: 'title', n: 'SSSコレクター', r: 'UR', g: false }, { id: 'M_COAST', k: 'title', n: '絶叫マシン中毒', r: 'SR', g: false },
+);
 const COS_BY = Object.fromEntries(COS.map(c => [c.id, c]));
 const KIND_JP = { paint: 'ボディカラー', trail: 'トレイル', title: '称号' };
 const gv = (t, k) => t[k] || 0;
@@ -3954,6 +3991,16 @@ const ACH = [
   cnt('style10', 'スタイルマスター', '1回のジャンプで3種類のトリックを10回決める', 'style', 10, 800, 'T_STYLE'),
   cnt('godTrick', 'ゴッドトリック', '1回のジャンプで5種類のトリックを全部決める', 'godTrick', 1, 1500, 'T_GODTR'),
   cnt('tut', 'はじめの一歩', 'チュートリアルを最後までやる', 'tut', 1, 300),
+  cnt('mDrift', 'ドリフト職人', 'ジャストドリフト通算50回', 'just', 50, 1000, 'M_DRIFT'),
+  cnt('mLand', '着地マスター', 'PERFECT LANDING 通算50回', 'pland', 50, 1000, 'M_LAND'),
+  cnt('mNoHit', 'ノーヒッター', '被弾・壁・転倒なしで10回完走', 'noHit', 10, 1500, 'M_NOHIT'),
+  cnt('mNear', 'ギリギリ職人', 'ニアミス通算200回', 'near', 200, 1000, 'M_NEAR'),
+  cnt('mCool', '冷却の達人', 'COOL RELEASE 通算100回', 'cool', 100, 800, 'M_COOL'),
+  cnt('mFlow', 'フローの化身', 'フロー×3.0に到達', 'flow3', 1, 1200, 'M_FLOW'),
+  cnt('mHC', 'ハードコア', 'HARDCORE で優勝', 'hcWin', 1, 3000, 'M_HC'),
+  cnt('mDaily', '日替わりの鬼', '日替わり縛りを7回クリア', 'daily', 7, 1500, 'M_DAILY'),
+  cnt('mSSS', 'SSSコレクター', '3コースでSSSランク', 'sss', 3, 2000, 'M_SSS'),
+  cnt('mCoast', '絶叫マシン中毒', 'ドリームパークのドロップを30回', 'drop', 30, 600, 'M_COAST'),
   { id: 'comp', n: 'コンプリート', d: 'ガチャ景品を全部そろえる', f: () => COS.every(c => c.g === false || PF.owned[c.id]), rw: 5000 },
 ];
 const MISSIONS = [
@@ -3975,7 +4022,7 @@ const MISSIONS = [
 const MIS_BY = Object.fromEntries(MISSIONS.map(m => [m.id, m]));
 
 // ---- セーブデータ (この端末のブラウザに保存) ----
-const PF_DEF = () => ({ xp: 0, lv: 1, neon: 500, tix: 1, pity: 0, owned: { DEFAULT: 1, NONE: 1, T_ROOKIE: 1 }, eq: { paint: 'DEFAULT', trail: 'NONE', title: 'T_ROOKIE' }, ach: {}, tot: {}, grade: {}, ta: {}, sc: {}, cars: {}, daily: null, login: { d: '', streak: 0 } });
+const PF_DEF = () => ({ xp: 0, lv: 1, neon: 500, tix: 1, pity: 0, owned: { DEFAULT: 1, NONE: 1, T_ROOKIE: 1 }, eq: { paint: 'DEFAULT', trail: 'NONE', title: 'T_ROOKIE' }, ach: {}, tot: {}, grade: {}, ta: {}, crank: {}, sc: {}, cars: {}, daily: null, login: { d: '', streak: 0 } });
 const PF = (() => {
   const d = PF_DEF();
   const s = store.get('ns_pf', null); if (!s || typeof s !== 'object') return d;
@@ -4007,6 +4054,40 @@ function calcGrade(r, n) {
   const pts = pos + cp * 20 + (RUN.maxTier || 0) / 7 * 30;
   return pts >= 90 ? 'S+' : pts >= 78 ? 'S' : pts >= 62 ? 'A' : pts >= 42 ? 'B' : 'C';
 }
+// ---- コース別ランク C〜SSS ----
+const CourseRank = {
+  eligible() { return !game.tut && !game.split && !NET.racing && !game.practice && !game.daily; },
+  calc() {
+    const C = CRANK, dev = TA.devTime(stageIdx), r = (player.finishTime || 999) / dev;
+    const time = clamp((C.time.zero - r) / (C.time.zero - C.time.full), 0, 1) * C.time.pts;
+    const flow = clamp(((RUN.flowMax || 1) - 1) / (C.flow.full - 1), 0, 1) * C.flow.pts;
+    const hits = (RUN.fail || 0) + (RUN.wall || 0), noHit = Math.max(0, C.noHit.pts - hits * C.noHit.per);
+    const jr = RUN.dr ? (RUN.just || 0) / RUN.dr : 0, just = clamp(jr / C.just.full, 0, 1) * C.just.pts;
+    const pts = Math.round(time + flow + noHit + just);
+    let k = 0; C.cut.forEach((c, i) => { if (pts >= c) k = i; });
+    const capped = game.assistUsed && k > C.names.indexOf(C.assistCap);
+    if (capped) k = C.names.indexOf(C.assistCap);
+    return { rank: C.names[k], k, pts, capped, hits, jr, parts: { time: Math.round(time), flow: Math.round(flow), noHit: Math.round(noHit), just: Math.round(just) } };
+  },
+  best(i) { return PF.crank?.[i] ?? -1; },
+  tag(i) { const k = this.best(i); return k < 0 ? '' : `<b class='italic' style='color:${CRANK.cols[k]};text-shadow:0 0 8px ${CRANK.cols[k]}'>${CRANK.names[k]}</b>`; },
+  // リザルトで呼ぶ: 記録更新・全SSSで専用カラー解放
+  record(msgs) {
+    if (!this.eligible() || !player.finishTime) return null;
+    const R = this.calc(); PF.crank = PF.crank || {};
+    const old = this.best(stageIdx);
+    if (R.k > old) { PF.crank[stageIdx] = R.k; msgs.push([`${I('trophy')} コースランク ${CRANK.names[R.k]} 達成！（${STAGE.jp}）`, CRANK.cols[R.k]]); }
+    PF.tot.sss = Object.values(PF.crank).filter(v => v === 5).length;
+    if (!PF.owned.P_SSS && STAGES.every((_, i) => this.best(i) === 5)) { PF.owned.P_SSS = 1; msgs.push([`${I('gift')} 全コースSSS制覇！ 専用カラー「SSSネオン」解放`, '#ff2bd6']); }
+    return R;
+  },
+  html(R) {
+    if (!R) return '';
+    const c = CRANK.cols[R.k], P = R.parts, C = CRANK;
+    return `<div class='flex items-center gap-2 mt-1.5 jp'><div class='text-2xl font-black italic' style='color:${c};text-shadow:0 0 12px ${c}'>${R.rank}</div>
+      <div class='text-[10px] text-white/75 leading-tight'>COURSE RANK ${R.pts}点${R.capped ? '（アシスト中はAまで）' : ''}<br>タイム ${P.time}/${C.time.pts}・フロー ${P.flow}/${C.flow.pts}・ノーヒット ${P.noHit}/${C.noHit.pts}・ジャスト率 ${Math.round(R.jr * 100)}% ${P.just}/${C.just.pts}</div></div>`;
+  },
+};
 function toast(html, col = '#29f3ff', ms = 3400) {
   const box = $('toasts'), el = document.createElement('div');
   const low = game.state !== 'play' && game.state !== 'countdown';
@@ -4036,7 +4117,7 @@ function checkAch(msgs) {
 const cosIcon = (c, big) => {
   const sz = big ? 'width:30px;height:30px;' : '';
   if (c.k === 'title') return I('tag');
-  const bg = c.c === 'rainbow' ? (c.k === 'paint' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : 'linear-gradient(90deg,#ff2bd6,#ffd400,#3bff9d,#29f3ff)')
+  const bg = c.c === 'sss' ? 'conic-gradient(#ff2bd6,#29f3ff,#ffffff,#ff2bd6)' : c.c === 'rainbow' ? (c.k === 'paint' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : 'linear-gradient(90deg,#ff2bd6,#ffd400,#3bff9d,#29f3ff)')
     : c.k === 'paint' ? (c.c ? hex(c.c) : '#2b1660') : (c.c ? `linear-gradient(90deg,${hex(c.c[0])},${hex(c.c[1] ?? c.c[0])})` : 'transparent');
   return `<span class='swatch' style='${sz}background:${bg}'></span>`;
 };
@@ -4771,12 +4852,13 @@ const Meta = {
   tick(dt) {
     const st = game.state;
     if (game.hold) return;
-    if (st === 'play') { Dopa.tick(dt); Flow.tick(dt); Slot.tick(dt); if (game.stallT > 0) { game.stallT -= dt; player.v = Math.min(player.v, 3); player.boostT = 0; player.padT = 0; } }
+    if (st === 'play') { Dopa.tick(dt); Flow.tick(dt); Practice.tick(); Slot.tick(dt); if (game.stallT > 0) { game.stallT -= dt; player.v = Math.min(player.v, 3); player.boostT = 0; player.padT = 0; } }
     TA.tick(dt); SC.tick(); ENV.tick(dt); TRK.tick(); TUT.tick(dt); RUSH.tick(dt); RUSH.status(dt);
     const lb = player.model.lightbar; if (lb) { const on = Math.floor(game.t * 5) % 2; lb[0].material.color.setHex(on ? 0xff2050 : 0x330008); lb[1].material.color.setHex(on ? 0x08102a : 0x2060ff); }
     if ((st === 'play' || st === 'countdown' || st === 'finish') && !game.split) Dopa.draw();
     const pe = COS_BY[PF.eq.paint];
     if (pe && pe.c === 'rainbow') player.model.body.children[0].material.color.setHSL((game.t * 0.18) % 1, 0.95, 0.5);
+    else if (pe && pe.c === 'sss') { const k = 0.5 + 0.5 * Math.sin(game.t * 3); player.model.body.children[0].material.color.setHSL(lerp(0.92, 0.52, k), 1, 0.45 + 0.15 * Math.abs(Math.sin(game.t * 6))); }
     const tr = COS_BY[PF.eq.trail];
     if (tr && tr.c && player.v > 12 && st !== 'result') {
       const rb = tr.c === 'rainbow';
@@ -4789,11 +4871,11 @@ const Meta = {
     const p = COS_BY[PF.eq.paint];
     for (const k of TYPE_KEYS) {
       const m = playerModels[k].body.children[0].material;
-      if (!p || !p.c) m.color.setHex(CAR_TYPES[k].paint); else if (p.c !== 'rainbow') m.color.setHex(p.c);
+      if (!p || !p.c) m.color.setHex(CAR_TYPES[k].paint); else if (p.c !== 'rainbow' && p.c !== 'sss') m.color.setHex(p.c);
       m.metalness = p && p.metal ? 1 : 0.85; m.roughness = p && p.metal ? 0.1 : 0.25;
     }
   },
-  gradeTag(i) { if (game.mode === 'ta') return TA.cardTag(i); const g = PF.grade[i]; return g ? `<b class='g-${gcls(g)} italic'>${g}</b>` : ''; },
+  gradeTag(i) { const cr = CourseRank.tag(i); if (game.mode === 'ta') return TA.cardTag(i) + (cr ? ' ' + cr : ''); const g = PF.grade[i]; return (g ? `<b class='g-${gcls(g)} italic'>${g}</b>` : '') + (cr ? ` <span class='text-[9px] text-white/50'>COURSE</span>${cr}` : ''); },
   renderChip() {
     const need = needXP(PF.lv);
     $('profChip').innerHTML = `<div class='flex items-center gap-2 whitespace-nowrap'><span class='font-black neon-cyan text-sm'>Lv.${PF.lv}</span><div class='xpbar w-16 sm:w-24'><i style='width:${(PF.xp / need * 100).toFixed(1)}%'></i></div><span class='text-[11px] font-black text-cyan-200'>${NE()} ${PF.neon.toLocaleString()}</span><span class='text-[11px] font-black text-yellow-200'>${TK()} ${PF.tix}</span></div><div class='pc-title jp text-[10px] text-fuchsia-200 mt-0.5'>「${COS_BY[PF.eq.title]?.n || ''}」</div>`;
@@ -4825,6 +4907,7 @@ const Meta = {
   },
   onResult(score, r) {
     if (game.tut) { TUT.result(); return; }
+    if (game.practice) { Practice.result(); return; }
     $('rPos').style.color = '';
     const taRes = game.mode === 'ta' && !game.split && !NET.racing ? TA.finish() : null;
     const assisted = !!game.assistUsed, aMul = assisted ? ASSIST.rewardMul : 1;
@@ -4837,7 +4920,11 @@ const Meta = {
     if ((RUN.flowMax || 1) >= 2) msgs.push([`${I('turbo')} 最高フロー ×${RUN.flowMax.toFixed(2).replace(/0$/, '')}`, '#ffd400']);
     if (!taRes && !game.split) Assist.afterRace(r === 1);
     add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
-    for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot']) add(k, RUN[k]);
+    for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop']) add(k, RUN[k]);
+    if (!player.retired && (RUN.fail || 0) + (RUN.wall || 0) === 0) add('noHit', 1);
+    if ((RUN.flowMax || 1) >= FLOW.max) add('flow3', 1);
+    if (r === 1 && !taRes && LV().noAssist) add('hcWin', 1);
+    if (game.daily) Daily.result(r, msgs);
     t.maxStyle = Math.max(t.maxStyle || 0, RUN.maxTier || 0);
     if (r === 1 && !taRes && game.lv >= 5) add('oniWin', 1);
     if (r === 1 && !taRes && game.lv === 6) add('godWin', 1);
@@ -4850,10 +4937,11 @@ const Meta = {
       if (m.p >= m.n) { m.done = true; PF.neon += MIS_RW; xp += 150; msgs.push([`${I('check')} ミッション達成「${MIS_BY[m.id].t.replace('{n}', m.n)}」 ${NE()}+${MIS_RW}`, '#3bff9d']); }
     }
     if (!D.bonus && D.list.every(m => m.done)) { D.bonus = true; PF.tix++; msgs.push([`${I('gift')} デイリー全クリア！ ${TK()} ガチャチケット+1`, '#ff2bd6']); }
+    const crR = CourseRank.record(msgs);
     xp = Math.round(xp * aMul);
     const lv0 = PF.lv, xp0 = PF.xp, ups = addXP(xp, msgs);
     checkAch(msgs); savePF();
-    $('rReward').innerHTML = `<div class='grade-badge g-${gcls(grade)}'>${grade}</div><div class='flex-1 min-w-0'><div class='flex justify-between text-[10px] text-white/70'><span>RANK ${grade}　Lv.<b id='rwLv' class='text-white'>${lv0}</b></span><span class='font-black text-green-300'>XP +${xp.toLocaleString()}</span></div><div class='xpbar mt-0.5'><i id='rwXp' style='width:${(xp0 / needXP(lv0) * 100).toFixed(1)}%'></i></div><div class='jp text-[9px] text-white/50 mt-0.5'>${taRes ? taRes.line : '最高脳汁ランク: ' + DOPA_RANKS[RUN.maxTier || 0]}</div></div><div class='text-right'><div class='text-[9px] text-white/55'>NEON</div><div class='text-sm sm:text-base font-black text-cyan-200 whitespace-nowrap'>${NE()}+${neon}</div></div>`;
+    $('rReward').innerHTML = `<div class='grade-badge g-${gcls(grade)}'>${grade}</div><div class='flex-1 min-w-0'><div class='flex justify-between text-[10px] text-white/70'><span>RANK ${grade}　Lv.<b id='rwLv' class='text-white'>${lv0}</b></span><span class='font-black text-green-300'>XP +${xp.toLocaleString()}</span></div><div class='xpbar mt-0.5'><i id='rwXp' style='width:${(xp0 / needXP(lv0) * 100).toFixed(1)}%'></i></div><div class='jp text-[9px] text-white/50 mt-0.5'>${taRes ? taRes.line : '最高脳汁ランク: ' + DOPA_RANKS[RUN.maxTier || 0]}</div>${CourseRank.html(crR)}</div><div class='text-right'><div class='text-[9px] text-white/55'>NEON</div><div class='text-sm sm:text-base font-black text-cyan-200 whitespace-nowrap'>${NE()}+${neon}</div></div>`;
     setTimeout(() => { SND.smash(); vibSoft(40); }, 350);
     setTimeout(() => {
       const bar = $('rwXp'); if (!bar) return;
@@ -4999,9 +5087,11 @@ function resetProgress() {
 document.querySelectorAll('#metaBtns button').forEach(b => b.addEventListener('click', () => Meta.open(b.dataset.t)));
 document.querySelectorAll('#mTabs button').forEach(b => b.addEventListener('click', () => { Meta.tab = b.dataset.t; Meta.render(); SND.tick(); }));
 $('mClose').addEventListener('click', () => Meta.close());
-const setMode = m => { game.mode = m; $('segCpu').style.display = m === 'ta' ? 'none' : ''; $('segLv').style.display = m === 'ta' ? 'none' : ''; };
+const setMode = m => { game.mode = m; game.practice = m === 'practice'; if (m !== 'race') game.daily = null; $('segCpu').style.display = m !== 'race' ? 'none' : ''; $('segLv').style.display = m !== 'race' ? 'none' : ''; };
 for (const id of ['btnStart', 'btn2P', 'btnOnline']) $(id).addEventListener('click', () => { setMode('race'); if (game.menu === 'stage') renderStageSel(); }, true);
 $('btnTA').addEventListener('click', () => { setSplit(false); game.netEdit = false; setMode('ta'); openStageSel(); });
+$('btnPractice').addEventListener('click', () => { setSplit(false); game.netEdit = false; setMode('practice'); openStageSel(); toast('練習モード: CPUなし。T キー / ↺ボタンで区間リトライ。走行後にジャスト率・最大熱・区間タイムを表示', '#3bff9d', 4200); });
+$('btnDaily').addEventListener('click', () => { SND.init(); Daily.open(); });
 setMode('race');
 setTimeout(() => {
   const lb = loginBonus(), msgs = [];
@@ -5010,6 +5100,142 @@ setTimeout(() => {
   Meta.renderChip();
 }, 1500);
 
+
+// ---- 日替わり縛り / HARDCORE のミラー / 練習モード ----
+const DAILY_RULES = {
+  nonitro:   { n: 'ニトロ禁止', d: 'BOOSTが使えない（パッドとドリフトターボはOK）', col: '#29f3ff' },
+  lowg:      { n: '低重力', d: '重力が40%。ジャンプがとんでもなく伸びる', col: '#9d6bff' },
+  mirror:    { n: 'ミラー', d: 'コースが左右反転', col: '#ffd400' },
+  walldeath: { n: '壁ヒット即リタイア', d: '壁に1回でも触れたらリタイア', col: '#ff2050' },
+  noitem:    { n: 'アイテムなし', d: 'アイテムボックスが出ない', col: '#3bff9d' },
+  godcpu:    { n: 'CPUが神', d: 'CPUが「神」の強さ', col: '#ff8a00' },
+  fragile:   { n: 'ガラスの車', d: '被弾・転倒・コースアウト1回でリタイア', col: '#ff2bd6' },
+};
+const DAILY_REWARD = { neon: 400, tix: 1 };
+const Modes = {
+  has(k) { return !!(game.daily && game.daily.rules.includes(k)); },
+  apply() {
+    game.mirror = !!(LV().mirror || this.has('mirror'));
+    renderer.domElement.style.transform = game.mirror ? 'scaleX(-1)' : '';
+    G = (STAGE.grav || 30) * (this.has('lowg') ? 0.4 : 1);
+    if (this.has('noitem')) for (const b of itemBoxes) b.taken = 1e9;
+    player.retired = false; if (p2) p2.retired = false;
+    if (game.practice) Practice.begin();
+    $('practiceUI').style.display = game.practice ? '' : 'none';
+    if (game.daily) setTimeout(() => toast(`日替わり縛り: ${game.daily.rules.map(k => DAILY_RULES[k].n).join(' ＋ ')}`, '#ff2bd6', 4200), 600);
+    if (LV().noAssist && !NET.racing) setTimeout(() => toast('HARDCORE: アシスト不可・ミラー・CPUは最適ライン', '#ff2050', 4200), 900);
+  },
+  clear() {
+    if (game.daily && game.daily.lv0) game.lv = game.daily.lv0;
+    game.daily = null; game.mirror = false; renderer.domElement.style.transform = '';
+    G = (STAGE.grav || 30);
+    const ui = $('practiceUI'); if (ui) ui.style.display = 'none';
+  },
+  retire(why) {
+    if (game.state !== 'play' || player.finished) return;
+    player.retired = true; player.finished = true; player.finishTime = game.elapsed; player.finishOrder = 99;
+    pop(`RETIRE… ${why}`, '#ff2050', 40); flash('#ff2050', 0.6); SND.crash(); vib([300, 80, 300]);
+    computeRanks(); finishRace();
+  },
+};
+const Daily = {
+  today() {
+    const k = dayKey(); let h = 99; for (const ch of k + 'daily') h = (h * 31 + ch.charCodeAt(0)) | 0;
+    const R = mulberry32(h), keys = Object.keys(DAILY_RULES), rules = [];
+    while (rules.length < 2) { const r = keys[(R() * keys.length) | 0]; if (!rules.includes(r) && !(r === 'fragile' && rules.includes('walldeath')) && !(r === 'walldeath' && rules.includes('fragile'))) rules.push(r); }
+    return { k, stage: (R() * STAGES.length) | 0, rules, lv: rules.includes('godcpu') ? 6 : 4 };
+  },
+  open() {
+    const T = this.today(), done = PF.dailyC === T.k, a = $('assistAsk');
+    a.innerHTML = `<div class='panel rounded-2xl px-5 py-4 w-[min(92vw,460px)] jp'><div class='text-[10px] tracking-[.3em] text-fuchsia-300 font-black'>DAILY CHALLENGE ${T.k}</div>
+      <div class='text-xl font-black mt-1'>${STAGES[T.stage].jp}</div>
+      <div class='flex flex-col gap-1.5 mt-2'>${T.rules.map(k => { const R = DAILY_RULES[k]; return `<div class='rounded-lg px-3 py-1.5 border' style='border-color:${R.col}'><b style='color:${R.col}'>${R.n}</b><div class='text-[11px] text-white/70'>${R.d}</div></div>`; }).join('')}
+      <div class='text-[11px] text-white/70'>CPU: ${LEVELS[T.lv].name}　クリア条件: 3位以内でゴール</div></div>
+      <div class='text-xs mt-2 ${done ? 'text-green-300' : 'text-yellow-200'}'>${done ? '今日はクリア済み（何回でも挑戦できます）' : `初クリア報酬 ${NE()}+${DAILY_REWARD.neon} ${TK()}+${DAILY_REWARD.tix}`}　通算クリア ${PF.tot.daily || 0}回</div>
+      <div class='flex justify-end gap-2 mt-3'><button id='dyNo' class='mbtn'>やめる</button><button id='dyGo' class='mbtn' style='border-color:#ff2bd6;color:#ff2bd6'>挑戦する</button></div></div>`;
+    a.classList.remove('hidden'); a.classList.add('flex');
+    const close = () => { a.classList.add('hidden'); a.classList.remove('flex'); };
+    $('dyNo').onclick = () => { close(); SND.tick(); };
+    $('dyGo').onclick = () => {
+      close(); SND.tick(); setSplit(false); game.netEdit = false; setMode('race');
+      game.daily = { ...T, lv0: game.lv }; game.lv = T.lv;
+      buildStage(T.stage); game.stage = T.stage; openGarage();
+    };
+  },
+  result(r, msgs) {
+    const T = game.daily, ok = !player.retired && r <= 3;
+    msgs.unshift([ok ? `${I('check')} 日替わり縛りクリア！` : `${I('flag')} 日替わり縛り失敗…（${player.retired ? 'リタイア' : r + '位'}）`, ok ? '#3bff9d' : '#ff2050']);
+    if (ok && PF.dailyC !== T.k) {
+      PF.dailyC = T.k; PF.neon += DAILY_REWARD.neon; PF.tix += DAILY_REWARD.tix; PF.tot.daily = (PF.tot.daily || 0) + 1;
+      msgs.push([`${I('gift')} 本日の初クリア報酬 ${NE()}+${DAILY_REWARD.neon} ${TK()}+${DAILY_REWARD.tix}`, '#ffd400']);
+    }
+    return ok;
+  },
+};
+// 練習モード: チェックポイントで区切った「区間」ごとにリトライ / 入力表示 / 走行後の分析
+const Practice = {
+  bounds: [], idx: 0, snap: null, secT: [], t0: 0, retries: 0,
+  begin() {
+    this.bounds = [startS, ...cps.map(c => c.s).filter(s => s > startS + 50 && s < goalS - 50), goalS];
+    this.idx = 0; this.snap = null; this.secT = []; this.t0 = 0; this.retries = 0;
+  },
+  save() { const c = player; this.snap = { s: c.s, x: c.x, v: c.v, nitro: c.nitro, heat: c.heat || 0, el: game.elapsed, score: game.score, coins: game.coins }; this.t0 = game.elapsed; },
+  tick() {
+    if (!game.practice || game.state !== 'play') return;
+    const c = player;
+    if (!this.snap && game.elapsed > 0) this.save();
+    const nx = this.bounds[this.idx + 1];
+    if (nx !== undefined && c.s >= nx) {
+      const t = game.elapsed - this.t0; this.secT[this.idx] = t;
+      const best = (PF.prac?.[stageIdx] || [])[this.idx];
+      pop(`区間${this.idx + 1}  ${t.toFixed(2)}s${best ? `  (${t <= best ? '−' : '+'}${Math.abs(t - best).toFixed(2)})` : ''}`, !best || t <= best ? '#3bff9d' : '#ffd400', 26);
+      this.idx++; this.save(); vibSoft([10, 20, 10]);
+    }
+    // 入力表示
+    const st = steerInput(0) * (game.mirror ? -1 : 1), b = boostHeld(0);
+    $('inL').classList.toggle('on', st < -0.3); $('inR').classList.toggle('on', st > 0.3); $('inB').classList.toggle('on', b);
+    $('inD').textContent = c.drifting ? (c.cStage ? DRIFT.names[c.cStage - 1] : 'DRIFT') + (c.counter ? '＋' : '') : c.air ? `AIR ${(c.airPitch || 0).toFixed(0)}°` : '';
+    $('inD').style.color = c.drifting && c.cStage ? DRIFT.cols[c.cStage - 1] : '#fff';
+    $('inS').style.left = (50 + c.steer * 46) + '%';
+  },
+  retry() {
+    if (!game.practice || game.state !== 'play' || !this.snap) return;
+    const S = this.snap;
+    Object.assign(player, { s: S.s, x: S.x, v: S.v, h: 0, air: false, latV: 0, hop: false, drifting: false, driftHold: 0, charge: 0, cStage: 0, justT: 0, nitro: S.nitro, heat: S.heat, heatStall: 0,
+      boostT: 0, padT: 0, spin: 0, invuln: 1, trickT: 0, trickList: [], trickQ: null, airPitch: 0, finished: false });
+    game.elapsed = S.el; game.score = S.score; game.coins = S.coins; this.t0 = S.el; this.retries++;
+    Flow.brk(); updateCarTransform(player, 0, true); snapCamera(); flash('#3bff9d', 0.35); SND.tick(); vib([20, 20, 20]);
+    pop(`区間${this.idx + 1} リトライ`, '#3bff9d', 28);
+  },
+  result() {
+    const i = stageIdx, last = this.bounds.length - 2;
+    if (this.secT[last] === undefined && player.finishTime) this.secT[last] = player.finishTime - this.t0;
+    PF.prac = PF.prac || {}; const best = PF.prac[i] = PF.prac[i] || [];
+    const rows = this.secT.map((t, k) => { const b = best[k], nb = !b || t < b; if (nb) best[k] = Math.round(t * 100) / 100;
+      return `<div class='flex justify-between gap-3'><span>区間${k + 1}</span><span class='tabular-nums ${nb ? 'text-green-300' : ''}'>${t.toFixed(2)}s ${b ? `<span class='text-white/50'>(${t <= b ? '−' : '+'}${Math.abs(t - b).toFixed(2)})</span>` : ''}${nb ? ' NEW' : ''}</span></div>`; }).join('');
+    savePF();
+    const jr = RUN.dr ? Math.round((RUN.just || 0) / RUN.dr * 100) : 0;
+    $('rTitle').textContent = 'PRACTICE'; $('rPos').textContent = '練'; $('rPosSuf').textContent = '';
+    $('rReward').innerHTML = `<div class='flex-1 jp text-[11px] text-white/85 grid grid-cols-2 gap-x-4 gap-y-0.5'>
+      <div><div class='text-[10px] tracking-[.2em] text-green-300 font-black'>ANALYSIS</div>
+        <div>ジャスト率 <b>${jr}%</b>（${RUN.just || 0}/${RUN.dr || 0}）</div><div>最大熱 <b>${Math.round(RUN.maxHeat || 0)}%</b>　オーバーヒート ${RUN.overheat || 0}回</div>
+        <div>PERFECT LANDING ${RUN.pland || 0} / HARD ${RUN.hardLand || 0}</div><div>壁ヒット ${RUN.wall || 0}　最大フロー ×${(RUN.flowMax || 1).toFixed(2)}</div><div>区間リトライ ${this.retries}回</div></div>
+      <div><div class='text-[10px] tracking-[.2em] text-cyan-300 font-black'>SECTION TIME</div>${rows || '—'}</div></div>`;
+    $('rMsgs').innerHTML = '';
+  },
+};
+{
+  const ui = document.createElement('div'); ui.id = 'practiceUI'; ui.style.display = 'none';
+  ui.innerHTML = `<button id='btnRetry' class='pointer-events-auto' style='position:absolute;left:max(10px,env(safe-area-inset-left));top:58%;padding:6px 12px;border-radius:999px;border:1px solid #3bff9d;color:#3bff9d;background:rgba(0,0,0,.5);font-weight:900;font-size:12px'>↺ 区間リトライ <span style='opacity:.6'>T</span></button>
+    <div id='inDisp' style='position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(58% + 40px);display:flex;flex-direction:column;gap:3px;font-size:10px;font-weight:900'>
+      <div style='display:flex;gap:3px'><span id='inL' class='ink'>◀</span><span id='inB' class='ink' style='width:54px'>BOOST</span><span id='inR' class='ink'>▶</span></div>
+      <div style='position:relative;height:6px;width:116px;border-radius:3px;background:rgba(255,255,255,.15)'><i id='inS' style='position:absolute;top:-2px;width:4px;height:10px;margin-left:-2px;background:#29f3ff;left:50%'></i></div>
+      <div id='inD' style='height:12px;letter-spacing:.15em'></div></div>`;
+  $('hud').appendChild(ui);
+  document.head.insertAdjacentHTML('beforeend', `<style>.ink{display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.45);color:rgba(255,255,255,.6)}.ink.on{background:#29f3ff;color:#000;border-color:#29f3ff;box-shadow:0 0 10px #29f3ff}</style>`);
+  $('btnRetry').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Practice.retry(); });
+  addEventListener('keydown', e => { if (e.code === 'KeyT' && !e.repeat) Practice.retry(); });
+}
 
 /* =====================================================================
    18. メインループ
@@ -5021,7 +5247,7 @@ function step(dt) {
     if (c.remote) { applyRemote(c, dt); updateCarTransform(c, dt); continue; }
     let ctl = 0;
     if (c.ctrl) {
-      if (st === 'play' && !c.finished) ctl = window.__game?.autopilot ? aiControl(c, dt) : steerInput(c.ctrl === 'p2' ? 1 : 0);
+      if (st === 'play' && !c.finished) ctl = window.__game?.autopilot ? aiControl(c, dt) : (game.mirror ? -1 : 1) * steerInput(c.ctrl === 'p2' ? 1 : 0);
       else if (st === 'title') ctl = aiControl(c, dt);
       else ctl = clamp(-c.x * 0.2, -1, 1);
     } else ctl = aiControl(c, dt);
