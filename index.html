@@ -605,6 +605,8 @@ const LANDING = { perfectDeg: 8, badDeg: 25, perfectGain: 0.12, badLoss: 0.30, m
   pitchMax: 50,             // 機首上げの上限(°)
   autoLevel: 110,           // アシスト「フル」: 機首を自動で起こす速さ(°/秒)
   autoLevelTo: 15 };        // フルはこの角度差まで起こす（HARD は防ぐが PERFECT は自分で狙う）
+// 遊園地ギミック（ドリームパーク）: 巻き上げの速さ / ドロップ・ローンチのブースト秒数
+const RIDE = { liftV: 22, dropBoost: 2.4, launchBoost: 3.2, launchV: 74, clack: 0.17 };
 // B4. フロー・コンボ（ジャストドリフト / PERFECT LANDING / ラッシュパッド / スリップストリーム / ニアミス を繋ぐ）
 const FLOW = {
   window: 3.0,              // 次の技までの猶予(秒)
@@ -674,9 +676,9 @@ const _m4 = new THREE.Matrix4(), _nf = new V3();
 function quatFromFrame(r, u, f, q) { _nf.copy(f).negate(); _m4.makeBasis(r, u, _nf); return q.setFromRotationMatrix(_m4); }
 
 /* =====================================================================
-   2. ステージ定義 (4ステージ)
+   2. ステージ定義
    ===================================================================== */
-const F_TUNNEL = 8, F_ICE = 16, F_WIND = 32;
+const F_TUNNEL = 8, F_ICE = 16, F_WIND = 32, F_LIFT = 64, F_DROP = 128, F_LAUNCH = 256, F_SPLASH = 512;
 function courseKit() {
   const c = [];
   const S = (len, o = {}) => c.push({ len, ...o });
@@ -940,6 +942,39 @@ const STAGES = [
       PITCH(60, -16); S(170, { wind: true, coins: { type: 'slalom', from: 10, to: 160, step: 8, amp: 5, period: 80 } }); PITCH(60, 16);
       FINAL();
     } },
+  { key: 'DREAM PARK', env: 'park', weather: 'fireworks', jp: 'ドリームパーク', desc: '夜の遊園地を走るジェットコースター。カタカタ巻き上げ→絶叫ドロップ、浮遊感の連続ヒル、発射式ローンチ、らせんヘリックス、水しぶきのスプラッシュ！', stars: 4, fever: 16, icons: 'LIFT / DROP / LAUNCH / HELIX / SPLASH',
+    theme: { top: [0.01, 0.0, 0.05], mid: [0.12, 0.02, 0.22], hor: [0.95, 0.3, 0.55], sunA: [1, 0.35, 0.75], sunB: [1, 0.85, 0.4], fog: 0x220833, grid: [1, 0.45, 0.85],
+      lane: '#fff3a0', edge: '#ff4fd8', rails: [0xff4fd8, 0xffd400], gates: [0xff4fd8, 0xffd400, 0x29f3ff, 0x3bff9d], tints: [0xff4fd8, 0xffd400, 0x29f3ff, 0x3bff9d, 0xffffff] },
+    build: ({ S, TURN, PITCH, RAMP, LOOP, CORK, HILLS, FINAL }) => {
+      S(170, { start: true, coins: { type: 'line', x: 0, from: 70, to: 160, step: 6 } });
+      TURN(200, 45, { items: [100], coins: { type: 'slalom', from: 20, to: 190, step: 7, amp: 4, period: 80 } });
+      // 1. 巻き上げ（チェーンでゆっくり）→ 絶叫ファーストドロップ
+      PITCH(60, 20, { lift: true, msg: 'LIFT HILL… カタカタカタ' }); S(170, { lift: true, coins: { type: 'line', x: 0, from: 10, to: 160, step: 10 } }); PITCH(40, -20, { lift: true });
+      PITCH(80, -45, { drop: true, msg: 'FIRST DROP!!!' }); S(30, { drop: true }); PITCH(80, 45, { coins: { type: 'line', x: 0, from: 5, to: 75, step: 6, h: 1.3 } });
+      // 2. 浮遊感のエアタイムヒル
+      HILLS(4, 16);
+      S(60, { cp: true, items: [40] });
+      // 3. らせんヘリックス（420°回りながら上昇）
+      TURN(560, 420, { rise: 34, noSC: true, msg: 'HELIX!!', coins: { type: 'line', x: -4, from: 30, to: 530, step: 10 }, jackpot: [[280, -4, 1.2]] });
+      S(60, { boost: [[20, 0], [42, 0]] }); LOOP(220, 22);
+      // 4. 発射式ローンチ
+      S(120, { msg: 'LAUNCH 3… 2… 1…', coins: { type: 'line', x: 0, from: 20, to: 110, step: 8 } }); S(30, { launch: true });
+      S(260, { msg: 'LAUNCHED!!', coins: { type: 'line', x: 0, from: 20, to: 250, step: 6 }, jackpot: [[230, 0, 1.4]] });
+      S(40); CORK(180, 1); S(30); CORK(180, -1, { msg: 'BARREL ROLLS!!' });
+      S(60, { cp: true, items: [40] });
+      // 5. スプラッシュゾーン
+      PITCH(70, -24, { msg: 'SPLASH ZONE!' }); S(200, { splash: true, coins: { type: 'slalom', from: 10, to: 190, step: 6, amp: 5, period: 70 }, boost: [[100, 0]] }); PITCH(70, 24);
+      S(70, { boost: [[15, -3.5], [15, 3.5], [45, 0]] }); RAMP(23, { msg: 'PARK JUMP!!' }); PITCH(60, -24); S(110); PITCH(60, 24);
+      TURN(330, -165, { msg: 'HAIRPIN!', coins: { type: 'line', x: 4.5, from: 30, to: 300, step: 9 } });
+      S(60, { cp: true, items: [40] });
+      // 6. ドロップタワー（2回目の巻き上げはもっと高く、もっと急に）
+      PITCH(50, 25, { lift: true, msg: 'DROP TOWER…' }); S(130, { lift: true }); PITCH(40, -25, { lift: true });
+      PITCH(70, -55, { drop: true, msg: 'DROP TOWER!!!' }); S(30, { drop: true }); PITCH(70, 55);
+      HILLS(3, 14);
+      TURN(240, 90, { coins: { type: 'slalom', from: 20, to: 220, step: 7, amp: 4, period: 80 } });
+      S(70, { boost: [[20, 0]] }); RAMP(19, { msg: 'FINAL JUMP!' }); PITCH(50, -16); S(80); PITCH(50, 16);
+      FINAL();
+    } },
 ];
 
 /* =====================================================================
@@ -957,7 +992,9 @@ function buildTrack() {
     const w = []; let sum = 0;
     for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; const x = seg.dist === 'instant' ? (k === 0 ? 1 : 0) : Math.sin(Math.PI * t) ** 2; w.push(x); sum += x; }
     const yaw = seg.yaw || 0, pitch = seg.pitch || 0, shift = seg.shift || 0, roll = seg.roll || 0;
-    const flag = (seg.loop ? F_LOOP : 0) | (seg.ramp ? F_RAMP : 0) | (seg.tunnel ? F_TUNNEL : 0) | (seg.ice ? F_ICE : 0) | (seg.wind ? F_WIND : 0);
+    const flag = (seg.loop ? F_LOOP : 0) | (seg.ramp ? F_RAMP : 0) | (seg.tunnel ? F_TUNNEL : 0) | (seg.ice ? F_ICE : 0) | (seg.wind ? F_WIND : 0)
+      | (seg.lift ? F_LIFT : 0) | (seg.drop ? F_DROP : 0) | (seg.launch ? F_LAUNCH : 0) | (seg.splash ? F_SPLASH : 0);
+    const rise = seg.rise || 0;   // らせん（ヘリックス）用: 少しずつ真上に持ち上げて重ならないようにする
     for (let k = 0; k < n; k++) {
       const wk = w[k] / sum;
       if (yaw) { f.applyAxisAngle(u, yaw * wk); r.applyAxisAngle(u, yaw * wk); }
@@ -966,6 +1003,7 @@ function buildTrack() {
       f.normalize(); r.crossVectors(f, u).normalize(); u.crossVectors(r, f).normalize();
       const sh = shift ? shift * (smooth((k + 1) / n) - smooth(k / n)) : 0;
       p.addScaledVector(f, DS).addScaledVector(r, sh);
+      if (rise) p.y += rise * (smooth((k + 1) / n) - smooth(k / n));
       s += DS;
       P.push(p.clone()); F.push(f.clone()); U.push(u.clone()); R.push(r.clone()); FL.push(flag);
     }
@@ -2365,6 +2403,40 @@ function hitCar(c, owner) {
 /* =====================================================================
    14. 物理
    ===================================================================== */
+/* ---- 遊園地ギミック ---- */
+const Ride = {
+  tick(c, fl, dt) {
+    const prev = c.rideF || 0, fx = c.isPlayer && live(), near = nearCam(c);
+    c.rideF = fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH);
+    if ((fl & F_LIFT) && fx) {   // カタカタ…（音と振動を同期）
+      c.clackT = (c.clackT || 0) - dt;
+      if (c.clackT <= 0) { c.clackT = RIDE.clack; if (SND.ok()) { const t = SND.t(); SND.tone(95, t, 0.04, 'square', 0.12); SND.noiseHit(t, 0.03, 0.18, 'highpass', 3000, null, SND.sfx); } vibSoft(9); cam.shake = Math.max(cam.shake, 0.08); }
+    }
+    if ((fl & F_DROP) && !(prev & F_DROP)) {
+      startBoost(c, RIDE.dropBoost, true);
+      if (fx) {
+        RUN.drop = (RUN.drop || 0) + 1; Dopa.ev('loop'); Flow.ev('pad');
+        pop('AIRTIME DROP!!!', '#ff4fd8', 40); flash('#ffffff', 0.45); cam.kick = 26; cam.shake = 1;
+        if (SND.ok()) { const t = SND.t(); SND.noiseHit(t, 1.4, 0.5, 'bandpass', 2400, 900, SND.sfx, 6); SND.noiseHit(t + 0.05, 1.2, 0.35, 'bandpass', 3200, 1400, SND.sfx, 8); }
+        vib([150, 40, 200, 40, 260]); say(['うわああああ！ 絶叫ドロップ！！', '落ちる落ちる落ちるー！！', 'この浮遊感、たまらない！'], 2);
+      }
+    }
+    if ((fl & F_LAUNCH) && !(prev & F_LAUNCH)) {
+      startBoost(c, RIDE.launchBoost, true); c.v = Math.max(c.v, RIDE.launchV);
+      if (fx) {
+        RUN.launch = (RUN.launch || 0) + 1; Flow.ev('pad');
+        pop('LAUNCH!!!', '#29f3ff', 46); flash('#29f3ff', 0.5); cam.kick = 32; cam.shake = 0.8;
+        if (SND.ok()) { const t = SND.t(); SND.noiseHit(t, 0.9, 0.7, 'bandpass', 200, 6000, SND.sfx, 3); }
+        vib([60, 20, 60, 20, 300]); say(['射出！！ 一瞬で最高速！', 'ローンチ！ 背中がシートに張りつく！'], 2);
+      }
+    }
+    if (fl & F_SPLASH) {
+      if (near && Math.random() < 0.6) emit(c.pos, c.isPlayer ? 6 : 2, { speed: 9, color: 0x6fd3ff, color2: 0xffffff, size: 0.55, life: 0.7, grav: 18, vel: c.up.clone().multiplyScalar(9) });
+      if (fx && !(prev & F_SPLASH)) { pop('SPLASH!!', '#6fd3ff', 36); flash('#6fd3ff', 0.35); SND.whoosh(); vib([40, 30, 40, 30, 120]); say(['スプラッシュ！ ずぶ濡れだ！'], 1); }
+    }
+  },
+};
+
 /* ---- B. 腕前システム（調整値は先頭の 0b. ASSIST / DRIFT / HEAT / LANDING / FLOW / WALL） ---- */
 const lvIdx = () => clamp(game.lv | 0, 1, 6);
 const DRIFT_HEX = [0xff2bd6, ...DRIFT.cols.map(h => parseInt(h.slice(1), 16))];   // 0段目（チャージ中）はピンク
@@ -2563,7 +2635,9 @@ function physics(c, dt, ctl) {
   if (!c.air) {
     const rateV = c.v < target ? (boosting(c) ? 2.4 : 0.36 * c.stats.acc) : (ending ? 1.0 : 0.45);
     c.v += (target - c.v) * rateV * dt;
-    if (fl & F_RAMP) c.v = damp(c.v, V_RAMP, 8, dt);
+    if (fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH) || c.rideF) Ride.tick(c, fl, dt);
+    if (fl & F_LIFT) { c.v = damp(c.v, RIDE.liftV, 3, dt); c.boostT = 0; c.padT = 0; }
+    else if (fl & F_RAMP) c.v = damp(c.v, V_RAMP, 8, dt);
     else if (fl & F_LOOP) c.v = Math.max(c.v, V_MIN_LOOP);
     else c.v += -fr.fwd.y * SLOPE_ACC * dt;
     c.v = Math.max(c.v, 0);
@@ -4221,7 +4295,7 @@ const SC = {
     this.list = []; this.meshes = [];
     if (STAGE.tut) return;
     let hp = null;
-    for (const seg of COURSE) if (seg.yaw && Math.abs(seg.yaw) >= 140 * D2R && (!hp || Math.abs(seg.yaw) > Math.abs(hp.yaw))) hp = seg;
+    for (const seg of COURSE) if (seg.yaw && !seg.noSC && Math.abs(seg.yaw) >= 140 * D2R && (!hp || Math.abs(seg.yaw) > Math.abs(hp.yaw))) hp = seg;
     if (hp) {
       const L = hp.s1 - hp.s0, mid = hp.s0 + L * 0.42, inner = Math.sign(latKAt(mid)) || 1;
       this.list.push({ id: stageIdx + 'a', type: 'wall', s0: hp.s0 + L * 0.3, s1: hp.s0 + L * 0.55, inner, to: hp.s0 + L * 0.9, at: mid });
@@ -4289,6 +4363,7 @@ function envGeo() {
   if (e === 'crystal') return new THREE.ConeGeometry(0.55, 1, 5);
   if (e === 'ice') return new THREE.ConeGeometry(0.5, 1, 4);
   if (e === 'rock') return new THREE.DodecahedronGeometry(0.62, 0);
+  if (e === 'park') return new THREE.ConeGeometry(0.6, 1, 8);   // サーカステント
   return unitBox;
 }
 function envMat(tex) {
@@ -4313,6 +4388,25 @@ const ENV = {
       }
       stageRoot.add(im);
     }
+    this.wheels = [];
+    if (STAGE.env === 'park') {   // 観覧車（ゆっくり回る）
+      const R = mulberry32(777 + stageIdx), cols = STAGE.theme.tints;
+      for (let s = 300; s < goalS - 200; s += 700) {
+        const fr = frameAt(s, FR()), side = R() < 0.5 ? -1 : 1, rad = 28 + R() * 14, g = new THREE.Group(), hub = new THREE.Group();
+        g.position.copy(fr.pos).addScaledVector(fr.right, side * (rad + 45)); g.position.y = Math.max(g.position.y, FLOOR_Y + rad + 4) + 2;
+        g.lookAt(g.position.clone().add(fr.fwd));
+        const mat = c => new THREE.MeshBasicMaterial({ color: c });
+        hub.add(new THREE.Mesh(new THREE.TorusGeometry(rad, 0.6, 6, 48), mat(cols[0])));
+        hub.add(new THREE.Mesh(new THREE.TorusGeometry(rad * 0.55, 0.35, 6, 36), mat(cols[1])));
+        for (let k = 0; k < 12; k++) {
+          const a = k / 12 * Math.PI * 2, sp = new THREE.Mesh(new THREE.BoxGeometry(0.3, rad, 0.3), mat(0xffffff));
+          sp.position.set(Math.cos(a) * rad / 2, Math.sin(a) * rad / 2, 0); sp.rotation.z = a - Math.PI / 2; hub.add(sp);
+          const cab = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), mat(cols[k % cols.length])); cab.position.set(Math.cos(a) * rad, Math.sin(a) * rad, 0); hub.add(cab);
+        }
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 1.2, rad + 6, 6), mat(0x9a7aff)); leg.position.y = -(rad + 6) / 2; g.add(leg);
+        g.add(hub); stageRoot.add(g); this.wheels.push(hub);
+      }
+    }
     this.arch = null;
     if (STAGE.env === 'hyper') {
       const at = []; for (let s = 120; s < goalS; s += 36) if (!(flagAt(s) & (F_LOOP | F_GAP | F_RAMP | F_TUNNEL))) at.push(s);
@@ -4323,6 +4417,18 @@ const ENV = {
     }
   },
   tick(dt) {
+    for (const h of this.wheels || []) h.rotation.z += dt * 0.12;
+    if (STAGE.weather === 'fireworks' && game.state !== 'result') {   // 打ち上げ花火
+      this.fwT = (this.fwT || 1) - dt;
+      if (this.fwT <= 0) {
+        this.fwT = 0.7 + Math.random() * 1.2 - (Flow.tier || 0) * 0.12;
+        const cp = camera.position; _wP.copy(cp).addScaledVector(player.fwd, 90 + Math.random() * 90).addScaledVector(player.right, (Math.random() - 0.5) * 160); _wP.y = cp.y + 45 + Math.random() * 40;
+        const h = Math.random();
+        emit(_wP, quality < 2 ? 40 : 80, { speed: 22, color: _wC.setHSL(h, 1, 0.6).getHex(), color2: _wC.setHSL((h + 0.15) % 1, 1, 0.7).getHex(), size: 1.4, life: 1.4, grav: 6 });
+        if (game.state === 'play' && SND.ok()) { const t = SND.t() + 0.25; SND.noiseHit(t, 0.5, 0.18, 'lowpass', 900, 120, SND.sfx); }
+        if (game.state === 'play' && HAPT.lv >= 2) setTimeout(() => vibSoft(6), 250);
+      }
+    }
     if (this.arch) { const { im, at } = this.arch; for (let k = 0; k < at.length; k++) { if (Math.abs(at[k] - player.s) > 300) continue; im.setColorAt(k, _wC.setHSL((((at[k] - player.s) * 0.003 - game.t * 0.8) % 1 + 1) % 1, 1, 0.55)); } im.instanceColor.needsUpdate = true; }
     const w = STAGE.weather, st = game.state;
     if (w && st !== 'result') {
@@ -4568,7 +4674,7 @@ const TUT = {
       ['trophy', '実績と称号', '「鬼殺し」「ゴッドトリック」など、条件を満たすと実績と称号がもらえます。中には「？？？」としか書かれていないものも…。'],
       ['flag', 'タイムアタック', 'CPUなし・アイテムなしの純粋な腕前勝負。銅・銀・金・プラチナのメダルと、自己ベストの走りが半透明のゴーストで一緒に走ります。'],
       ['users', '難易度と対戦', 'CPUの強さは かんたん〜神 の6段階。「むずかしい」以上はCPUが手加減しません。2P画面分割対戦と、部屋コードで遊ぶオンライン対戦も。'],
-      ['gear', '設定', 'サウンド・AI実況・振動の強さ・自分の曲、アシストの強さ、操作方法とテクニックの説明は「設定」に。チュートリアルもここからもう一度できます。さあ、8つのステージへ！'],
+      ['gear', '設定', 'サウンド・AI実況・振動の強さ・自分の曲、アシストの強さ、操作方法とテクニックの説明は「設定」に。チュートリアルもここからもう一度できます。さあ、' + STAGES.length + 'つのステージへ！'],
     ];
     const [ic, t, d] = P[i], el = $('tutEnd');
     el.classList.remove('hidden'); el.classList.add('flex');
