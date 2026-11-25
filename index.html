@@ -199,8 +199,8 @@
   @keyframes godpulse{50%{box-shadow:0 0 34px #fff3b0,0 0 70px #ffc400}}
   /* ---- ドーパミンスロット（筐体） ---- */
   .cabw{position:relative;transition:transform .6s cubic-bezier(.2,1,.3,1)}
-  .cabw.zoom{transform:scale(1.1)}
-  .cab{--sc:#ff2bd6;--cell:min(46px,11.5vh);position:relative;width:calc(var(--cell)*5.6);padding:8px 10px 10px;border-radius:18px 18px 14px 14px;
+  .cabw.zoom{transform:scale(1.04)}
+  .cab{--sc:#ff2bd6;--cell:clamp(20px,calc((100vh - 200px) / 4.5),46px);--cell:clamp(20px,calc((100dvh - 200px) / 4.5),46px);position:relative;width:calc(var(--cell)*5.6);padding:8px 10px 10px;border-radius:18px 18px 14px 14px;
     background:linear-gradient(90deg,#3a3f4a,#cfd6e0 10%,#7b8290 20%,#2a2e36 50%,#7b8290 80%,#cfd6e0 90%,#3a3f4a);box-shadow:0 0 0 2px #000a,0 0 30px var(--sc),0 18px 40px #000c;transition:box-shadow .3s,filter .4s}
   .cab-top{margin:-2px -2px 6px;padding:5px 8px 6px;border-radius:14px 14px 6px 6px;background:radial-gradient(ellipse at 50% 130%,var(--sc),#1a0630 70%);text-align:center;border:2px solid #000a;transition:background .3s}
   .cab-logo{font:900 calc(var(--cell)*.46)/1 Impact,'Arial Black',sans-serif;font-style:italic;letter-spacing:.05em;color:#fff;text-shadow:0 0 6px #fff,0 0 14px var(--sc),0 0 28px var(--sc)}
@@ -231,8 +231,8 @@
   .glass{position:absolute;inset:0;border-radius:10px;background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 32%);pointer-events:none;z-index:2}
   .cab-panel{display:flex;gap:5px;margin-top:6px}
   .led{flex:1;background:#140303;border-radius:5px;padding:2px 5px;border:1px solid #000;box-shadow:inset 0 0 6px #000}
-  .led small{display:block;font-size:7px;letter-spacing:.2em;color:#ff9a9a99}
-  .led b{display:block;text-align:right;font:700 13px/1.15 'Courier New',monospace;color:#ff3b3b;text-shadow:0 0 6px #ff2020}
+  .led small{display:block;font-size:max(6px,calc(var(--cell)*.16));letter-spacing:.15em;color:#ff9a9a99;white-space:nowrap;overflow:hidden}
+  .led b{display:block;text-align:right;white-space:nowrap;font:700 max(9px,calc(var(--cell)*.29))/1.15 'Courier New',monospace;color:#ff3b3b;text-shadow:0 0 6px #ff2020}
   .led.win b{color:#ffd400;text-shadow:0 0 6px #ffb000}
   .cab-btns{display:flex;justify-content:space-around;margin-top:6px}
   .stopb{width:calc(var(--cell)*.62);height:calc(var(--cell)*.62);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ff6b86 30%,#8a0020);border:2px solid #300;box-shadow:0 3px 0 #300;opacity:.3;font:900 8px sans-serif;color:#fff;transition:opacity .2s}
@@ -4349,7 +4349,7 @@ function dsCombo(rar) {
 }
 const dsCell = k => `<div class='sy ${DS_CLS[k]}'>${k === 'BAR' ? '<b>BAR</b>' : k}</div>`;
 // 筐体（live=false はメニューの飾り）
-const dsMachine = (sc = '#ff2bd6', live = true) => `<div class='cabw' ${live ? "id='dsW'" : ''}><div class='cab' ${live ? "id='dsM'" : ''} style='--sc:${sc}'>
+const dsMachine = (sc = '#ff2bd6', live = true, cell = '') => `<div class='cabw' ${live ? "id='dsW'" : ''}><div class='cab' ${live ? "id='dsM'" : ''} style='--sc:${sc};${cell ? `--cell:${cell};` : ''}'>
   <div class='cab-top'><div class='bulbs'>${Array.from({ length: 14 }, (_, k) => `<i style='animation-delay:${(-k * 0.07).toFixed(2)}s'></i>`).join('')}</div><div class='cab-logo'>DOPAMINE<small>SLOT MACHINE</small></div></div>
   <div class='cab-face'><div class='sled'></div><div class='reelwin'>${[0, 1, 2].map(i => `<div class='dsreel' ${live ? `id='dsR${i}'` : ''}>${live ? '' : `<div class='strip'>${['★', '7', 'BAR'].map(dsCell).join('')}</div>`}</div>`).join('')}<div class='payline'></div><div class='glass'></div></div><div class='sled'></div></div>
   <div class='cab-panel'><div class='led'><small>CREDIT</small><b ${live ? "id='dsCr'" : ''}>${PF.neon}</b></div><div class='led'><small>BET</small><b ${live ? "id='dsBet'" : ''}>300</b></div><div class='led win'><small>WIN</small><b ${live ? "id='dsWin'" : ''}>---</b></div></div>
@@ -4410,7 +4410,7 @@ async function gachaFx(res, bet = 300) {
   else if (rar === 'UR' && Math.random() < 0.5) stages = ['SSR', 'UR'];
   else if (rar === 'SSR' && Math.random() < 0.3) stages = ['SR', 'SSR'];
   const fx = $('gFx'); fx.classList.remove('hidden'); fx.classList.add('flex');
-  fx.innerHTML = `<div class='dsbg' id='dsBg'></div><div class='dsvig' id='dsVig'></div>${dsMachine('#ff2bd6')}<div id='dsMsg' class='dmsg jp'>　</div><div class='jp text-[10px] text-white/40'>タップでスキップ</div>`;
+  fx.innerHTML = `<div class='dsbg' id='dsBg'></div><div class='dsvig' id='dsVig'></div>${dsMachine('#ff2bd6')}<div id='dsMsg' class='dmsg jp'>　</div><div id='dsHint' class='jp text-[10px] text-white/40'>タップでスキップ</div>`;
   const cab = $('dsM'), wrap = $('dsW'), msgEl = $('dsMsg'), vig = $('dsVig'), bg = $('dsBg');
   $('dsBet').textContent = bet; $('dsCr').textContent = PF.neon;
   const cell = parseFloat(getComputedStyle(cab).getPropertyValue('--cell')) || $('dsR0').offsetHeight / 3;
@@ -4452,6 +4452,7 @@ async function gachaFx(res, bet = 300) {
         R[2].v = 9;
         await W(700);
         btn(2).classList.remove('on'); btn(2).classList.add('push'); btn(2).textContent = 'PUSH';
+        const hint = $('dsHint'); if (hint) { hint.textContent = '画面のどこをタップしてもストップ！'; hint.style.color = '#ffd400'; hint.style.fontSize = '13px'; hint.style.fontWeight = '900'; }
         const beats = hotReach ? 9 : 5; let pushed = false;
         const pushP = new Promise(ok => { pushRes = () => { pushed = true; pushRes = null; ok(); }; });
         btn(2).onclick = e => { e.stopPropagation(); if (pushRes) pushRes(); };
@@ -4460,6 +4461,7 @@ async function gachaFx(res, bet = 300) {
           await Promise.race([W(Math.max(220, 620 - k * 55)), pushP]);
         }
         pushRes = null; btn(2).classList.remove('push'); btn(2).textContent = 'STOP';
+        { const hint = $('dsHint'); if (hint) { hint.textContent = 'タップでスキップ'; hint.style.cssText = ''; } }
         await R[2].stop(combo[2], hotReach ? 1100 : 800, hotReach ? 7 : 5);
         cab.classList.remove('reach'); wrap.classList.remove('zoom'); vig.classList.remove('on', 'red');
       } else { await R[2].stop(combo[2], 420); }
@@ -4516,18 +4518,20 @@ function htmlMis() {
 }
 function htmlGacha() {
   const pool = COS.filter(c => c.g !== false && (c.r !== 'GOD' || PF.owned[c.id])), own = pool.filter(c => PF.owned[c.id]).length;
-  return `<div class='flex flex-col items-center text-center gap-2 mt-2'>
-    <div style='transform:scale(.62);margin:-58px 0 -62px'>${dsMachine('#ff2bd6', false)}</div>
-    <div class='text-xl font-black neon-pink tracking-wider'>ドーパミンスロット</div>
-    <div class='text-[11px] text-white/70'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？　かぶったらネオンに自動変換</div>
-    <div class='flex flex-wrap gap-2 justify-center mt-1'>
+  return `<div class='flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-1'>
+    <div class='shrink-0'>${dsMachine('#ff2bd6', false, 'clamp(18px, 6.5vh, 30px)')}</div>
+    <div class='flex flex-col items-center text-center gap-1.5 min-w-0 max-w-[380px]'>
+    <div class='text-lg font-black neon-pink tracking-wider leading-tight'>ドーパミンスロット</div>
+    <div class='text-[10px] text-white/70 leading-snug'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？<br>かぶったらネオンに自動変換</div>
+    <div class='flex flex-wrap gap-2 justify-center'>
       <button id='gx1' class='mbtn' ${PF.neon < 300 ? 'disabled' : ''}>1回　${NE()}300</button>
       <button id='gx10' class='start-btn !px-5 !py-2 text-sm !tracking-[.08em]' ${PF.neon < 2700 ? `disabled style='opacity:.45;animation:none'` : ''}>10連　${NE()}2700</button>
       <button id='gxT' class='mbtn' ${PF.tix < 1 ? 'disabled' : ''}>${TK()} チケットで1回（${PF.tix}枚）</button>
     </div>
     <div class='text-xs font-black text-yellow-300'>SSR以上 確定まで あと ${PITY - PF.pity} 回</div>
-    <div class='text-[10px] text-white/50'>排出率　N ${ratePct('N')} ／ R ${ratePct('R')} ／ SR ${ratePct('SR')} ／ SSR ${ratePct('SSR')} ／ UR ${ratePct('UR')} ／ ？？？ ${ratePct('GOD')}　・10連はSR以上が1つ確定</div>
-    <div class='text-[10px] text-white/50'>コレクション ${own} / ${pool.length}　・ネオンはレース・ミッション・実績・ログインでもらえるゲーム内通貨です</div>
+    <div class='text-[10px] text-white/50 leading-snug'>排出率　N ${ratePct('N')} ／ R ${ratePct('R')} ／ SR ${ratePct('SR')} ／ SSR ${ratePct('SSR')} ／ UR ${ratePct('UR')} ／ ？？？ ${ratePct('GOD')}<br>10連はSR以上が1つ確定</div>
+    <div class='text-[10px] text-white/50'>コレクション ${own} / ${pool.length}</div>
+    </div>
   </div>`;
 }
 function htmlCus() {
