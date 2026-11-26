@@ -95,6 +95,10 @@
   #btnBoost.ready{filter:drop-shadow(0 0 10px #ff2bd6)}
   /* ---- 腕前システムの HUD（ニトロ熱 / ドリフトチャージ / フロー / アシスト） ---- */
   #btnBoost{position:relative}
+  #itemTip{position:absolute;left:50%;bottom:calc(100% + 26px);transform:translateX(-50%) translateY(8px);width:max-content;max-width:min(70vw,360px);padding:6px 10px;border-radius:4px;border:1px solid #ffd400;background:rgba(8,6,18,.92);font-size:12px;font-weight:700;opacity:0;transition:all .25s;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+  #itemTip .ic{width:22px;height:22px;color:#ffd400}
+  #itemTip small{font-size:10px;color:rgba(255,255,255,.6)}
+  #itemTip.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #btnDrift{width:62px;height:62px;border-radius:50%;font-weight:900;font-size:11px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a1a6a,#1a0626);border:2px solid #ff2bd6;box-shadow:0 0 10px #ff2bd666;align-self:center}
   #btnDrift.on{background:#ff2bd6;box-shadow:0 0 18px #ff2bd6}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
@@ -659,6 +663,8 @@ const ICONS = {
   crown: '<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
   rotate: '<rect x="7" y="2" width="10" height="16" rx="2"/><path d="M20 14a8 8 0 0 1-8 8M12 22l2.5-2M12 22l2.5 2"/>',
   turbo: '<path d="M4 17l6-5-6-5M12 17l6-5-6-5"/>',
+  rocket: '<path d="M12 2c3 2 5 6 5 10l-2 4H9l-2-4c0-4 2-8 5-10z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 16l-2 5 3-2M15 16l2 5-3-2"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   bomb: '<circle cx="11" cy="14" r="7"/><path d="M15.5 8.5L18 6M20 3.5v2M21.5 6h-2M18.5 2.5l.6 1.4"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
@@ -2631,8 +2637,23 @@ function setupRace(n) {
 // 振動の強さ: 0=OFF 1=弱 2=強 3=MAX (強以上は走行中ずっとブルブルするランブル振動つき)
 const HAPT = { lv: (v => v === true ? 2 : v === false ? 0 : clamp(+v || 0, 0, 3))(store.get('ns_vibe', 2)), busy: 0, tickT: 0, names: ['OFF', '弱', '強', 'MAX'] };
 const VIB_K = [0, 0.6, 1, 1.6];
+// iPhone（Safari）は navigator.vibrate がない。iOS 18 以降は「スイッチ型チェックボックス」を切り替えると本体が軽く振動するので、それで代用する
+const IOSH = (() => {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!ios || navigator.vibrate) return null;
+  let last = 0;
+  const tick = () => {
+    const now = performance.now(); if (now - last < 40) return; last = now;
+    try { const lab = document.createElement('label'); lab.ariaHidden = 'true'; lab.style.display = 'none'; const inp = document.createElement('input'); inp.type = 'checkbox'; inp.setAttribute('switch', ''); lab.appendChild(inp); document.head.appendChild(lab); lab.click(); document.head.removeChild(lab); } catch (e) {}
+  };
+  // 振動のパターン [震える, 休む, …] を「トン」の連打に置き換える（長い振動ほど回数が多い）
+  const play = arr => { let t = 0; arr.forEach((ms, i) => { if (i % 2 === 0) { const n = clamp(Math.round(ms / 70), 1, 5); for (let k = 0; k < n; k++) setTimeout(tick, t + k * 60); } t += ms; }); };
+  return { tick, play };
+})();
 function vib(p) {
-  if (!HAPT.lv || !navigator.vibrate || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return;
+  if (!HAPT.lv) return;
+  if (IOSH) { const arr = [].concat(p).map((v, i) => i % 2 === 0 ? v * VIB_K[HAPT.lv] : v); if (arr.some((v, i) => i % 2 === 0 && v >= 8)) IOSH.play(arr); HAPT.busy = performance.now() + arr.reduce((a, b) => a + b, 0); return; }
+  if (!navigator.vibrate || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return;
   try {
     const arr = [].concat(p).map((v, i) => i % 2 === 0 ? Math.min(500, Math.max(1, Math.round(v * VIB_K[HAPT.lv]))) : v);
     navigator.vibrate(arr); HAPT.busy = performance.now() + arr.reduce((a, b) => a + b, 0);
@@ -2642,7 +2663,7 @@ function vib(p) {
 function vibSoft(p) { if (performance.now() >= HAPT.busy) vib(p); }
 // ランブル: 速度・ブースト・ドリフト・壁こすり・トンネル・ループ・フィーバーで常に震える
 function rumbleTick(dt) {
-  if (HAPT.lv < 2 || !navigator.vibrate) return;
+  if (HAPT.lv < 2 || (!navigator.vibrate && !IOSH)) return;
   const st = game.state; if (st !== 'play' && st !== 'countdown') return;
   HAPT.tickT -= dt; if (HAPT.tickT > 0) return; HAPT.tickT = 0.11;
   if (performance.now() < HAPT.busy) return;
@@ -2663,6 +2684,7 @@ function rumbleTick(dt) {
     if (game.fever > 0) ms += 20;
   }
   ms = Math.round(ms * (HAPT.lv === 3 ? 1.5 : 1));
+  if (IOSH) { HAPT.iosN = (HAPT.iosN || 0) + 1; if (ms >= 22 && HAPT.iosN % 2 === 0) IOSH.tick(); return; }   // iPhone: 強い場面だけ間引いてトン
   if (ms >= 3) try { navigator.vibrate(Math.min(ms, 100)); } catch (e) {}
 }
 function startFever() {
@@ -2724,22 +2746,37 @@ function tryBoost(c = player) {
    13. アイテム
    ===================================================================== */
 const ITEMS = {
-  TURBO: { icon: I('turbo'), label: 'TURBO' }, TRIPLE: { icon: I('turbo'), label: 'TRIPLE TURBO', n: 3 },
-  BOMB: { icon: I('bomb'), label: 'BOMB' }, MISSILE: { icon: I('target'), label: 'MISSILE' }, SHIELD: { icon: I('shield'), label: 'SHIELD' },
+  TURBO: { icon: I('turbo'), label: 'TURBO', desc: 'ターボ：その場で一気に加速' }, TRIPLE: { icon: I('turbo'), label: 'TRIPLE TURBO', n: 3, desc: 'トリプルターボ：ターボを3回使える' },
+  BOMB: { icon: I('bomb'), label: 'BOMB', desc: 'ボム：前に投げて置く。近くを通った車が吹っ飛ぶ' }, MISSILE: { icon: I('target'), label: 'MISSILE', desc: 'ミサイル：すぐ前の車を自動で追いかける' }, SHIELD: { icon: I('shield'), label: 'SHIELD', desc: 'シールド：攻撃を1回ふせぐ（9秒）' },
+  // レア（順位が低いほど出やすい）
+  ROCKET: { icon: I('rocket'), label: 'ROCKET', rare: true, desc: 'ロケット【レア】：4秒間、無敵の超加速。壁もよけてくれる' },
+  THUNDER: { icon: I('bolt'), label: 'THUNDER', rare: true, desc: 'サンダー【レア】：自分より前の全員に雷を落とす（シールドで防げる）' },
 };
+// アイテムの出やすさ: 重み = base + perP × p（p は順位 0=トップ〜1=最下位）。順位が低いほど強い・レアなアイテムが出る
+const ITEM_ODDS = {
+  TURBO: [30, -12], TRIPLE: [4, 30], BOMB: [32, -24], MISSILE: [10, 24], SHIELD: [32, -26], ROCKET: [-14, 34], THUNDER: [-12, 22],
+};
+const ITEM_RARE = { rocketT: 4, rocketSpeed: 1.12, thunderSpin: true };
 const ITEM_KEYS = Object.keys(ITEMS);
 function rollItem(c) {
   if (game.tut && c.isPlayer) return 'MISSILE';
   const p = cars.length > 1 ? (c.rank - 1) / (cars.length - 1) : 0;
-  const table = NET.racing && NET.rules.party ? [['MISSILE', 30], ['BOMB', 30], ['TRIPLE', 20], ['SHIELD', 10], ['TURBO', 10]]   // ワイワイ: 攻撃アイテム多め
-    : p < 0.2 ? [['BOMB', 35], ['SHIELD', 35], ['TURBO', 30]]
-    : p < 0.65 ? [['TURBO', 25], ['BOMB', 25], ['MISSILE', 25], ['SHIELD', 15], ['TRIPLE', 10]]
-    : [['TRIPLE', 35], ['MISSILE', 35], ['TURBO', 20], ['BOMB', 10]];
+  const table = NET.racing && NET.rules.party ? [['MISSILE', 30], ['BOMB', 30], ['TRIPLE', 20], ['SHIELD', 10], ['TURBO', 10], ['ROCKET', 4 + 16 * p], ['THUNDER', 2 + 10 * p]]   // ワイワイ: 攻撃アイテム多め
+    : Object.entries(ITEM_ODDS).map(([k, [b, m]]) => [k, Math.max(0, b + m * p)]).filter(x => x[1] > 0);
   let r = Math.random() * table.reduce((a, b) => a + b[1], 0);
   for (const [k, w] of table) { if ((r -= w) <= 0) return k; }
   return 'TURBO';
 }
 const projectiles = [];
+// アイテムを取ったとき、ITEM ボタンの上に「何ができるか」を出す（同じアイテムは慣れるまで最初の数回だけ）
+function itemTip(IT) {
+  const seen = store.get('ns_itemSeen', {}), k = IT.label; if ((seen[k] || 0) >= 4 && !IT.rare) return;
+  seen[k] = (seen[k] || 0) + 1; store.set('ns_itemSeen', seen);
+  let t = $('itemTip'); if (!t) { t = document.createElement('div'); t.id = 'itemTip'; $('btnItem').parentElement.appendChild(t); }
+  t.className = 'jp'; t.innerHTML = `${IT.icon}<span>${IT.desc}</span><small>${isTouch ? 'ITEMボタン／下スワイプで使う' : 'X で使う'}</small>`; t.style.borderColor = IT.rare ? '#ff8a00' : '#ffd400';
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  clearTimeout(itemTip.T); itemTip.T = setTimeout(() => t.classList.remove('show'), 3600);
+}
 const bombGeo = new THREE.SphereGeometry(0.75, 16, 12), bombMat = new THREE.MeshStandardMaterial({ color: 0x1a1a28, metalness: 0.6, roughness: 0.3 });
 const fuseMat = new THREE.MeshBasicMaterial({ color: 0xff3355 });
 const missileGeo = new THREE.ConeGeometry(0.4, 2.2, 10).rotateX(-Math.PI / 2), missileMat = new THREE.MeshBasicMaterial({ color: 0xff2050 });
@@ -2752,6 +2789,17 @@ function useItem(c) {
   if (!c.item || c.roulette > 0) return;
   const it = c.item; if (c.isPlayer) Dopa.ev('item');
   if (it === 'TURBO' || it === 'TRIPLE') { startBoost(c, 1.7, true); if (c.isPlayer) { SND.boost(); pop('TURBO!', '#29f3ff', 34); vib([20, 10, 80]); } }
+  else if (it === 'ROCKET') {   // 無敵の超加速
+    c.rocketT = ITEM_RARE.rocketT; c.invuln = Math.max(c.invuln, ITEM_RARE.rocketT); c.shield = Math.max(c.shield, ITEM_RARE.rocketT); startBoost(c, ITEM_RARE.rocketT, true);
+    if (c.isPlayer) { SND.boost(); SND.jackpot(); pop('ROCKET!!!', '#ff8a00', 46); flash('#ff8a00', 0.5); cam.kick = Math.max(cam.kick, 10); vib([40, 20, 40, 20, 300]); say(['ロケット点火！ 一気にごぼう抜きだ！', '無敵のロケット！ 誰にも止められない！'], 2); }
+  }
+  else if (it === 'THUNDER') {   // 前の全員に雷
+    const ahead = cars.filter(o => o !== c && o.s > c.s && !o.finished);
+    for (const o of ahead) hitCar(o, c);
+    if (c.isPlayer || ahead.includes(player)) { flash('#fff6a0', 0.85); SND.explode(0.8); cam.shake = Math.max(cam.shake, 0.8); }
+    if (c.isPlayer) { pop(`THUNDER!!! ×${ahead.length}`, '#ffe680', 46); vib([200, 60, 200]); say(['サンダー！ 前の全員に雷が落ちた！', '天罰！ 雷がまとめて襲う！'], 3); }
+    else if (ahead.includes(player)) pop('THUNDER!!', '#ffe680', 40);
+  }
   else if (it === 'SHIELD') { c.shield = 9; if (c.isPlayer) { SND.shield(); pop('SHIELD ON!', '#29f3ff', 30); vib([10, 30, 10, 30, 10, 30, 10]); } }
   else if (it === 'BOMB') {
     const m = new THREE.Group(); m.add(new THREE.Mesh(bombGeo, bombMat));
@@ -2885,7 +2933,7 @@ const Ride = {
 const lvIdx = () => clamp(game.lv | 0, 1, 6);
 const DRIFT_HEX = [0xff2bd6, ...DRIFT.cols.map(h => parseInt(h.slice(1), 16))];   // 0段目（チャージ中）はピンク
 const Skill = {
-  reset(c) { Object.assign(c, { airPitch: 0, charge: 0, cStage: 0, justT: 0, pulseT: 0, counter: false, heat: 0, heatStall: 0, heatCoolT: 0, heatFastT: 0, wasBoost: false, wallCd: 0, wasScraping: false, driftRel: 0 }); },
+  reset(c) { Object.assign(c, { rocketT: 0, airPitch: 0, charge: 0, cStage: 0, justT: 0, pulseT: 0, counter: false, heat: 0, heatStall: 0, heatCoolT: 0, heatFastT: 0, wasBoost: false, wallCd: 0, wasScraping: false, driftRel: 0 }); },
   fx(c) { return c.isPlayer && live(); },
   preTick(c, dt) {
     if (c.justT > 0) c.justT -= dt;
@@ -2944,7 +2992,8 @@ const Skill = {
   },
   // A. 舵補正: 壁に向かう横移動を、壁に近いほど強く打ち消す
   steerAssist(c, dx, lim) {
-    const m = Assist.of(c); if (m === 'off') return dx;
+    const m = c.rocketT > 0 ? 'full' : Assist.of(c);   // ロケット中は壁をよける
+    if (m === 'off' || !ASSIST.steer[m]) return dx;
     const sg = Math.sign(c.x); if (!sg) return dx;
     const out = dx * sg; if (out <= 0) return dx;
     const dist = lim - Math.abs(c.x); if (dist > ASSIST.edge) return dx;
@@ -3071,6 +3120,7 @@ function physics(c, dt, ctl) {
   c.steer = toward(c.steer, ctl, rate * dt);
   const ending = c.finished;
   let target = (boosting(c) ? V_BOOST * (c.isPlayer ? 1 : clamp(c.ai.mult, 0.9, LV().bmax || 1)) : V_MAX * c.ai.mult) * c.stats.top;
+  if (c.rocketT > 0) { c.rocketT -= dt; target = Math.max(target, V_BOOST * ITEM_RARE.rocketSpeed * c.stats.top); }
   if (c.heatStall > 0) target = Math.min(target, V_MAX * HEAT.stallSpeed * c.stats.top);
   if (ending) target = 28;
   else if (!c.air) {
@@ -3100,7 +3150,7 @@ function physics(c, dt, ctl) {
     c.latV = damp(c.latV, targetLat, (fl & F_ICE) ? 2.0 : 8, dt);
     let dx = c.latV - latK * c.v * c.v * ((fl & F_ICE) ? 0.5 : 0.42) + ((fl & F_WIND) ? game.wind || 0 : 0);
     const lim = HALF_W - CAR_HALF_W - 0.2;
-    if (c.ctrl) dx = Skill.steerAssist(c, dx, lim);
+    if (c.ctrl || c.rocketT > 0) dx = Skill.steerAssist(c, dx, lim);
     c.x += dx * dt;
     if (Math.abs(c.x) > lim) {
       const sg = Math.sign(c.x); c.wallImpact = Math.max(0, dx * sg);
@@ -3176,7 +3226,11 @@ function physics(c, dt, ctl) {
     c.roulette -= dt;
     if (c.roulette <= 0) {
       c.item = rollItem(c); c.itemN = ITEMS[c.item].n || 1; c.ai.itemT = c.isPlayer ? 0.6 + Math.random() * 2 : rnd(LV().item);
-      if (fxOn) { SND.itemGet(); pop(ITEMS[c.item].label, '#ffd400', 28); say(LINES.item[c.item], 1); vib([20, 30, 20, 30, 60]); }
+      if (fxOn) {
+        const IT = ITEMS[c.item]; SND.itemGet(); pop(IT.label, IT.rare ? '#ff8a00' : '#ffd400', IT.rare ? 40 : 28); say(LINES.item[c.item] || (c.item === 'ROCKET' ? 'レアアイテム、ロケット！ 大逆転のチャンス！' : 'レアアイテム、サンダー！ 前の全員を狙える！'), 1);
+        if (IT.rare) { flash('#ff8a00', 0.35); SND.jackpot(); vib([30, 30, 30, 30, 30, 30, 160]); } else vib([20, 30, 20, 30, 60]);
+        itemTip(IT);
+      }
     }
   }
 }
@@ -3433,7 +3487,7 @@ function aiControl(c, dt) {
     a.itemT -= dt;
     if (a.itemT <= 0) {
       const ah = carAhead(c);
-      const ok = c.item === 'TURBO' || c.item === 'TRIPLE' || c.item === 'SHIELD' || (c.item === 'MISSILE' && ah && ah.s - c.s < 180 * L.aim) || (c.item === 'BOMB' && ah && ah.s - c.s < 90 * L.aim) || a.itemT < -6;
+      const ok = c.item === 'TURBO' || c.item === 'TRIPLE' || c.item === 'SHIELD' || c.item === 'ROCKET' || (c.item === 'THUNDER' && c.rank > 1) || (c.item === 'MISSILE' && ah && ah.s - c.s < 180 * L.aim) || (c.item === 'BOMB' && ah && ah.s - c.s < 90 * L.aim) || a.itemT < -6;
       if (ok) { useItem(c); a.itemT = rnd(L.item); }
     }
   }
@@ -5598,7 +5652,7 @@ const TUT_BUILD = ({ S, TURN, PITCH, RAMP, LOOP, FINAL }) => {
   FINAL();
 };
 const TK_ = isTouch;
-const LES = [
+const LES_FULL = [
   { t: 'ロケットスタート', d: `「GO!」が出る直前（0.35秒以内）に${TK_ ? '上スワイプ' : 'SPACE'}でブースト。早すぎるとエンスト、GO直後なら小ダッシュ。` },
   { t: 'ハンドル', d: TK_ ? '画面の左半分・右半分をタッチしている間、その方向にハンドルが切れます。' : '← → または A D でハンドル。', goal: 'コインを8枚とる', k: 'coin', n: 8 },
   { t: 'ブースト', d: `右下のBOOSTのまわりがニトロゲージ。25以上たまっていれば${TK_ ? '上スワイプかBOOSTボタン' : 'SPACE'}で加速。コインやドリフトでたまります。`, goal: 'ブーストを1回使う', k: 'boost', n: 1 },
@@ -5624,11 +5678,30 @@ const LES = [
   { t: '壁とアシスト', d: `壁にぶつかると減速。むずかしい以上はフローが切れ、鬼・神はニトロ熱も+${WALL.heatAdd}%。設定の「アシスト」をフルにすると、壁に寄りにくい舵補正・自動ニトロ・ドリフト自動維持・トリック1ボタンで助けてくれます（XP・ネオン×${ASSIST.rewardMul}）。` },
   { t: 'ゴール', d: 'あとはゴールまで全力で！ 難易度「むずかしい」以上はCPUが手加減しません。', goal: 'ゴールする' },
 ];
+// かんたんチュートリアル（3ステップ・約2分）: ①ハンドル ②ブーストとアイテム ③アクションを繋いで倍率アップ
+const QUICK_BUILD = ({ S, FINAL }) => {
+  S(170, { start: true, les: 1, coins: { type: 'slalom', from: 60, to: 165, step: 6, amp: 4, period: 60 } });
+  S(170, { coins: { type: 'slalom', from: 5, to: 165, step: 6, amp: 5, period: 70 } });
+  S(300, { les: 2, items: [60, 180], coins: { type: 'line', x: 0, from: 10, to: 290, step: 9 } });
+  S(360, { les: 3, boost: [[30, 0], [95, 0], [160, 0], [225, 0], [290, 0]], coins: { type: 'line', x: 0, from: 10, to: 350, step: 8 } });
+  S(40, { les: 4 });
+  FINAL();
+};
+const LES_QUICK = [
+  { t: 'スタート', d: `まずは3つだけ覚えよう！ GO の直前に${TK_ ? '上スワイプ' : 'SPACE'}を押すとロケットスタート。` },
+  { t: 'STEP 1 ／ ハンドル', d: TK_ ? '画面の左半分・右半分をタッチしている間、その方向に曲がります。' : '← → または A D でハンドル。', goal: 'コインを8枚とる', k: 'coin', n: 8 },
+  { t: 'STEP 2 ／ ブーストとアイテム', d: `${TK_ ? '上スワイプかBOOSTボタン' : 'SPACE'}でブースト（右下のゲージを25使う）。?ボックスでアイテムを取ったら${TK_ ? 'ITEMボタンか下スワイプ' : 'X'}で使おう。`, goal: 'ブーストとアイテムを1回ずつ使う', fn: () => (RUN.boost || 0) - (TUT.base.boost || 0) >= 1 && (RUN.item || 0) - (TUT.base.item || 0) >= 1 },
+  { t: 'STEP 3 ／ 繋いで倍率アップ', d: `光る矢印パネル・ニアミス・ジャストドリフトなどを${FLOW.window}秒以内に繋ぐと、左の FLOW 倍率が上がってスコアが増えます。パネルを続けて踏もう！`, goal: 'FLOW ×1.5 にする', fn: () => (RUN.flowMax || 1) >= 1.5 },
+  { t: 'ゴール', d: 'これで基本はバッチリ！ ドリフト・トリック・ニトロ熱などの技は、設定の「上級編チュートリアル」でじっくり練習できます。' },
+];
+let LES = LES_FULL;
 const TUT = {
   stage: { key: 'TUTORIAL', jp: 'チュートリアル', desc: '', stars: 1, fever: 12, tut: true, env: 'city', theme: STAGES[0].theme, build: TUT_BUILD },
   list: [], idx: 0, phase: 'wait', base: {}, tries: 0, saveLv: 2, okFn: null,
-  start() {
+  start(mode = 'full') {
     SND.init(); Voice.unlock();
+    this.mode = mode; LES = mode === 'quick' ? LES_QUICK : LES_FULL; this.stage.build = mode === 'quick' ? QUICK_BUILD : TUT_BUILD;
+    this.stage.jp = mode === 'quick' ? 'かんたんチュートリアル' : '上級編チュートリアル';
     if (game.split) setSplit(false);
     this.saveLv = game.tut ? this.saveLv : game.lv; game.lv = 1; game.tut = true; game.mode = 'race'; game.netEdit = false;
     buildStage('tut');
@@ -5955,9 +6028,12 @@ $('tutEnd').className = 'hidden fixed inset-0 z-40 items-center justify-center b
 $('tutAsk').className = 'hidden fixed inset-0 z-40 items-center justify-center bg-black/70 backdrop-blur-sm';
 function showTutAsk() {
   const a = $('tutAsk'); a.classList.remove('hidden'); a.classList.add('flex');
-  a.innerHTML = `<div class='panel rounded-2xl px-5 py-4 w-[min(92vw,460px)] jp text-center'><div class='text-xs tracking-[.3em] text-cyan-300 font-black'>WELCOME TO NEON SKYWAY</div><div class='text-xl font-black mt-1'>チュートリアルをやりますか？</div><div class='text-xs text-white/75 mt-2 leading-relaxed'>専用コースで、ハンドル・ブースト・ドリフト・トリック・アイテム・脳汁ランクなど全部の機能を実際に体験できます（約5分）。あとで「設定」からもできます。</div><div class='flex justify-center gap-3 mt-4'><button id='tutNo' class='mbtn'>スキップ</button><button id='tutYes' class='start-btn !px-6 !py-2 text-sm !tracking-[.1em]'>やる！</button></div></div>`;
+  a.innerHTML = `<div class='panel rounded-2xl px-5 py-4 w-[min(92vw,460px)] jp text-center'><div class='text-xs tracking-[.3em] text-cyan-300 font-black'>WELCOME TO NEON SKYWAY</div><div class='text-xl font-black mt-1'>チュートリアルをやりますか？</div>
+    <div class='text-xs text-white/75 mt-2 leading-relaxed'>まずは「かんたん」がおすすめ。<b>ハンドル → ブーストとアイテム → 技を繋いで倍率アップ</b>の3ステップを約2分で体験できます。</div>
+    <div class='flex flex-col gap-2 mt-3'><button id='tutYes' class='start-btn !py-2 text-sm'>かんたん（3ステップ・約2分）</button><button id='tutFull' class='mbtn justify-center'>上級編（全23レッスン・約6分）</button><button id='tutNo' class='mbtn justify-center'>あとで</button></div></div>`;
   const close = () => { store.set('ns_tutAsk', true); a.classList.add('hidden'); a.classList.remove('flex'); };
-  $('tutYes').onclick = () => { close(); TUT.start(); };
+  $('tutYes').onclick = () => { close(); TUT.start('quick'); };
+  $('tutFull').onclick = () => { close(); TUT.start('full'); };
   $('tutNo').onclick = () => { close(); SND.tick(); };
 }
 
@@ -6066,8 +6142,9 @@ setTimeout(() => {
   const hT = $('helpTouch'), hK = $('helpKey'); ctl.append(hT, hK); hT.style.display = ''; hK.style.display = ''; set.appendChild(ctl);
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>脳汁ランク</div><div class='text-xs text-white/75 leading-relaxed'>コイン・ドリフト・空中トリック・ニアミス・リング・破壊・追い抜きを<b class='text-fuchsia-300'>1.3秒以上途切れさせずに</b>繋ぐとランクが上がります。D → C → B → A → S → SS → SSS → 脳汁MAX。ランクごとにスコア倍率が +0.25（最大 ×2.75）。ぶつかると2ランクダウン。MAXに届くとフィーバー突入。</div><div class='mhd mt-4'>テクニック</div><div class='text-xs text-white/75 leading-relaxed'><b class='text-yellow-200'>ロケットスタート</b>: 「GO!」の直前（0.35秒以内）にブースト。早すぎるとエンスト、GO直後なら小ダッシュ。<br><b class='text-violet-300'>スリップストリーム</b>: 前の車の真後ろに0.6秒つくと最高速+7%。<br><b class='text-cyan-300'>ドリフトターボ</b>: カーブで長くドリフトするほど強いターボ。<br><b class='text-green-300'>空中トリック</b>（ジャンプ中だけ）: バレルロール＝左右スワイプ・R／360スピン＝ななめスワイプ・Q／フロントフリップ＝上スワイプ・C／バックフリップ＝下スワイプ・V／720コークスクリュー＝2本指タップ・F。違う技を混ぜるほど高得点、3種類で STYLE MASTER、5種類で GOD TRICK。同じ技の連発は半分。技が終わった直後に着地すると PERFECT LANDING（×1.5）、技の途中で着地すると転倒。技の終わり際に次の技を入力しておくとつながる。<br>「むずかしい」以上はCPUが手加減せず、壁にこすると大きく減速し、フィーバーでも勝手には加速しません。</div><div class='mhd mt-4'>CPスロット</div><div class='text-xs text-white/75 leading-relaxed'>チェックポイントを通るとスロットが回ります。777＝+5000＆フィーバー、◆＝ネオン+100、BAR＝コイン+20、★＝ニトロ満タン、∞＝脳汁ランク急上昇。</div>`);
   void help;
-  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>TUTORIAL</div><button id='tutAgain' class='mbtn'>チュートリアルをもう一度</button>`);
-  $('tutAgain').onclick = () => { Meta.close(); TUT.start(); };
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>TUTORIAL</div><div class='flex flex-wrap gap-2'><button id='tutAgain' class='mbtn'>かんたんチュートリアル（約2分）</button><button id='tutAgain2' class='mbtn'>上級編チュートリアル（約6分）</button></div>`);
+  $('tutAgain').onclick = () => { Meta.close(); TUT.start('quick'); };
+  $('tutAgain2').onclick = () => { Meta.close(); TUT.start('full'); };
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>DATA</div><div id='resetBox' class='flex flex-wrap items-center gap-2 text-xs'></div>`);
   const drawReset = ask => {
     const b = $('resetBox');
