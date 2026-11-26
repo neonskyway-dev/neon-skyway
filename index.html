@@ -5993,6 +5993,10 @@ requestAnimationFrame(frame);
 // 検証用フック（DEBUG のときだけ。ビルドでこの行から下は削除される）
 if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, CASTERS, setCaster, get RUN() { return RUN; }, autopilot: false,
   update, startGame, aiControl, input, LEVELS, CAR_TYPES, TYPE_KEYS, CRANK, CourseRank, MEDALS, ASSIST, HEAT, DRIFT, WALL, setPlayerType, latKAt, get stageIdx() { return stageIdx; }, get STAGE() { return STAGE; }, PF, Practice, Modes,
+  // コースを作り直したとき用: 最短タイム表（開発者タイム × 0.85）の SQL を作る → Supabase の SQL Editor で Run
+  minTimeSQL() { const keep = stageIdx, rows = STAGES.map((st, i) => { buildStage(i); return `  (${i}, '${GhostNet.courseVer(i)}', ${Math.round(TA.devTime(i) * 850)})`; }); buildStage(keep);
+    return `insert into public.ns_course_min (course, course_ver, min_ms) values\n${rows.join(',\n')}\non conflict (course, course_ver) do update set min_ms = excluded.min_ms, updated_at = now();`; },
+  GhostNet,
   setQuality: q => { quality = q; applyQuality(); },
   sim: (sec, boost, items) => { for (let i = 0; i < sec * 60; i++) { if (boost && player.nitro >= 50) input.boostReq = true; if (items && player.item && player.roulette <= 0) input.itemReq = true; update(1 / 60); } } };
 </script>

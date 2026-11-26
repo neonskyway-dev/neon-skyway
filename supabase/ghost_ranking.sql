@@ -33,6 +33,30 @@ create index if not exists ns_ghosts_recent_idx on public.ns_ghosts (updated_at)
 alter table public.ns_ghosts enable row level security;
 revoke all on table public.ns_ghosts from anon, authenticated;
 
+-- コースごとの最短タイム（これより速い記録は受け付けない）。初期値 = 開発者タイム(VIPER) × 0.85
+-- コースを作り直したら、ゲームを ?debug で開いてコンソールで __game.minTimeSQL() を実行 → 出てきた SQL をここで Run
+create table if not exists public.ns_course_min (
+  course     smallint not null check (course between 0 and 63),
+  course_ver text     not null,
+  min_ms     integer  not null check (min_ms between 15000 and 1800000),
+  updated_at timestamptz not null default now(),
+  primary key (course, course_ver)
+);
+alter table public.ns_course_min enable row level security;
+revoke all on table public.ns_course_min from anon, authenticated;
+insert into public.ns_course_min (course, course_ver, min_ms) values
+  (0, 'NEON CITY:7008',          round(79.4  * 850)),
+  (1, 'SUNSET COASTER:6930',     round(83.8  * 850)),
+  (2, 'HYPER RUSH:5284',         round(58.8  * 850)),
+  (3, 'DOPAMINE OVERDRIVE:6978', round(82.4  * 850)),
+  (4, 'GLACIER DRIFT:5796',      round(69.5  * 850)),
+  (5, 'MAGMA CORE:5300',         round(60.8  * 850)),
+  (6, 'ORBITAL ZERO-G:5878',     round(74.3  * 850)),
+  (7, 'STORM HIGHWAY:5290',      round(62.2  * 850)),
+  (8, 'DREAM PARK:7020',         round(103.9 * 850)),
+  (9, 'WILD FALLS:4598',         round(70.7  * 850))
+on conflict (course, course_ver) do update set min_ms = excluded.min_ms, updated_at = now();
+
 -- 上位100件（ゴースト本体は含めない）
 create or replace function public.ns_ghost_top(p_course int, p_ver text)
 returns table (id bigint, name text, car text, time_ms int, updated_at timestamptz)
@@ -77,7 +101,7 @@ returns table (rank bigint, improved boolean)
 language plpgsql security definer set search_path = public, extensions
 as $$
 declare
-  h text; old_t int; n int; i int; prev_s numeric; cur_s numeric; goal int; nm text; skips int := 0;
+  h text; old_t int; n int; i int; prev_s numeric; cur_s numeric; goal int; nm text; skips int := 0; min_t int;
 begin
   if p_token is null or char_length(p_token) < 32 or char_length(p_token) > 128 then raise exception 'bad token'; end if;
   if p_course is null or p_course < 0 or p_course > 63 then raise exception 'bad course'; end if;
@@ -85,6 +109,10 @@ begin
   if p_time_ms is null or p_time_ms < 15000 or p_time_ms > 1800000 then raise exception 'bad time'; end if;
   if p_car is null or p_car !~ '^[A-Z]{2,12}$' then raise exception 'bad car'; end if;
   if p_ghost is null or jsonb_typeof(p_ghost) <> 'array' or octet_length(p_ghost::text) > 150000 then raise exception 'bad ghost'; end if;
+  -- 最短タイム表にないコース（偽の版文字列など）と、最短タイムより速い記録は受け付けない
+  select m.min_ms into min_t from public.ns_course_min m where m.course = p_course and m.course_ver = p_ver;
+  if min_t is null then raise exception 'unknown course version'; end if;
+  if p_time_ms < min_t then raise exception 'too fast for this course'; end if;
 
   -- 走行データ: [s, x, h, s, x, h, ...] を 0.1 秒ごと。長さがタイムと合っているか・速すぎないか・ゴールまで届いているか
   n := jsonb_array_length(p_ghost);
