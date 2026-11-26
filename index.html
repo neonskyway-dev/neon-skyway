@@ -697,14 +697,14 @@ const FLOW = {
   max: 3.0,                 // 最大倍率
   tiers: [1.5, 2.0, 2.5, 3.0],   // 実況・画面演出・BGM が強くなる段
 };
-// コース別ランク C〜SSS（タイム40点 + 最大フロー20点 + ノーヒット20点 + ジャスト率20点 = 100点）
+// コース別ランク C〜SSS（タイム45点 + 最大フロー20点 + ノーヒット15点 + ジャスト率20点 = 100点）
 const CRANK = {
   names: ['C', 'B', 'A', 'S', 'SS', 'SSS'],
   cut: [0, 48, 64, 78, 88, 95],                 // この点数以上でそのランク
   cols: ['#9aa4b8', '#29f3ff', '#3bff9d', '#ffd400', '#ff8a00', '#ff2bd6'],
-  time: { full: 1.02, zero: 1.30, pts: 40 },    // 開発者タイム比 1.02 以下で満点、1.30 で 0 点
+  time: { full: 0.97, zero: 1.25, pts: 45 },    // 開発者タイム比 0.97 以下で満点、1.25 で 0 点
   flow: { full: 2.5, pts: 20 },                 // 最大フロー倍率 ×2.5 で満点
-  noHit: { pts: 20, per: 5 },                   // 被弾・壁・転倒 1回ごとに −5
+  noHit: { pts: 15, per: 5, scrape: 1, scrapeMax: 5 },   // 激突・被弾・転倒 1回 −5 ／ 壁のかすり 1回 −1（かすりは合計 −5 まで）
   just: { full: 0.8, pts: 20 },                 // ジャスト率 80% で満点
   assistCap: 'A',                               // アシスト中はAまで
 };
@@ -723,6 +723,7 @@ const WALL = {
   breakLv: 3,               // この Lv 以上はコンボ（フロー）が切れる
   heatLv: 5, heatAdd: 20,   // この Lv 以上はニトロ熱 +20%
   cooldown: 0.6,            // 連続ヒットとみなさない間隔(秒)
+  hitImpact: 8,             // 壁へ向かう横の速さ(m/秒)がこれ以上なら「激突」、未満は「かすり」（コースランクの減点が違う）
 };
 
 const $ = id => document.getElementById(id);
@@ -2826,6 +2827,7 @@ const Skill = {
     if (!this.fx(c)) return;
     if (Modes.has('walldeath')) { Modes.retire('壁ヒット'); return; }
     RUN.wall = (RUN.wall || 0) + 1;
+    if ((c.wallImpact || 0) >= WALL.hitImpact) RUN.wallHit = (RUN.wallHit || 0) + 1; else RUN.scrape = (RUN.scrape || 0) + 1;
     if (lv >= WALL.breakLv) Flow.brk();
     vib(20 + lv * 6);
     if (lv >= WALL.heatLv) { c.heat = (c.heat || 0) + WALL.heatAdd; pop(`WALL  HEAT +${WALL.heatAdd}%`, '#ff6b3d', 20); if (c.heat >= 100) this.overheat(c); }
@@ -2965,7 +2967,7 @@ function physics(c, dt, ctl) {
     if (c.ctrl) dx = Skill.steerAssist(c, dx, lim);
     c.x += dx * dt;
     if (Math.abs(c.x) > lim) {
-      const sg = Math.sign(c.x);
+      const sg = Math.sign(c.x); c.wallImpact = Math.max(0, dx * sg);
       c.x = sg * lim; c.scraping = true;
       if (c.latV * sg > 0) c.latV = -c.latV * 0.25;
       if (c.ctrl) Skill.wall(c, dt); else c.v *= (1 - 0.3 * dt);
@@ -4372,7 +4374,8 @@ COS.push(
   { id: 'M_NOHIT', k: 'title', n: 'ノーヒッター', r: 'SSR', g: false }, { id: 'M_NEAR', k: 'title', n: 'ギリギリ職人', r: 'SSR', g: false },
   { id: 'M_COOL', k: 'title', n: '冷却の達人', r: 'SR', g: false }, { id: 'M_FLOW', k: 'title', n: 'フローの化身', r: 'SSR', g: false },
   { id: 'M_HC', k: 'title', n: 'ハードコア', r: 'UR', g: false }, { id: 'M_DAILY', k: 'title', n: '日替わりの鬼', r: 'SR', g: false },
-  { id: 'M_SSS', k: 'title', n: 'SSSコレクター', r: 'UR', g: false }, { id: 'M_COAST', k: 'title', n: '絶叫マシン中毒', r: 'SR', g: false },
+  { id: 'M_SSS', k: 'title', n: 'SSSコレクター', r: 'UR', g: false },
+  { id: 'T_NEONM', k: 'title', n: 'ネオンの領域', r: 'UR', g: false }, { id: 'T_GODM', k: 'title', n: '神速', r: 'UR', g: false }, { id: 'M_COAST', k: 'title', n: '絶叫マシン中毒', r: 'SR', g: false },
 );
 const COS_BY = Object.fromEntries(COS.map(c => [c.id, c]));
 const KIND_JP = { paint: 'ボディカラー', trail: 'トレイル', title: '称号' };
@@ -4397,6 +4400,8 @@ const ACH = [
   cnt('oni', '鬼殺し', 'CPU「鬼」以上で優勝', 'oniWin', 1, 1000, 'T_ONI'),
   cnt('god', '神殺し', 'CPU「神」で優勝', 'godWin', 1, 3000, 'T_GODK'),
   { id: 'taGold', n: 'ゴールドラッシュ', d: 'タイムアタック全ステージで金メダル以上', f: () => STAGES.every((_, i) => (PF.ta?.[i]?.m ?? -1) >= 2), rw: 2000, title: 'T_TAG' },
+  { id: 'taNeon', n: 'ネオンの領域', d: 'タイムアタック全コースで NEON メダル（開発者×0.95）', f: () => STAGES.every((_, i) => (PF.ta?.[i]?.m ?? -1) >= 4), p: () => [STAGES.filter((_, i) => (PF.ta?.[i]?.m ?? -1) >= 4).length, STAGES.length], rw: 10000, title: 'T_NEONM' },
+  { id: 'taGod', n: '神速', d: 'タイムアタックで GOD メダル（開発者×0.92）', f: () => Object.values(PF.ta || {}).some(v => v.m >= 5), rw: 5000, title: 'T_GODM' },
   { id: 'taPlat', n: 'プラチナドライバー', d: 'タイムアタックでプラチナメダル', f: () => Object.values(PF.ta || {}).some(v => v.m >= 3), rw: 1500, title: 'T_TAP' },
   { id: 'allS', n: '全ステージ制覇', d: '全ステージでSランク以上', f: () => STAGES.every((_, i) => GRADES.indexOf(PF.grade[i]) >= 3), rw: 1500, title: 'T_ALLS' },
   { id: 'lv10', n: 'ベテラン', d: 'レベル10に到達', f: () => PF.lv >= 10, p: () => [PF.lv, 10], rw: 500, title: 'T_VET' },
@@ -4479,13 +4484,14 @@ const CourseRank = {
     const C = CRANK, dev = TA.devTime(stageIdx), r = (player.finishTime || 999) / dev;
     const time = clamp((C.time.zero - r) / (C.time.zero - C.time.full), 0, 1) * C.time.pts;
     const flow = clamp(((RUN.flowMax || 1) - 1) / (C.flow.full - 1), 0, 1) * C.flow.pts;
-    const hits = (RUN.fail || 0) + (RUN.wall || 0), noHit = Math.max(0, C.noHit.pts - hits * C.noHit.per);
+    const hits = (RUN.fail || 0) + (RUN.wallHit || 0), scr = Math.min(C.noHit.scrapeMax, (RUN.scrape || 0) * C.noHit.scrape);
+    const noHit = Math.max(0, C.noHit.pts - hits * C.noHit.per - scr);
     const jr = RUN.dr ? (RUN.just || 0) / RUN.dr : 0, just = clamp(jr / C.just.full, 0, 1) * C.just.pts;
     const pts = Math.round(time + flow + noHit + just);
     let k = 0; C.cut.forEach((c, i) => { if (pts >= c) k = i; });
     const capped = game.assistUsed && k > C.names.indexOf(C.assistCap);
     if (capped) k = C.names.indexOf(C.assistCap);
-    return { rank: C.names[k], k, pts, capped, hits, jr, parts: { time: Math.round(time), flow: Math.round(flow), noHit: Math.round(noHit), just: Math.round(just) } };
+    return { rank: C.names[k], k, pts, capped, hits, scrapes: RUN.scrape || 0, jr, parts: { time: Math.round(time), flow: Math.round(flow), noHit: Math.round(noHit), just: Math.round(just) } };
   },
   best(i) { return PF.crank?.[i] ?? -1; },
   tag(i) { const k = this.best(i); return k < 0 ? '' : `<b class='italic' style='color:${CRANK.cols[k]};text-shadow:0 0 8px ${CRANK.cols[k]}'>${CRANK.names[k]}</b>`; },
@@ -4800,8 +4806,11 @@ const START = {
   },
 };
 // ---- タイムアタック (メダル / ゴースト / 区間タイム) ----
-const MEDALS = [['BRONZE', '#d08a4a', 1.22, 80], ['SILVER', '#c8d2e0', 1.12, 150], ['GOLD', '#ffd400', 1.05, 300], ['PLATINUM', '#9ff6ff', 1.0, 500]];
+// タイムアタックのメダル [名前, 色, 開発者タイム比, ネオン, チケット]。上の段は配列の末尾に足す（保存済みの番号がずれないように）
+const MEDALS = [['BRONZE', '#d08a4a', 1.22, 80, 0], ['SILVER', '#c8d2e0', 1.12, 150, 0], ['GOLD', '#ffd400', 1.05, 300, 0], ['PLATINUM', '#9ff6ff', 1.0, 500, 1],
+  ['NEON', '#ff2bd6', 0.95, 1000, 2], ['GOD', '#ffe680', 0.92, 3000, 5]];
 const fmtT = t => t ? fmtTime(t) : '--';
+const medalShort = nm => ({ NEON: 'NE', GOD: 'GOD' }[nm] || nm[0]);
 const TA = {
   dev: {}, rec: [], recT: 0, ghost: null, gData: null,
   // 開発者タイム: 理想的なライン取り＋ブースト運用のボットを裏で走らせて計測 (コースが変わっても自動で基準が決まる)
@@ -4840,10 +4849,10 @@ const TA = {
     toast(`TIME ATTACK　目標 GOLD ${fmtT(d * MEDALS[2][2])}　PLATINUM ${fmtT(d)}${pb ? '　自己ベスト ' + fmtT(pb.t) : ''}`, '#ffd400', 4200);
   },
   taTarget() {
-    const d = this.devTime(stageIdx), pb = PF.ta?.[stageIdx], m = pb ? pb.m : -1, nx = MEDALS[Math.min(3, m + 1)];
+    const d = this.devTime(stageIdx), pb = PF.ta?.[stageIdx], m = pb ? pb.m : -1, nx = MEDALS[Math.min(MEDALS.length - 1, m + 1)];
     return ` ${nx[0]} ${fmtT(d * nx[2])}`;
   },
-  cardTag(i) { const v = PF.ta?.[i]; if (!v) return `<span class='text-white/45'>TA --</span>`; const M = MEDALS[v.m]; return `<b style='color:${M ? M[1] : '#aaa'}'>TA ${fmtT(v.t)} ${M ? M[0][0] : ''}</b>`; },
+  cardTag(i) { const v = PF.ta?.[i]; if (!v) return `<span class='text-white/45'>TA --</span>`; const M = MEDALS[v.m]; return `<b style='color:${M ? M[1] : '#aaa'}'>TA ${fmtT(v.t)} ${M ? medalShort(M[0]) : ''}</b>`; },
   split() {
     if (!live()) return;
     const k = RUN.cpT.length, t = game.elapsed; RUN.cpT.push(t);
@@ -4869,18 +4878,18 @@ const TA = {
     const pb = PF.ta[i], isPB = !pb || t < pb.t; let neon = 0;
     if (isPB) {
       const oldM = pb ? pb.m : -1;
-      for (let k = oldM + 1; k <= m; k++) { neon += MEDALS[k][3]; msgs.push([`${I('trophy')} ${MEDALS[k][0]} メダル初獲得 ${NE()}+${MEDALS[k][3]}`, MEDALS[k][1]]); }
+      for (let k = oldM + 1; k <= m; k++) { neon += MEDALS[k][3]; const tx = MEDALS[k][4] || 0; if (tx) PF.tix += tx; msgs.push([`${I('trophy')} ${MEDALS[k][0]} メダル初獲得 ${NE()}+${MEDALS[k][3]}${tx ? `　${TK()}+${tx}` : ''}`, MEDALS[k][1]]); }
       PF.ta[i] = { t: Math.round(t * 100) / 100, m: Math.max(m, oldM) };
       try { localStorage.setItem('ns_ghost_' + i, JSON.stringify({ r: this.rec, cp: RUN.cpT })); } catch (e) {}
       msgs.unshift([`${I('flag')} 自己ベスト更新 ${fmtTime(t)}${pb ? `（−${(pb.t - t).toFixed(2)}秒）` : ''}`, '#3bff9d']);
     }
     GhostNet.afterRun(i, t, this.rec);
     const M = MEDALS[m];
-    $('rPos').textContent = M ? M[0][0] : '-'; $('rPos').style.color = M ? M[1] : '#fff'; $('rPosSuf').textContent = '';
+    $('rPos').textContent = M ? medalShort(M[0]) : '-'; $('rPos').style.color = M ? M[1] : '#fff'; $('rPosSuf').textContent = '';
     $('rTitle').textContent = (M ? M[0] + ' MEDAL' : 'NO MEDAL') + (isPB ? '　NEW RECORD' : '');
     $('rLv').textContent = `TIME ATTACK / ${STAGE.jp}`;
-    const line = MEDALS.map(([nm, c, k]) => `<span style='color:${c}'>${nm[0]} ${fmtT(d * k)}</span>`).join('　') + `　PB ${fmtT(PF.ta[i].t)}`;
-    return { grade: ['B', 'A', 'S', 'S+'][m] || 'C', neon, msgs, line };
+    const line = MEDALS.map(([nm, c, k]) => `<span style='color:${c}'>${medalShort(nm)} ${fmtT(d * k)}</span>`).join('　') + `　PB ${fmtT(PF.ta[i].t)}`;
+    return { grade: m >= 3 ? 'S+' : ['B', 'A', 'S'][m] || 'C', neon, msgs, line };
   },
 };
 
