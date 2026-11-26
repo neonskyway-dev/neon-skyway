@@ -161,7 +161,7 @@
   #btnJump:active{transform:translateY(-50%) scale(.92)}
   #btnJump.cool{opacity:.45}
   #btnTaunt{width:46px;height:46px;margin-left:10px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:9px;letter-spacing:0;color:#fff;background:rgba(40,8,40,.6);border:2px solid #ff8ad8;align-self:center;line-height:1.1;font-family:system-ui,sans-serif}
-  #btnTaunt .em{font-size:20px}
+  #btnTaunt .ic{width:22px;height:22px;color:#ff8ad8}
   #btnTaunt:active{transform:scale(.9)}
   #btnTaunt.cool{opacity:.4}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
@@ -402,7 +402,7 @@
       <span id="hPos" class="text-5xl sm:text-7xl font-black neon-pink tabular-nums">1</span>
       <span id="hPosSuf" class="text-xl sm:text-3xl font-black neon-pink">st</span>
       <span id="hPosTot" class="ml-1 text-sm sm:text-lg font-bold text-white/60">/6</span>
-      <button id="btnTaunt" class="pointer-events-auto" aria-label="煽る"><span class="em">😜</span><span>煽る</span></button>
+      <button id="btnTaunt" class="pointer-events-auto" aria-label="煽る"><i data-i="horn"></i><span>煽る</span></button>
       <span id="hAssist" style="display:none"><i data-i="wheels"></i><span id="hAssistT">FULL</span></span>
     </div>
     <div class="mt-1 flex items-center gap-2 text-xs sm:text-base">
@@ -754,6 +754,8 @@ const ICONS = {
   swipeDown: '<path d="M12 3v16M6 13l6 6 6-6"/>',
   wheels: '<circle cx="5" cy="17" r="3"/><circle cx="19" cy="17" r="3"/><circle cx="12" cy="14" r="5"/><path d="M5 17h14M12 9V5"/>',
   swap: '<path d="M4 8h14l-4-4M20 16H6l4 4"/>',
+  horn: '<path d="M3 10v4h4l7 5V5L7 10z" fill="currentColor" fill-opacity=".25"/><path d="M17 9a4 4 0 0 1 0 6 M19.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+  anger: '<path d="M9 3v3a3 3 0 0 1-3 3H3 M15 3v3a3 3 0 0 0 3 3h3 M9 21v-3a3 3 0 0 0-3-3H3 M15 21v-3a3 3 0 0 1 3-3h3"/>',
 };
 const I = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 document.querySelectorAll('[data-i]').forEach(e => { e.outerHTML = I(e.dataset.i, e.className || ''); });
@@ -2937,7 +2939,18 @@ function explode(s, x, h, owner, victim) {
 // 煽る: クラクション＋車の上に顔マーク。近くの相手（30m以内）を煽るとスコア。CPU はしばらくふらつく。オンラインでは相手の画面に「煽られた！」
 const Taunt = {
   tex: {},
-  texOf(k) { return this.tex[k] || (this.tex[k] = canvasTex(128, 128, (c, w, h) => { c.font = '92px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(k === 'angry' ? '💢' : '😜', w / 2, h / 2 + 6); })); },
+  // 車の上に出すマーク（絵文字ではなくアイコンを描く）: 煽り = ピンクのクラクション、煽られた = 赤い怒りマーク
+  ICON: { taunt: { col: '#ff8ad8', fill: 'M3 10v4h4l7 5V5L7 10z', d: ['M17 9a4 4 0 0 1 0 6', 'M19.5 6.5a7.5 7.5 0 0 1 0 11'] }, angry: { col: '#ff3b5c', fill: '', d: ['M9 3v3a3 3 0 0 1-3 3H3', 'M15 3v3a3 3 0 0 0 3 3h3', 'M9 21v-3a3 3 0 0 0-3-3H3', 'M15 21v-3a3 3 0 0 1 3-3h3'] } },
+  texOf(k) {
+    return this.tex[k] || (this.tex[k] = canvasTex(128, 128, (c, w, h) => {
+      const ic = this.ICON[k] || this.ICON.taunt;
+      c.beginPath(); c.arc(w / 2, h / 2, 56, 0, Math.PI * 2); c.fillStyle = 'rgba(8,6,18,.82)'; c.fill(); c.lineWidth = 5; c.strokeStyle = ic.col; c.stroke();
+      c.save(); c.translate(w / 2 - 36, h / 2 - 36); c.scale(3, 3); c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = 2.2; c.strokeStyle = ic.col; c.shadowColor = ic.col; c.shadowBlur = 4;
+      if (ic.fill) { c.globalAlpha = 0.35; c.fillStyle = ic.col; c.fill(new Path2D(ic.fill)); c.globalAlpha = 1; c.stroke(new Path2D(ic.fill)); }
+      for (const d of ic.d) c.stroke(new Path2D(d));
+      c.restore();
+    }));
+  },
   emote(c, k) {
     if (!c || !c.model) return;
     if (!c.emo) { c.emo = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, depthTest: false, transparent: true, sizeAttenuation: false })); c.emo.renderOrder = 9; c.model.root.add(c.emo); }
@@ -2946,7 +2959,7 @@ const Taunt = {
   },
   tick(dt) {
     for (const c of cars) {
-      if (c.emoT > 0) { c.emoT -= dt; const k = 1.6 - c.emoT, sc = 0.09 * (k < 0.15 ? k / 0.15 * 1.3 : k < 0.3 ? 1.3 - (k - 0.15) * 2 : 1); c.emo.scale.set(sc, sc, 1); c.emo.position.y = 3.4 + Math.sin(k * 14) * 0.15; if (c.emoT <= 0) c.emo.visible = false; }
+      if (c.emoT > 0) { c.emoT -= dt; const k = 1.6 - c.emoT, sc = 0.11 * (k < 0.15 ? k / 0.15 * 1.3 : k < 0.3 ? 1.3 - (k - 0.15) * 2 : 1); c.emo.scale.set(sc, sc, 1); c.emo.position.y = 3.4 + Math.sin(k * 14) * 0.15; if (c.emoT <= 0) c.emo.visible = false; }
       // CPU もたまに煽ってくる（見た目とクラクションだけ・プレイヤーはふらつかない）
       if (game.state === 'play' && !c.ctrl && !c.remote && !c.finished && c.s > player.s && c.s - player.s < 18 && Math.random() < TAUNT.cpuRate * dt && game.t - (c.tauntCd ?? -9) > TAUNT.cd * 3) {
         c.tauntCd = game.t; this.emote(c, 'taunt'); this.emote(player, 'angry');
