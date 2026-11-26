@@ -156,6 +156,10 @@
   #itemTip.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #btnDrift{width:62px;height:62px;border-radius:50%;font-weight:900;font-size:11px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a1a6a,#1a0626);border:2px solid #ff2bd6;box-shadow:0 0 10px #ff2bd666;align-self:center}
   #btnDrift.on{background:#ff2bd6;box-shadow:0 0 18px #ff2bd6}
+  #btnJump{width:62px;height:62px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:900;font-size:10px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a4a0a,#1a1406);border:2px solid #ffd400;box-shadow:0 0 10px #ffd40066;align-self:center}
+  #btnJump .ic{width:22px;height:22px;color:#ffd400}
+  #btnJump:active{transform:scale(.92)}
+  #btnJump.cool{opacity:.45}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
   #heatG>i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#29f3ff,#ffd400 60%,#ff2050)}
   #heatG>b{position:absolute;left:0;right:0;bottom:80%;height:15%;border-top:1px solid #fff;border-bottom:1px solid #fff;background:rgba(255,255,255,.25)}
@@ -430,6 +434,7 @@
 
   <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-end gap-4">
     <button id="btnItem" class="pointer-events-auto empty"><span class="in" id="itemIcon"></span><span id="itemCount" class="hidden">x3</span></button>
+    <button id="btnJump" class="pointer-events-auto"><i data-i="jump"></i><span>JUMP</span></button>
     <button id="btnDrift" class="pointer-events-auto" style="display:none">DRIFT</button>
     <button id="btnBoost" class="pointer-events-auto"><div id="heatG"><i id="heatFill"></i><b></b></div><span>BOOST</span></button>
   </div>
@@ -455,7 +460,7 @@
   <div id="touchHints" class="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-6">
     <span class="hint-arrow">◀</span><span class="hint-arrow">▶</span>
   </div>
-  <div id="keyHint" class="absolute bottom-3 left-4 text-white/45 text-[11px] tracking-wider leading-5">← → / A D : STEER<br>SPACE : BOOST　X : ITEM</div>
+  <div id="keyHint" class="absolute bottom-3 left-4 text-white/45 text-[11px] tracking-wider leading-5">← → / A D : STEER<br>SPACE : BOOST　X : ITEM<br>J : JUMP　H : 煽る</div>
 </div>
 
 <div id="pops" class="fixed left-0 right-0 top-[26%] z-20 pointer-events-none flex flex-col items-center gap-1"></div>
@@ -834,6 +839,8 @@ const SHOP = {
   tune: { max: 3, step: 0.03, cost: [3000, 8000, 20000] },   // 加速・ハンドリングを1段ごとに +3%
 };
 // サイドアタック: 並走中にハンドルを相手に向けて勢いよく寄せると、相手を横に吹っ飛ばす
+// ジャンプボタン: 上向きの速さ（約0.6秒・高さ1.5m）、使える間隔(秒)、踏み切りで残る速さ。空中はアイテム・障害物に当たらない
+const JUMP = { v: 9.5, cd: 1.6, keep: 0.98 };
 const BASH = { ds: 2.8, closing: 5.5, push: 24, speedLoss: 0.12, spin: 0.35, selfLoss: 0.03, cd: 0.9, score: 400 };
 // ネオン（ゲーム内通貨）の入り方。1レース 約200前後（以前は約690でたまりすぎていた）
 const REWARD = {
@@ -2452,7 +2459,7 @@ const say = (lines, pri) => Voice.say(CASTER().tr(typeof lines === 'string' ? li
 /* =====================================================================
    11. 入力
    ===================================================================== */
-const input = { kl: false, kr: false, touches: new Map(), boostReq: false, itemReq: false };
+const input = { kl: false, kr: false, touches: new Map(), boostReq: false, itemReq: false, jumpReq: false };
 const P2KEYS = { l: ['ArrowLeft'], r: ['ArrowRight'], b: ['ArrowUp', 'ShiftRight', 'Slash'], i: ['ArrowDown', 'Period', 'Enter'] };
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
@@ -2469,6 +2476,7 @@ addEventListener('keydown', e => {
     if (P2KEYS.b.includes(e.code)) input2.bk = true;
     if (['Space', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
     if (['KeyX', 'KeyE', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
+    if (e.code === 'KeyJ') { input.jumpReq = true; e.preventDefault(); }
     if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
     return;
   }
@@ -2478,6 +2486,7 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   if (['Space', 'ArrowUp', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
   if (['KeyX', 'KeyE', 'ArrowDown', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
+  if (e.code === 'KeyJ' && game.state === 'play') { input.jumpReq = true; e.preventDefault(); }
   if (e.code === 'Enter' && game.state === 'title') { if (game.menu === 'stage') openGarage(); else openStageSel(); return; }
   if (game.state === 'title' && game.menu === 'stage' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selectStage((stageIdx + (e.code === 'ArrowRight' ? 1 : -1) + STAGES.length) % STAGES.length); return; }
   else if (e.code === 'Enter' && game.state === 'garage') startGame();
@@ -2550,6 +2559,7 @@ const Pad = {
     this.boost = b(0); this.drift = b(2) || b(5);
     if (edge(0)) input.boostReq = true;
     if (edge(1) || edge(4)) input.itemReq = true;
+    if (edge(3)) input.jumpReq = true;   // Y ボタン = ジャンプ
     if (edge(9)) togglePause();
     if (edge(0) && game.state === 'title') { if (game.menu === 'stage') openGarage(); else if (!game.menu) openStageSel(); }
     else if (edge(0) && game.state === 'garage') startGame();
@@ -2586,6 +2596,7 @@ const Assist = {
   renderHud() { const el = $('hAssist'); if (!el) return; const m = this.of(player); el.style.display = m === 'off' ? 'none' : ''; el.title = 'アシスト: ' + ASSIST_LABEL[m]; const t = $('hAssistT'); if (t) t.textContent = m === 'full' ? 'FULL' : 'PART'; },
 };
 $('btnItem').addEventListener('pointerdown', e => { e.preventDefault(); input.itemReq = true; });
+$('btnJump').addEventListener('pointerdown', e => { e.preventDefault(); input.jumpReq = true; });
 
 /* =====================================================================
    12. レーサー (プレイヤー + CPU)
@@ -2909,6 +2920,18 @@ function explode(s, x, h, owner, victim) {
   if (d < 40) cam.shake = Math.max(cam.shake, 1 - d / 50);
   if (d < 80 && live()) vib([Math.round(30 + 90 * (1 - d / 80)), 30, Math.round(20 + 50 * (1 - d / 80))]);
   for (const c of cars) if (c === victim || (Math.abs(c.s - s) < 8 && Math.abs(c.x - x) < 5.5 && c.h < 4)) hitCar(c, owner);
+}
+// ジャンプボタン（地面にいるときだけ・ループ／谷の上では不可）。着地ボーナスやトリックは出ない小ジャンプ
+function doJump(c) {
+  if (game.state !== 'play' || !c || c.air || c.finished || c.spin > 0 || (flagAt(c.s) & (F_LOOP | F_GAP))) return false;
+  if (game.t - (c.jumpCd ?? -9) < JUMP.cd) return false;
+  c.jumpCd = game.t;
+  if (c.drifting) endDrift(c);
+  c.air = true; c.airT = 0; c.hop = true;
+  c.st.pos.copy(c.pos).addScaledVector(c.up, 0.1);
+  c.st.vel.copy(c.fwd).multiplyScalar(c.v * JUMP.keep).addScaledVector(c.up, JUMP.v).addScaledVector(c.right, c.latV || 0); c.st.s = c.s;
+  if (c.isPlayer) { RUN.jump = (RUN.jump || 0) + 1; SND.jump(); vib([15, 10, 25]); cam.kick = Math.max(cam.kick, 4); }
+  return true;
 }
 function hitCar(c, owner) {
   if (c.remote) { if (netSendHit(c.remote, owner) && owner && owner.isPlayer && live()) { Dopa.ev('hit'); game.hits++; addScore(500); pop(`HIT ${c.name}! +500`, '#ffd400', 30); say(LINES.hitOther(c.name), 2); vib([20, 20, 20, 20, 120]); } return; }
@@ -3790,6 +3813,7 @@ function updateHUD(dt) {
   $('progFill').style.width = pr + '%'; $('progCar').style.left = pr + '%';
   for (const o of cars) if (o.dot) o.dot.style.left = clamp(o.s / goalS, 0, 1) * 100 + '%';
   const bb = $('btnBoost'); bb.style.setProperty('--n', c.nitro.toFixed(1)); bb.classList.toggle('ready', c.nitro >= 25 && !(c.heatStall > 0));
+  $('btnJump').classList.toggle('cool', !!c.air || game.t - (c.jumpCd ?? -9) < JUMP.cd);
   skillHUD(c);
   // アイテム枠 (ルーレット演出)
   const bi = $('btnItem');
@@ -6472,6 +6496,7 @@ function update(dt) {
   if (st === 'countdown') countdownTick(dt);
   Pad.poll();
   if (input.boostReq) { input.boostReq = false; tryBoost(); }
+  if (input.jumpReq) { input.jumpReq = false; if (st === 'play' && !doJump(player) && !player.air) SND.buzz(); }
   if (input.itemReq) { input.itemReq = false; if (st === 'play') { if (player.item && player.roulette <= 0) useItem(player); else SND.buzz(); } }
   if (game.split && p2) {
     if (input2.boostReq) { input2.boostReq = false; tryBoost(p2); }
