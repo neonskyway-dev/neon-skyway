@@ -132,7 +132,14 @@ npx serve .        # または python3 -m http.server 8000
 
 ### リポジトリを非公開にして dist だけを公開する手順（手作業）
 
-いまは公開リポジトリの `index.html`（難読化前）が GitHub Pages でそのまま配信されています。コードを守るには、次のどちらかにします。
+いまは公開リポジトリの `index.html`（難読化前）が GitHub Pages でそのまま配信されています。コードを守るには、次のどれかにします。
+
+**C. いまの URL のまま・無料（おすすめ）: 元のコードは非公開、公開用リポジトリには dist だけ**
+1. GitHub のこのリポジトリ → Settings → General → Repository name を `neon-skyway-src` に変更 → 一番下「Change repository visibility」→ **Make private**
+2. 新しく **公開（Public）** リポジトリ `neon-skyway` を作る（中身は空でよい）
+3. `sh tools/publish.sh` を実行すると、ビルドした dist だけが公開用リポジトリに入る（更新のたびに実行）
+4. 公開用リポジトリ → Settings → Pages → Source「Deploy from a branch」→ `main` / `/(root)` → Save
+5. URL（`neonskyway-dev.github.io/neon-skyway/`）は変わらないので、ホーム画面のアイコンもセーブもそのまま使える
 
 **A. Cloudflare Pages（おすすめ・無料で非公開リポジトリOK）**
 1. https://dash.cloudflare.com → Workers & Pages → Create → Pages → 「Connect to Git」で `neonskyway-dev/neon-skyway` を選ぶ
