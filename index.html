@@ -3598,7 +3598,7 @@ function computeRanks() {
   arr.forEach((c, i) => c.rank = i + 1); return arr;
 }
 function startGame() {
-  SND.init(); Voice.unlock();
+  SND.init(); Voice.unlock(); game.netGo = 0;
   if (isTouch) { try { document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {}); } catch (e) {} }
   setupRace(game.nCpu);
   { const base = CAR_TYPES[player.type].stats, T = tuneOf(player.type), ok = tuneAllowed();   // チューン（対象外のモードでは素の性能）
@@ -3616,7 +3616,10 @@ function startGame() {
   pop(`STAGE ${stageIdx + 1}: ${STAGE.key}`, hex(STAGE.theme.rails[1]), 26);
 }
 function countdownTick(dt) {
-  game.cdT -= dt; cam.intro = clamp((game.cdT - 0.6) / 3, 0, 1); cam2.intro = cam.intro;
+  if (NET.racing && game.netGo) {   // オンライン: 時計で数える（コマ落ちしても遅れない）
+    game.cdT = (game.netGo - Date.now()) / 1000 + 0.6;
+    if (game.cdT - 0.6 > 3 && game.cdLast !== 9) { game.cdLast = 9; $('countdown').innerHTML = `<div class="cd font-black neon-cyan jp" style="font-size:42px">READY…</div>`; }
+  } else game.cdT -= dt; cam.intro = clamp((game.cdT - 0.6) / 3, 0, 1); cam2.intro = cam.intro;
   const n = Math.ceil(game.cdT - 0.6);
   if (n !== game.cdLast && n >= 0 && n <= 3) {
     game.cdLast = n;
@@ -3624,6 +3627,7 @@ function countdownTick(dt) {
     SND.beep(n === 0); vib(n === 0 ? 120 : 30);
     if (n === 0) {
       game.state = 'play'; SND.startMusic('game', true);
+      if (NET.racing && game.netGo) game.elapsed = Math.max(0, (Date.now() - game.netGo) / 1000);
       setTimeout(() => pop('♪ ' + (SND.userSrc ? SND.nowPlaying : SND.TRACKS[SND.trackIdx].name), '#9d6bff', 18), 900);
       Meta.judgeStart();
       for (const c of cars) if (!c.isPlayer && !c.remote && Math.random() < (LV().rocket ?? 0.5)) startBoost(c, 0.6 + Math.random() * 0.8, true);
@@ -3860,6 +3864,8 @@ const NET = { api: null, mode: '', r: null, code: '', host: false, me: null, act
   peers: [], data: new Map(), remotes: new Map(), cpuData: null, cpuT: 0, hitsOut: [], hitSeq: 0, seenHits: new Set(), order: [], unsub: null,
   md: 'normal', ser: null, cfg: null, rules: {}, teams: null, myPk: null, myTm: null, hostSer: null };
 const NET_CPU_MAX = 5;
+// オンラインのスタート合わせ: ホストが「この時刻に GO」を決めて送り、全員がその時刻に GO する（通信の遅れ・読み込みの速さで差が出ない）
+const NET_SYNC = { lead: 5000, clockTrust: 20000, maxStep: 0.25 };   // lead: 合図から GO までの余裕(ms) / clockTrust: 時計の差がこれ以内なら端末の時計を信じる（スマホの時計はネットで自動調整されている。受信の遅れを時計のずれと誤認しないよう大きめ） / maxStep: 重い端末で1コマに進める最大時間(秒)
 const randCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += A[(Math.random() * A.length) | 0]; return s; };
 const safeName = n => (String(n || '').replace(/[^\p{L}\p{N} _\-]/gu, '').trim().slice(0, 10) || 'PLAYER');
 // ---------- Supabase Realtime 版の「部屋」(claude.ai 以外で開いたとき用) ----------
@@ -4114,12 +4120,16 @@ function netHostStart() {
   const ids = netHumans().map(p => p.peer).sort();
   const ser = NetSeries.prepare(ids); if (ser === false) return;
   NET.raceId = Math.max(NET.raceId, NET.seenRace) + 1; NET.seenRace = NET.raceId;
-  const cfg = { st: 'race', rid: NET.raceId, stg: ser ? ser.maps[ser.i] : stageIdx, lv: game.lv, cpu: ser && ser.md === 'gachi' ? 0 : Math.min(game.nCpu, NET_CPU_MAX), ord: ids.slice(0, 12), ser: ser || null };
+  const now = Date.now();
+  const cfg = { st: 'race', at: now + NET_SYNC.lead, hn: now, rid: NET.raceId, stg: ser ? ser.maps[ser.i] : stageIdx, lv: game.lv, cpu: ser && ser.md === 'gachi' ? 0 : Math.min(game.nCpu, NET_CPU_MAX), ord: ids.slice(0, 12), ser: ser || null };
   netPresence(cfg);
   netBeginRace(cfg);
 }
 // レース開始 (全員)
 function netBeginRace(cfg) {
+  // GO の時刻を自分の時計に直す。端末の時計はふつう数十ms以内でそろっているのでそのまま使い、大きくずれているときだけホストの時計に合わせる
+  NET.goAt = 0;
+  if (typeof cfg.at === 'number' && typeof cfg.hn === 'number') { const off = cfg.hn - Date.now(); NET.goAt = cfg.at - (Math.abs(off) < NET_SYNC.clockTrust ? 0 : off); }
   if (typeof cfg.stg === 'number' && cfg.stg !== stageIdx && STAGES[cfg.stg]) { buildStage(cfg.stg); game.stage = cfg.stg; }
   if (LEVELS[cfg.lv]) game.lv = cfg.lv;
   NET.cpuN = clamp(cfg.cpu | 0, 0, NET_CPU_MAX);
@@ -4142,6 +4152,7 @@ function netBeginRace(cfg) {
   game.split = false;
   netPresence({ st: 'race', car: game.carType, n: safeName(store.get('ns_name', '')) });
   startGame();
+  game.netGo = NET.goAt || 0;   // コースを作るのに時間がかかっても、GO の時刻は全員同じ
 }
 // 毎フレーム: 自分の状態を送る / 他人の状態を反映
 function netTick(dt) {
@@ -6090,7 +6101,7 @@ function update(dt) {
     if (game.fever <= 0 || st !== 'play') endFever();
   }
   if (st === 'play') {
-    game.elapsed += dt;
+    game.elapsed = NET.racing && game.netGo ? Math.max(0, (Date.now() - game.netGo) / 1000) : game.elapsed + dt;   // オンラインのタイムは GO の時刻からの実時間
     addScore(player.v * dt * (boosting(player) ? 1.2 : 0.6));
     if (game.comboT > 0) { game.comboT -= dt; if (game.comboT <= 0) game.combo = 0; }
     const cp = cps[game.cpIdx];
@@ -6135,7 +6146,7 @@ function update(dt) {
 function render() { if (game.split && p2 && game.state !== 'title' && game.state !== 'garage') renderSplit(); else if (quality === 0) renderer.render(scene, camera); else composer.render(); }
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.min(NET.racing ? NET_SYNC.maxStep : 0.05, (now - last) / 1000); last = now;   // オンライン中は重い端末でも現実の時間に追いつく
   if (paused) return;
   update(dt); render();
   fpsT += dt; fpsN++;
