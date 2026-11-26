@@ -708,6 +708,9 @@ const CRANK = {
   just: { full: 0.8, pts: 20 },                 // ジャスト率 80% で満点
   assistCap: 'A',                               // アシスト中はAまで
 };
+// レーザーゲート: 3車線のうち1車線は光らない「抜け道」。点滅のたびに場所が変わる（運ではなく、見てよければ抜けられる）
+const LASER = { lanes: [-5.3, 0, 5.3], laneW: 5.3, safeW: 2.4 };   // safeW: 抜け道の中心からこの幅(m)以内なら当たらない
+const laserSafe = (o, t = game.t) => LASER.lanes[((Math.floor(t / o.period + o.phase) * 7 + Math.floor(o.s || 0)) % 3 + 3) % 3];
 // スコアの倍率（足し算）
 const SCORE = { fever: 1, maxMul: 4 };
 // 車の性能の効き方（CAR_TYPES の stats と組み合わせて使う）
@@ -1595,13 +1598,15 @@ function buildPickups() {
       w = ROAD_W; hgt = 2.2;
       const postMat = new THREE.MeshBasicMaterial({ color: 0xff2050 });
       for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.2, 0.5), postMat); p.position.set(sx * (HALF_W + 0.35), 1.6, 0); mesh.add(p); }
-      const beam = new THREE.Group();
-      for (const y of [0.55, 1.15, 1.75]) {
-        beam.add(new THREE.Mesh(new THREE.BoxGeometry(ROAD_W + 0.7, 0.12, 0.12), new THREE.MeshBasicMaterial({ color: 0xff3355 })));
-        const glowB = new THREE.Mesh(new THREE.BoxGeometry(ROAD_W + 0.7, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0xff0033, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }));
-        beam.children[beam.children.length - 1].position.y = y; glowB.position.y = y; beam.add(glowB);
+      const beam = new THREE.Group(), segs = [];
+      const bm = new THREE.MeshBasicMaterial({ color: 0xff3355 }), gm = new THREE.MeshBasicMaterial({ color: 0xff0033, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+      for (const lx of LASER.lanes) {   // 車線ごとのビーム（抜け道の車線だけ消える）
+        const seg = new THREE.Group(); seg.position.x = lx;
+        for (const y of [0.55, 1.15, 1.75]) { const a = new THREE.Mesh(new THREE.BoxGeometry(LASER.laneW + 0.1, 0.12, 0.12), bm), b2 = new THREE.Mesh(new THREE.BoxGeometry(LASER.laneW + 0.1, 0.5, 0.5), gm); a.position.y = b2.position.y = y; seg.add(a, b2); }
+        beam.add(seg); segs.push(seg);
       }
-      mesh.add(beam); mesh.userData.beam = beam; mesh.userData.postMat = postMat;
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0x3bff9d })); arrow.position.y = 3.6; mesh.add(arrow);
+      mesh.add(beam); mesh.userData.beam = beam; mesh.userData.segs = segs; mesh.userData.arrow = arrow; mesh.userData.postMat = postMat;
     } else if (d.type === 'geyser') {
       w = 3.4; hgt = 9;
       const postMat = new THREE.MeshBasicMaterial({ color: 0x331100 });
@@ -2562,6 +2567,8 @@ function pop(text, color = '#29f3ff', size = 30) {
 let flashA = 0;
 function flash(col, a) { flashA = Math.max(flashA, a); $('flash').style.background = col; }
 // スコアの倍率は足し算: 1 + フィーバー + (脳汁倍率−1) + (フロー倍率−1)、合計の上限は SCORE.maxMul
+// 転倒・コースアウトの記録（原因の洗い出し用。デバッグ時に __game.RUN.failLog で見られる）
+function noteFail(c, why, extra) { if (!c || !c.isPlayer) return; (RUN.failLog || (RUN.failLog = [])).push({ st: stageIdx, s: Math.round(c.s), v: Math.round(c.v), why, ...(extra || {}) }); }
 function scoreMul() { return Math.min(SCORE.maxMul, 1 + (game.fever > 0 ? SCORE.fever : 0) + (Dopa.mul() - 1) + (Flow.mul - 1)); }
 function addScore(p) { game.score += p * scoreMul(); }
 const live = () => game.state === 'play';
@@ -2691,7 +2698,7 @@ function hitCar(c, owner) {
     c.st.pos.copy(c.pos).addScaledVector(c.up, 0.1); c.st.vel.copy(c.fwd).multiplyScalar(c.v).addScaledVector(c.up, 13); c.st.s = c.s;
   }
   if (!live()) return;
-  if (c.isPlayer) { Dopa.ev('fail'); vib([150, 50, 100]); flash('#ff2050', 0.6); cam.shake = 1.2; pop('HIT!', '#ff2050', 44); say(owner && !owner.isPlayer ? LINES.hitMeBy(owner.name) : LINES.hitMe, 3); game.combo = 0; }
+  if (c.isPlayer) { noteFail(c, 'item', { by: owner ? owner.name : '' }); Dopa.ev('fail'); vib([150, 50, 100]); flash('#ff2050', 0.6); cam.shake = 1.2; pop('HIT!', '#ff2050', 44); say(owner && !owner.isPlayer ? LINES.hitMeBy(owner.name) : LINES.hitMe, 3); game.combo = 0; }
   else if (owner && owner.isPlayer) { Dopa.ev('hit'); vib([20, 20, 20, 20, 120]); game.hits++; addScore(500); pop(`HIT ${c.name}! +500`, '#ffd400', 30); say(LINES.hitOther(c.name), 2); }
 }
 
@@ -3000,7 +3007,7 @@ function physics(c, dt, ctl) {
     const i = clamp(Math.floor(c.s / DS), 0, TR.N - 1);
     const f2 = frameAt(c.s, F1);
     if (!(fl & F_LOOP) && TR.vertK[i] * c.v * c.v < -G * Math.max(f2.up.y, 0.2)) {
-      c.air = true; c.airT = 0; c.hop = false; c.tricks = 0; c.trickT = 0; c.trickList = [];
+      c.air = true; c.airT = 0; c.hop = false; c.launchV = c.v; c.tricks = 0; c.trickT = 0; c.trickList = [];
       c.st.pos.copy(f2.pos).addScaledVector(f2.right, c.x).addScaledVector(f2.up, 0.02);
       c.st.vel.copy(TR.F[i]).multiplyScalar(c.v).addScaledVector(f2.right, c.latV);
       c.st.s = c.s;
@@ -3072,13 +3079,15 @@ function land(c) {
 }
 function respawnAfterGap(c) {
   const g = gaps.find(g => c.s >= g.lipS - 5 && c.s <= g.s1 + 40) || { s1: c.s };
+  const pre = { at: Math.round(c.s), lip: Math.round(g.lipS || 0), vLaunch: Math.round(c.launchV || 0), x: Math.round(c.x), airT: +(c.airT || 0).toFixed(1) };
   Object.assign(c, { s: g.s1 + 12, x: 0, h: 0, air: false, v: 40, invuln: 2, latV: 0 });
-  if (c.isPlayer) { cam.shake = 1; flash('#ff2050', 0.5); if (live()) { Dopa.ev('fail'); SND.crash(); pop('COURSE OUT!', '#ff2050', 32); game.combo = 0; vib([200, 80, 200]); } snapCamera(); }
+  if (c.isPlayer) { cam.shake = 1; flash('#ff2050', 0.5); if (live()) { noteFail(c, 'courseout', { gap: Math.round(g.s1 - (g.lipS || g.s1)), ...pre }); Dopa.ev('fail'); SND.crash(); pop('COURSE OUT!', '#ff2050', 32); game.combo = 0; vib([200, 80, 200]); } snapCamera(); }
 }
 function crashObstacle(c, o) {
   const fxOn = c.isPlayer && live();
   if (o.type === 'laser' || o.type === 'geyser') {
     if (!o.on || c.invuln > 0) return;
+    if (o.type === 'laser' && Math.abs(c.x - laserSafe(o)) < LASER.safeW) return;   // 抜け道を通った
     if (boosting(c) || c.shield > 0) {
       if (c.shield > 0 && !boosting(c)) c.shield = 0;
       c.invuln = 0.4;
@@ -3088,7 +3097,7 @@ function crashObstacle(c, o) {
     c.v *= Math.max(c.stats.dmg, 0.4); c.invuln = 1.4; c.spin = 0.8;
     if (nearCam(c)) emit(c.pos, 60, { speed: 20, color: 0xff2050, color2: 0xffffff, size: 0.7, life: 0.6 });
     if (c.isPlayer) { cam.shake = 0.9; flash('#ff2050', 0.5); }
-    if (fxOn) { Dopa.ev('fail'); SND.zap(); pop(o.type === 'geyser' ? 'BURN!!' : 'ZAP!!', '#ff2050', 44); game.combo = 0; say(LINES.zap, 2); vib([60, 40, 60]); }
+    if (fxOn) { noteFail(c, o.type); Dopa.ev('fail'); SND.zap(); pop(o.type === 'geyser' ? 'BURN!!' : 'ZAP!!', '#ff2050', 44); game.combo = 0; say(LINES.zap, 2); vib([60, 40, 60]); }
     return;
   }
   if (o.type === 'ball') {
@@ -3117,7 +3126,7 @@ function crashObstacle(c, o) {
     if (!c.isPlayer && live()) SND.explode(clamp(1 - Math.abs(c.s - player.s) / 140, 0, 0.6));
   }
   if (c.isPlayer) { cam.shake = 1.2; cam.kick = -8; flash('#ff2050', 0.6); }
-  if (fxOn) { Dopa.ev('fail'); SND.crash(); pop('CRASH!', '#ff2050', 42); game.combo = 0; say(LINES.crash, 2); vib([120, 50, 80]); }
+  if (fxOn) { noteFail(c, 'obstacle:' + o.type); Dopa.ev('fail'); SND.crash(); pop('CRASH!', '#ff2050', 42); game.combo = 0; say(LINES.crash, 2); vib([120, 50, 80]); }
 }
 const _cp = new V3();
 function interactions(c) {
@@ -3195,7 +3204,8 @@ function aiControl(c, dt) {
   }
   for (const p of pads) if (p.s > c.s + 4 && p.s < c.s + 45) { tx = p.x; break; }
   for (const o of obstacles) {
-    if (o.dead || o.type === 'laser') continue; const ds = o.s - c.s;
+    if (o.type === 'laser') { const ds = o.s - c.s; if (ds > 0 && ds < L.look) { const tA = game.t + ds / Math.max(c.v, 20); tx = laserSafe(o, tA); } continue; }   // 着く時刻の抜け道を狙う
+    if (o.dead) continue; const ds = o.s - c.s;
     if (ds > 0 && ds < L.look && Math.abs(tx - o.cx) < o.w / 2 + 2.2) { const side = o.cx > 0 ? -1 : 1; tx = o.cx + side * (o.w / 2 + 2.8); }
   }
   for (const o of cars) {
@@ -3343,6 +3353,7 @@ function updateWorld(dt) {
     if (o.type === 'laser' || o.type === 'geyser') {
       o.on = ((t / o.period + o.phase) % 1) < 0.55;
       o.mesh.userData.beam.visible = o.on;
+      if (o.type === 'laser') { const sx = laserSafe(o, t), U = o.mesh.userData; U.segs.forEach((g, k) => g.visible = LASER.lanes[k] !== sx); U.arrow.position.x = sx; U.arrow.visible = true; }
       o.mesh.userData.postMat.color.setHex(o.on ? 0xff2050 : (Math.floor(t * 8) % 2 ? 0xffd400 : 0x331100));
     }
     if (o.type === 'ball') {
@@ -4927,7 +4938,7 @@ const TRK = {
     if (!list.length) return;
     if (c.trickT > 0.15) {
       c.trickT = 0; c.v *= 0.55; c.spin = 0.7; c.invuln = 1; cam.shake = Math.max(cam.shake, 0.8);
-      Dopa.ev('fail'); SND.crash(); pop('BAD LANDING…', '#ff2050', 30); vib([80, 40, 80]); return;
+      noteFail(c, 'badlanding'); Dopa.ev('fail'); SND.crash(); pop('BAD LANDING…', '#ff2050', 30); vib([80, 40, 80]); return;
     }
     const late = game.t - (c.trickEnd || -9), perfect = late >= -0.15 && late < 0.28;
     let pts = 0; const seen = {};
