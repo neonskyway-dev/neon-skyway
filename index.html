@@ -1937,6 +1937,7 @@ function buildCarModel(typeKey, paintHex, neonHex, detailed, label) {
     const tex = canvasTex(256, 64, (c, w, h) => {
       c.font = '900 38px Orbitron, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillStyle = 'rgba(0,0,0,.55)'; if (c.roundRect) { c.beginPath(); c.roundRect(20, 6, w - 40, h - 12, 26); c.fill(); } else c.fillRect(20, 6, w - 40, h - 12);
+      for (let fs = 38; fs > 18 && c.measureText(label).width > w - 56; fs -= 2) c.font = `900 ${fs}px Orbitron, sans-serif`;
       c.shadowColor = '#' + new THREE.Color(neonHex).getHexString(); c.shadowBlur = 12; c.fillStyle = '#fff'; c.fillText(label, w / 2, h / 2 + 2);
     });
     tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true, sizeAttenuation: false }));
@@ -4364,7 +4365,7 @@ async function netEnter(code, asHost) {
   NET.code = code; NET.host = !!asHost; NET.active = true; NET.seenRace = 0; NET.synced = !!asHost; NET.joinT = performance.now(); NET.noHostT = 0; NET.raceId = 0; NET.seenHits.clear(); NET.hitsOut = []; NET.tnOut = [];
   NET.unsub = NET.r.onPeers(ch => onNetPeers(ch), err => { netStatus('接続が切れました（' + err.code + '）'); netLeave(true); });
   if (NET.myPk === null) NET.myPk = stageIdx;
-  netPresence({ v: 1, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
+  netPresence({ v: 1, dv: Dev.ok ? 1 : undefined, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
   netStatus(asHost ? '部屋を作りました。友達にコードを伝えてください。' : '部屋に入りました。ホストのスタートを待っています。');
   vib([20, 30, 20]); renderNet();
 }
@@ -4450,7 +4451,7 @@ function renderNet() {
     row.className = 'flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1';
     const car = CAR_TYPES[pr.car] ? pr.car : 'VIPER';
     const dot = document.createElement('span'); dot.className = 'inline-block w-2.5 h-2.5 rounded-full'; dot.style.background = hex(CAR_TYPES[car].neon); dot.style.boxShadow = '0 0 6px ' + hex(CAR_TYPES[car].neon);
-    const nm = document.createElement('span'); nm.className = 'font-bold truncate flex-1'; nm.textContent = (pr.h ? '[HOST] ' : '') + safeName(pr.n) + (p.isMe ? ' (あなた)' : '') + (p.guest ? ' ・ゲスト' : '');
+    const nm = document.createElement('span'); nm.className = 'font-bold truncate flex-1'; nm.textContent = (pr.h ? '[HOST] ' : '') + (pr.dv ? '【開発者】' : '') + safeName(pr.n) + (p.isMe ? ' (あなた)' : '') + (p.guest ? ' ・ゲスト' : '');
     const cr = document.createElement('span'); cr.className = 'text-[10px] text-white/60'; cr.textContent = car + (pr.st === 'race' ? ' ・走行中' : '');
     const md = NetSeries.hostMd(), ex = document.createElement('span'); ex.className = 'text-[10px] font-black';
     if (md === 'gachi' && STAGES[pr.pk]) { ex.textContent = '希望: ' + STAGES[pr.pk].jp; ex.style.color = '#ffd400'; }
@@ -4500,7 +4501,7 @@ function netBeginRace(cfg) {
     if (id === NET.me || NET.remotes.has(id)) continue;
     const pr = (NET.data.get(id) || {}).pr || {};
     const type = CAR_TYPES[pr.car] ? pr.car : 'VIPER';
-    const nm = safeName(pr.n);
+    const nm = (pr.dv ? '開発者 ' : '') + safeName(pr.n);
     const r = newRacer(false, [nm, CAR_TYPES[type].paint, CAR_TYPES[type].neon], 0, type, true);
     r.remote = id; NET.remotes.set(id, r);
   }
@@ -4794,6 +4795,7 @@ const COS = [
   { id: 'TR_THDR', k: 'trail', n: 'サンダー', r: 'SSR', c: [0xfff23b, 0x29f3ff] }, { id: 'TR_GLXY', k: 'trail', n: 'ギャラクシー', r: 'SSR', c: [0x7a1cff, 0x29f3ff] },
   { id: 'TR_RBOW', k: 'trail', n: 'レインボー', r: 'UR', c: 'rainbow' },
   { id: 'T_ROOKIE', k: 'title', n: 'ルーキー', r: 'N', g: false },
+  { id: 'T_DEV', k: 'title', n: '開発者', r: 'GOD', g: false, hide: true },   // 開発者だけ（シリアルコードで解放。スロット・実績・一覧には出ない）
   { id: 'T_SPD', k: 'title', n: 'スピード狂', r: 'N' }, { id: 'T_COIN', k: 'title', n: 'コイン中毒', r: 'N' }, { id: 'T_NITRO', k: 'title', n: 'ニトロ依存症', r: 'N' },
   { id: 'T_DRIFT', k: 'title', n: 'ドリフト野郎', r: 'R' }, { id: 'T_SKY', k: 'title', n: '空の支配者', r: 'R' }, { id: 'T_NEAR', k: 'title', n: 'ギリギリの美学', r: 'R' },
   { id: 'T_BRAIN', k: 'title', n: '脳汁製造機', r: 'SR' }, { id: 'T_NEON', k: 'title', n: 'ネオンの申し子', r: 'SR' },
@@ -5348,7 +5350,7 @@ function bindShop(body) {
 }
 function htmlCus() {
   const sec = k => {
-    const list = COS.filter(c => c.k === k), own = list.filter(c => PF.owned[c.id]).length;
+    const list = COS.filter(c => c.k === k && (!c.hide || PF.owned[c.id])), own = list.filter(c => PF.owned[c.id]).length;
     return `<div class='mhd mt-2'>${KIND_JP[k]} <span class='text-white/45'>${own}/${list.length}</span></div><div class='flex flex-wrap gap-1.5'>${list.map(c => PF.owned[c.id]
       ? `<button class='cchip ${PF.eq[k] === c.id ? 'on' : ''}' data-k='${k}' data-id='${c.id}' style='--rc:${RAR[c.r].c}'>${cosIcon(c)}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small class='opacity-60'>${c.r}</small></button>`
       : c.r === 'GOD' ? `<div class='cchip lock' style='--rc:#555'>${I('lock')}<span class='opacity-60'>？？？</span><small class='opacity-60'>SECRET</small></div>`
@@ -6075,7 +6077,7 @@ const Meta = {
   gradeTag(i) { const cr = CourseRank.tag(i); if (game.mode === 'ta') return TA.cardTag(i) + (cr ? ' ' + cr : ''); const g = PF.grade[i]; return (g ? `<b class='g-${gcls(g)} italic'>${g}</b>` : '') + (cr ? ` <span class='text-[9px] text-white/50'>COURSE</span>${cr}` : ''); },
   renderChip() {
     const need = needXP(PF.lv);
-    $('profChip').innerHTML = `<div class='flex items-center gap-2 whitespace-nowrap'><span class='font-black neon-cyan text-sm'>Lv.${PF.lv}</span><div class='xpbar w-16 sm:w-24'><i style='width:${(PF.xp / need * 100).toFixed(1)}%'></i></div><span class='text-[11px] font-black text-cyan-200'>${NE()} ${PF.neon.toLocaleString()}</span><span class='text-[11px] font-black text-yellow-200'>${TK()} ${PF.tix}</span></div><div class='pc-title jp text-[10px] text-fuchsia-200 mt-0.5'>「${COS_BY[PF.eq.title]?.n || ''}」</div>`;
+    $('profChip').innerHTML = `<div class='flex items-center gap-2 whitespace-nowrap'><span class='font-black neon-cyan text-sm'>Lv.${PF.lv}</span><div class='xpbar w-16 sm:w-24'><i style='width:${(PF.xp / need * 100).toFixed(1)}%'></i></div><span class='text-[11px] font-black text-cyan-200'>${NE()} ${PF.neon.toLocaleString()}</span><span class='text-[11px] font-black text-yellow-200'>${TK()} ${PF.tix}</span></div><div class='pc-title jp text-[10px] ${PF.eq.title === 'T_DEV' ? 'text-yellow-300 font-black' : 'text-fuchsia-200'} mt-0.5'>${PF.eq.title === 'T_DEV' ? '👑' : ''}「${COS_BY[PF.eq.title]?.n || ''}」</div>`;
     const left = ensureDaily().list.filter(m => !m.done).length;
     $('badgeMis').textContent = left ? String(left) : '';
     $('badgeGacha').textContent = PF.neon >= 300 || PF.tix > 0 ? '!' : '';
@@ -6310,6 +6312,8 @@ setTimeout(() => {
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>TUTORIAL</div><div class='flex flex-wrap gap-2'><button id='tutAgain' class='mbtn'>かんたんチュートリアル（約2分）</button><button id='tutAgain2' class='mbtn'>上級編チュートリアル（約6分）</button></div>`);
   $('tutAgain').onclick = () => { Meta.close(); TUT.start('quick'); };
   $('tutAgain2').onclick = () => { Meta.close(); TUT.start('full'); };
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>シリアルコード</div><div class='flex flex-wrap items-center gap-2 text-xs'><input id='serialIn' autocomplete='off' autocapitalize='characters' spellcheck='false' maxlength='40' placeholder='コードを入力' class='jp rounded px-3 bg-black/50 border border-white/30 text-white' style='min-height:44px;width:min(60vw,240px);font-size:16px;user-select:text;-webkit-user-select:text'><button id='serialGo' class='mbtn'>決定</button></div>`);
+  $('serialGo').onclick = async () => { const ok = await Dev.redeem($('serialIn').value); if (ok) { $('serialIn').value = ''; SND.itemGet(); vib([30, 30, 30, 30, 120]); toast('称号「開発者」を解放して装備しました', '#ffd400', 4000); } else { SND.buzz(); toast('コードがちがいます', '#ff2050'); } };
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>DATA</div><div id='resetBox' class='flex flex-wrap items-center gap-2 text-xs'></div>`);
   const drawReset = ask => {
     const b = $('resetBox');
@@ -6321,9 +6325,35 @@ setTimeout(() => {
   };
   drawReset(false);
 }
+// 開発者の称号: 開発者だけが知っているシリアルコードで解放。ゲームの中にはコードそのものは無く、ハッシュ（SHA-256）だけを持つ
+// セーブを書き換えて称号だけ足しても、起動時にコードを確かめて外す
+const DEV_HASH = 'bca0a55bc668bb481bd39cad936b291dc3098522e68a0839ae79adb6185a180f';
+const Dev = {
+  ok: false,
+  async hash(code) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('neon-skyway:dev:' + code)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); },
+  async check(code) { try { return typeof code === 'string' && code.length < 64 && await this.hash(code) === DEV_HASH; } catch (e) { return false; } },
+  async init() {
+    this.ok = !!PF.devKey && await this.check(PF.devKey);
+    let ch = false;
+    if (this.ok && !PF.owned.T_DEV) { PF.owned.T_DEV = 1; ch = true; }
+    if (!this.ok) { if (PF.owned.T_DEV) { delete PF.owned.T_DEV; ch = true; } if (PF.eq.title === 'T_DEV') { PF.eq.title = 'T_ROOKIE'; ch = true; } if (PF.devKey) { delete PF.devKey; ch = true; } }
+    if (ch) { savePF(); Meta.renderChip(); }
+    if (this.ok && NET.active) netPresence({ dv: 1 });
+  },
+  async redeem(raw) {
+    const code = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!code) return false;
+    if (!await this.check(code)) return false;
+    PF.devKey = code; PF.owned.T_DEV = 1; PF.eq.title = 'T_DEV'; this.ok = true; savePF(); Meta.renderChip();
+    if (NET.active) netPresence({ dv: 1 });
+    return true;
+  },
+};
+Dev.init();
 function resetProgress() {
+  const devKey = PF.devKey;   // 開発者のコードは初期化しても残す
   for (const k of Object.keys(PF)) delete PF[k];
-  Object.assign(PF, PF_DEF()); savePF();
+  Object.assign(PF, PF_DEF()); if (devKey) PF.devKey = devKey; savePF(); Dev.init();
   try { for (const k of Object.keys(localStorage)) if (k === 'ns_tut' || k === 'neonSkywayBest' || k.startsWith('ns_best')) localStorage.removeItem(k); } catch (e) {}
   Meta.applyPaint(); Meta.renderChip(); showBest();
 }
