@@ -1,5 +1,12 @@
 <!doctype html><!-- © 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。 --><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>NEON SKYWAY ∞</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NEON SKYWAY">
+<meta name="theme-color" content="#05010f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Saira+Condensed:wght@500;600;700;800;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
@@ -527,7 +534,7 @@
       <div id='rMsgs' class='mt-1 flex flex-wrap gap-1'></div>
       <div id="rStand" class="mt-2 grid grid-cols-2 gap-x-4 text-[10px] sm:text-xs tabular-nums"></div>
       <div id="netSer"></div>
-      <div class="mt-2 flex gap-3">
+      <div id="rBtns" class="mt-2 flex gap-3">
         <button id="btnReplay" class="start-btn !px-5 !py-1.5 text-sm !tracking-[.2em]">REPLAY</button>
         <button id="btnRank" class="mbtn hidden"><i data-i="trophy"></i>ランキング</button>
         <button id="btnSerNext" class="start-btn !px-5 !py-1.5 text-sm hidden">NEXT RACE ▶</button>
@@ -5939,5 +5946,56 @@ html,body{font-family:var(--race)}
 #sCards button{border-radius:3px !important;clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%)}
 #sName,#gName{font-family:var(--race) !important;font-style:italic;font-weight:900 !important;letter-spacing:0 !important;text-shadow:0 3px 0 rgba(0,0,0,.35) !important}
 #copyright{font-family:var(--race);letter-spacing:.12em !important}
+/* ---- 低い画面（ブラウザのバーで高さが削られたスマホ横向き）でも全部押せるように ---- */
+@media (max-height:360px){
+  .neon3d{font-size:clamp(28px,6vw,52px) !important}
+  #titleKicker{display:none}
+  #titleMenu{margin-top:6px !important;gap:3px !important}
+  #titleMenu .mbtn{font-size:11px !important;padding-top:.28em !important;padding-bottom:.28em !important}
+  #titleMenu .start-btn{font-size:16px !important;padding:.2em 1em !important}
+  #bestTxt{display:none}
+  #metaBtns{gap:4px !important}
+  .metab{font-size:14px !important;padding:.3em .5em !important}
+  #gDesc,#gJp{display:none !important}
+  #gName{font-size:26px !important}
+  #gStats .stat{font-size:9px}
+  #garage .rounded-2xl{padding:6px 10px !important}
+  #gChips{flex-wrap:nowrap !important;overflow-x:auto;max-width:56vw !important;scrollbar-width:none}
+  #gChips::-webkit-scrollbar{display:none}
+  #gChips .carchip{flex:none;padding:4px 10px !important}
+  #gChips .carchip small{display:none}
+  #gPrev,#gNext{width:32px !important;height:32px !important}
+  #gGo{font-size:14px !important;padding:.4em 1.4em !important}
+  #rBtns{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));z-index:35;margin:0 !important;padding:6px;background:rgba(8,6,18,.86);border:1px solid rgba(255,255,255,.14);border-radius:3px}
+  #rBtns button{font-size:12px !important;padding:.3em 1em !important}
+  #result>.panel{padding-bottom:52px !important}
+  #sCards button{padding-top:6px !important;padding-bottom:6px !important}
+  #minimap{width:84px !important;height:60px !important}
+}
+#a2hs{position:fixed;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;max-width:min(94vw,520px);padding:8px 12px 8px 14px;display:flex;gap:10px;align-items:center;
+  background:rgba(8,6,18,.92);border:1px solid rgba(255,255,255,.16);border-left:3px solid var(--acc);border-radius:3px;font-size:12px;line-height:1.45;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#a2hs b{color:#ffd400}
+#a2hs button{flex:none;font-weight:800;font-size:11px;padding:4px 10px;border:1px solid rgba(255,255,255,.3);border-radius:2px}
 </style>
+<script>
+// ホーム画面に追加すると、ブラウザのバーなしの全画面で遊べる。まだ追加していないスマホで1回だけ案内する
+(() => {
+  const standalone = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone;
+  const touch = matchMedia('(pointer: coarse)').matches;
+  let seen = false; try { seen = localStorage.getItem('ns_a2hs') === '1'; } catch (e) {}
+  if (standalone || !touch || seen || /claude\.ai|claudeusercontent/.test(location.hostname)) return;
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const inApp = /GSA\/|FBAN|FBAV|Instagram|Line\/|CriOS|FxiOS|EdgiOS/.test(ua);
+  const msg = ios
+    ? (inApp ? 'いまはアプリ内のブラウザで開いています。右下の共有ボタンから<b>「Safariで開く」</b>→ Safari の共有ボタン →<b>「ホーム画面に追加」</b>で、上下のバーなしの全画面で遊べます。'
+             : '共有ボタン（□↑）→<b>「ホーム画面に追加」</b>で、上下のバーなしの全画面で遊べます。')
+    : 'ブラウザのメニュー（︙）→<b>「ホーム画面に追加」</b>または<b>「アプリをインストール」</b>で、上下のバーなしの全画面で遊べます。';
+  setTimeout(() => {
+    const d = document.createElement('div'); d.id = 'a2hs'; d.className = 'jp';
+    d.innerHTML = `<div>${msg}</div><button>OK</button>`;
+    d.querySelector('button').onclick = () => { d.remove(); try { localStorage.setItem('ns_a2hs', '1'); } catch (e) {} };
+    document.body.appendChild(d);
+  }, 2500);
+})();
+</script>
 </body></html>

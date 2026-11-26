@@ -79,5 +79,7 @@ const out = html.slice(0, start) + OPEN + banner + code + html.slice(end);
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(`${OUT_DIR}/index.html`, out);
 for (const f of ['_headers', 'robots.txt']) { try { writeFileSync(`${OUT_DIR}/${f}`, readFileSync(`public/${f}`)); } catch {} }
+// ホーム画面に追加（全画面で起動）用のマニフェストとアイコン
+for (const f of ['manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) { try { writeFileSync(`${OUT_DIR}/${f}`, readFileSync(f)); } catch {} }
 console.log(`[build] ${OUT_DIR}/index.html を出力しました（${(out.length / 1024).toFixed(0)} KB, build ${BUILD_ID}）`);
 console.log(`[build] 公式ドメイン: ${OFFICIAL.join(', ')}`);
