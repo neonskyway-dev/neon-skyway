@@ -6,7 +6,62 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SKYWAY">
-<meta name="theme-color" content="#05010f"></head><body>
+<meta name="theme-color" content="#05010f">
+<script>
+// 白い画面のまま止まらないための見張り（ゲーム本体より先に動く・外部ライブラリに頼らない）
+// ・読み込み中にエラー／一定時間たっても起動しない → 理由と「再読み込み」「セーブを退避してリセット」を出す
+// ・起動後の小さなエラーはゲームを止めない（短時間に何度も起きたときだけ下に案内を出す）
+(function () {
+  var BOOT_LIMIT = 25000, errs = [], shown = false, booted = false;
+  window.__nsBoot = function () { booted = true; var d = document.getElementById('nsErr'); if (d && d.getAttribute('data-slow')) { d.remove(); shown = false; } };
+  try { var k = '__ns_t'; localStorage.setItem(k, '1'); localStorage.removeItem(k); window.__nsNoSave = false; } catch (e) { window.__nsNoSave = true; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function backupAndReset() {
+    if (!confirm('この端末のセーブ（レベル・ネオン・記録など）を退避してから、最初の状態で起動し直します。よろしいですか？')) return;
+    try {
+      var keep = {}, del = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (/^ns_/.test(key) && !/^ns_backup_/.test(key)) { keep[key] = localStorage.getItem(key); del.push(key); } }
+      localStorage.setItem('ns_backup_' + Date.now(), JSON.stringify(keep));
+      del.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) { if (!confirm('退避できませんでした（容量不足など）。退避せずにリセットしますか？')) return; try { Object.keys(localStorage).forEach(function (key) { if (/^ns_/.test(key) && !/^ns_backup_/.test(key)) localStorage.removeItem(key); }); } catch (e2) {} }
+    location.reload();
+  }
+  function show(title, detail, full, slow) {
+    if (shown) return; shown = true;
+    var d = document.createElement('div');
+    d.id = 'nsErr'; if (slow) d.setAttribute('data-slow', '1');
+    d.setAttribute('role', 'alert');
+    d.style.cssText = full
+      ? 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#05010f;color:#fff;font:14px/1.6 system-ui,sans-serif;padding:16px;box-sizing:border-box'
+      : 'position:fixed;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147483000;max-width:min(94vw,560px);background:rgba(8,6,18,.94);color:#fff;font:13px/1.5 system-ui,sans-serif;padding:10px 12px;border-left:3px solid #ff2bd6;border-radius:3px';
+    var btn = 'min-height:44px;padding:0 16px;margin:6px 8px 0 0;border-radius:3px;font:700 14px system-ui,sans-serif;cursor:pointer;';
+    d.innerHTML = '<div style="max-width:520px"><div style="font-weight:900;font-size:' + (full ? 20 : 14) + 'px;color:#ff6bd8">' + esc(title) + '</div>'
+      + '<div style="opacity:.8;margin-top:4px">' + esc(detail) + '</div>'
+      + '<div style="margin-top:6px"><button id="nsErrReload" style="' + btn + 'background:#29f3ff;color:#05010f;border:0">再読み込み</button>'
+      + (full ? '<button id="nsErrReset" style="' + btn + 'background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)">セーブを退避してリセット</button>' : '<button id="nsErrClose" style="' + btn + 'background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)">閉じて続ける</button>')
+      + '</div>' + (errs.length ? '<details style="margin-top:8px;opacity:.6;font-size:11px"><summary>くわしい内容</summary><pre style="white-space:pre-wrap;user-select:text;-webkit-user-select:text">' + esc(errs.slice(-5).join('\n')) + '</pre></details>' : '') + '</div>';
+    (document.body || document.documentElement).appendChild(d);
+    d.querySelector('#nsErrReload').onclick = function () { location.reload(); };
+    if (full) d.querySelector('#nsErrReset').onclick = backupAndReset;
+    else d.querySelector('#nsErrClose').onclick = function () { d.remove(); shown = false; errs = []; };
+  }
+  function onErr(msg) {
+    errs.push(String(msg).slice(0, 300));
+    if (!booted) { show('ゲームを起動できませんでした', '通信が不安定か、この端末・ブラウザで動かない機能があります。電波の良い所で再読み込みしてください。直らないときは「セーブを退避してリセット」を試してください（セーブは消さずに別の場所へ移します）。', true); return; }
+    var now = Date.now(); onErr.t = (onErr.t || []).filter(function (t) { return now - t < 10000; }); onErr.t.push(now);
+    if (onErr.t.length >= 3) show('うまく動いていないかもしれません', '表示や操作がおかしいときは再読み込みしてください。セーブは残ります。', false);
+  }
+  addEventListener('error', function (e) {
+    if (e.target && e.target !== window && (e.target.tagName === 'SCRIPT')) { onErr('読み込みに失敗: ' + (e.target.src || 'script')); return; }
+    if (e.target && e.target !== window) return;   // 画像などの読み込み失敗はゲームを止めない
+    if (e.message === 'Script error.' && !e.filename) return;   // 拡張機能など外のスクリプト
+    onErr((e.message || 'error') + (e.lineno ? ' @' + e.lineno : ''));
+  }, true);
+  addEventListener('unhandledrejection', function (e) { if (!booted) onErr('Promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+  setTimeout(function () { if (!booted) show('読み込みに時間がかかっています', '通信が遅いか、途中で止まりました。電波の良い所で再読み込みしてください。', true, true); }, BOOT_LIMIT);
+})();
+</script>
+</head><body>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4756,10 +4811,24 @@ const MIS_BY = Object.fromEntries(MISSIONS.map(m => [m.id, m]));
 
 // ---- セーブデータ (この端末のブラウザに保存) ----
 const PF_DEF = () => ({ xp: 0, lv: 1, neon: 500, tix: 1, pity: 0, owned: { DEFAULT: 1, NONE: 1, T_ROOKIE: 1, NE_NONE: 1, FL_STD: 1 }, eq: { paint: 'DEFAULT', trail: 'NONE', title: 'T_ROOKIE', neon: 'NE_NONE', flame: 'FL_STD' }, ach: {}, tot: {}, grade: {}, ta: {}, crank: {}, sc: {}, cars: {}, daily: null, login: { d: '', streak: 0 } });
+// セーブの形を変えるときは SAVE_VERSION を上げて、下の migrate に「古い形 → 新しい形」の変換を足す（消さずに直す）
+const SAVE_VERSION = 1;
+let PF_BROKEN = false;
 const PF = (() => {
   const d = PF_DEF();
-  const s = store.get('ns_pf', null); if (!s || typeof s !== 'object') return d;
-  return { ...d, ...s, owned: { ...d.owned, ...(s.owned || {}) }, eq: { ...d.eq, ...(s.eq || {}) }, tot: { ...(s.tot || {}) }, grade: { ...(s.grade || {}) }, ta: { ...(s.ta || {}) }, sc: { ...(s.sc || {}) }, cars: { ...(s.cars || {}) }, ach: { ...(s.ach || {}) }, login: { ...d.login, ...(s.login || {}) } };
+  let raw = null; try { raw = localStorage.getItem('ns_pf'); } catch (e) {}
+  if (raw === null) return { ...d, v: SAVE_VERSION };
+  let s = null; try { s = JSON.parse(raw); } catch (e) {}
+  if (!s || typeof s !== 'object' || Array.isArray(s)) {   // 壊れたセーブは消さずに退避してから新しく始める
+    PF_BROKEN = true; try { localStorage.setItem('ns_pf_broken', raw); } catch (e) {}
+    return { ...d, v: SAVE_VERSION };
+  }
+  const obj = x => (x && typeof x === 'object' && !Array.isArray(x)) ? x : {};
+  const num = (x, def) => (typeof x === 'number' && isFinite(x)) ? x : def;
+  const migrate = s => { /* v0（版番号なし）→ v1: 形は同じなので変換なし */ return s; };
+  s = migrate(s);
+  return { ...d, ...s, v: Math.max(SAVE_VERSION, num(s.v, 0)), xp: num(s.xp, d.xp), lv: Math.max(1, num(s.lv, d.lv)), neon: num(s.neon, d.neon), tix: num(s.tix, d.tix), pity: num(s.pity, d.pity),
+    owned: { ...d.owned, ...obj(s.owned) }, eq: { ...d.eq, ...obj(s.eq) }, tot: { ...obj(s.tot) }, grade: { ...obj(s.grade) }, ta: { ...obj(s.ta) }, crank: { ...obj(s.crank) }, sc: { ...obj(s.sc) }, cars: { ...obj(s.cars) }, ach: { ...obj(s.ach) }, login: { ...d.login, ...obj(s.login) } };
 })();
 const savePF = () => store.set('ns_pf', PF);
 const needXP = lv => 400 + lv * 200;
@@ -6500,6 +6569,9 @@ applyQuality();
 toTitle();
 $('loading').remove();
 requestAnimationFrame(frame);
+window.__nsBoot?.();
+if (window.__nsNoSave) setTimeout(() => toast('この端末・ブラウザの設定ではセーブできません（プライベートモードなど）。記録はページを閉じると消えます', '#ffd400', 6000), 1500);
+if (PF_BROKEN) setTimeout(() => toast('セーブデータが壊れていたので新しく始めました（元のデータは ns_pf_broken に退避）', '#ffd400', 6000), 1500);
 // 検証用フック（DEBUG のときだけ。ビルドでこの行から下は削除される）
 if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, CASTERS, setCaster, get RUN() { return RUN; }, autopilot: false,
   update, startGame, aiControl, input, LEVELS, CAR_TYPES, TYPE_KEYS, CRANK, CourseRank, MEDALS, ASSIST, HEAT, DRIFT, WALL, setPlayerType, latKAt, get stageIdx() { return stageIdx; }, get STAGE() { return STAGE; }, PF, Practice, Modes,
