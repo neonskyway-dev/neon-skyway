@@ -1,4 +1,4 @@
-<!doctype html><!-- © 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。 --><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>NEON SKYWAY</title>
+<!doctype html><!-- © 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。 --><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>NEON SKYWAY</title>
 <link rel="manifest" href="manifest.webmanifest?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
 <link rel="icon" type="image/png" href="icon-192.png?v=2">
@@ -25,6 +25,8 @@
   html,body{margin:0;height:100%;overflow:hidden;background:#05010f;color:#fff;
     font-family:'Orbitron',system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;
     -webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  /* ボタンを素早く2回押しても、ページが拡大（ダブルタップズーム）されないように */
+  button,input,select,label,#hud,#hud *{touch-action:manipulation}
   canvas#three{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0}
   .neon-cyan{text-shadow:0 0 6px rgba(41,243,255,.9),0 0 18px rgba(41,243,255,.6)}
   .neon-pink{text-shadow:0 0 6px rgba(255,43,214,.9),0 0 18px rgba(255,43,214,.6)}
@@ -389,6 +391,7 @@
       <button id="btn2P" class="mbtn"><i data-i="users"></i>2P対戦</button>
       <button id="btnOnline" class="mbtn"><i data-i="globe"></i>オンライン</button>
     </div>
+    <button class="callChip tog" style="margin-top:6px;align-self:flex-start">通話モード OFF</button>
     <div id="bestTxt" class="mt-2 text-xs sm:text-sm tracking-[.3em] text-yellow-300 neon-yellow">BEST 0</div>
     <div id="titleHelp" class="jp mt-2 sm:mt-4 flex flex-col gap-1 text-[10px] sm:text-xs text-white/75 tracking-wide">
       <div id="helpTouch"><i data-i="touch" class="text-cyan-300"></i> 画面の<b class="text-cyan-300">左右をホールド</b>でハンドル / <b class="text-fuchsia-300">上スワイプ</b>でブースト（BOOSTボタンは長押しで延長・空中では機首上げ）/ <b class="text-yellow-300">下スワイプ・ITEM</b>でアイテム</div>
@@ -452,6 +455,7 @@
         <button id="netCar" class="mbtn"><i data-i="car"></i>車を選ぶ</button>
         <button id="netStage" class="mbtn"><i data-i="flag"></i>ステージ・CPU設定</button>
         <button id="netStart" class="start-btn !px-6 !py-2 text-sm">START</button>
+        <button class="callChip tog">通話モード OFF</button>
         <button id="netLeave" class="rounded-full px-4 py-1.5 text-xs font-bold border border-white/40 bg-black/40">退出</button>
       </div>
     </div>
@@ -536,6 +540,7 @@
         <div class="rounded-lg bg-white/5 py-0.5"><div class="text-[8px] text-white/55">HITS</div><div id="rHits" class="text-xs sm:text-sm font-black text-violet-300">0</div></div>
       </div>
       <div id='rReward' class='mt-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-1.5'></div>
+      <div id='rCoach' class='mt-1.5 hidden'></div>
       <div id='rMsgs' class='mt-1 flex flex-wrap gap-1'></div>
       <div id="rStand" class="mt-2 grid grid-cols-2 gap-x-4 text-[10px] sm:text-xs tabular-nums"></div>
       <div id="netSer"></div>
@@ -568,6 +573,7 @@
 <div id="pause" class="fixed inset-0 z-30 hidden flex-col items-center justify-center gap-4 bg-black/60 backdrop-blur-sm">
   <div class="text-4xl font-black neon-cyan tracking-[.3em]">PAUSE</div>
   <button id="btnResume" class="start-btn text-base">RESUME</button>
+  <button class="callChip tog">通話モード OFF</button>
   <button id="btnQuit" class="rounded-full px-6 py-2 text-sm font-bold tracking-[.2em] border border-white/40 bg-white/5">TITLE</button>
 </div>
 
@@ -722,6 +728,19 @@ const SHOP = {
   weeklyN: 4, weeklyPrice: { N: 800, R: 2000, SR: 6000, SSR: 20000, UR: 60000 }, weeklyTix: 2500,
   tune: { max: 3, step: 0.03, cost: [3000, 8000, 20000] },   // 加速・ハンドリングを1段ごとに +3%
 };
+// サイドアタック: 並走中にハンドルを相手に向けて勢いよく寄せると、相手を横に吹っ飛ばす
+const BASH = { ds: 2.8, closing: 5.5, push: 24, speedLoss: 0.12, spin: 0.35, selfLoss: 0.03, cd: 0.9, score: 400 };
+// ネオン（ゲーム内通貨）の入り方。1レース 約200前後（以前は約690でたまりすぎていた）
+const REWARD = {
+  coinDiv: 5,                              // 取ったコインの 1/5 がネオンに
+  place: [60, 40, 25, 10], taBase: 15,     // 順位ボーナス（1位, 2位, 3位, それ以下）／タイムアタック
+  tier: 6,                                 // 最高脳汁ランク 1段ごと
+  grade: { 'S+': 50, S: 30, A: 15, B: 5, C: 0 },
+  mission: 120, login: [50, 20],           // デイリーミッション1つ / ログイン [基本, 連続1日ごと(7日まで)]
+  levelUp: [50, 10],                       // レベルアップ [基本, Lvごと]
+};
+// カメラ: 演出による画角の変化（大きいと「急にズームした」ように見える）
+const CAMK = { maxKick: 12, minKick: -3, ease: 7 };
 // スコアの倍率（足し算）
 const SCORE = { fever: 1, maxMul: 4 };
 // 車の性能の効き方（CAR_TYPES の stats と組み合わせて使う）
@@ -1898,12 +1917,27 @@ const MusicDB = {
   async all() { try { return (await this.tx('readonly', st => st.getAll())) || []; } catch (e) { return []; } },
   async clear() { try { await this.tx('readwrite', st => st.clear()); } catch (e) {} },
 };
+// 音量（0〜1）と通話モード。通話モード = ほかのアプリの音（通話）と混ぜる・全体の音量を下げる・実況の声を止める（字幕は出る）
+const VOL = Object.assign({ master: 1, music: 1, sfx: 1, voice: 1 }, store.get('ns_vol', {}));
+let CALL_MODE = store.get('ns_call', false);
+const CALL = { master: 0.4 };   // 通話モードの全体の音量
 const SND = {
   ctx: null, on: store.get('ns_sound', true),
+  masterLv() { return this.on ? VOL.master * (CALL_MODE ? CALL.master : 1) : 0; },
+  musicLv() { return 0.42 * VOL.music; },
+  applyVol() {
+    if (!this.ctx) return; const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.masterLv(), t, 0.05); this.music.gain.setTargetAtTime(this.musicLv(), t, 0.05); this.sfx.gain.setTargetAtTime(1.2 * VOL.sfx, t, 0.05);
+  },
+  // iOS: ふつうは「再生」扱い（マナーモードでも鳴る）。通話モードは「アンビエント」（通話の音を邪魔しない・マナーモードでは鳴らない）
+  setSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = CALL_MODE ? 'ambient' : 'playback'; } catch (e) {}
+    try { if (this.unlockEl) { if (CALL_MODE) this.unlockEl.pause(); else { const p = this.unlockEl.play(); if (p && p.catch) p.catch(() => {}); } } } catch (e) {}
+  },
+  setCall(v) { CALL_MODE = !!v; store.set('ns_call', CALL_MODE); this.setSession(); this.applyVol(); if (CALL_MODE && Voice.synth) Voice.synth.cancel(); },
   init() {
-    // iOS: マナーモードでもWeb Audioを鳴らす
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-    try {
+    this.setSession();
+    if (CALL_MODE) { /* 通話モード: 無音ループで再生扱いにしない */ } else try {
       if (!this.unlockEl) {
         const el = document.createElement('audio');
         el.setAttribute('playsinline', ''); el.loop = true; el.volume = 0.01;
@@ -1919,9 +1953,9 @@ const SND = {
     ctx.resume();
     const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 5; comp.connect(ctx.destination);
-    this.master = ctx.createGain(); this.master.gain.value = this.on ? 1.0 : 0; this.master.connect(comp);
-    this.sfx = ctx.createGain(); this.sfx.gain.value = 1.2; this.sfx.connect(this.master);
-    this.music = ctx.createGain(); this.music.gain.value = 0.42; this.music.connect(this.master);
+    this.master = ctx.createGain(); this.master.gain.value = this.masterLv(); this.master.connect(comp);
+    this.sfx = ctx.createGain(); this.sfx.gain.value = 1.2 * VOL.sfx; this.sfx.connect(this.master);
+    this.music = ctx.createGain(); this.music.gain.value = this.musicLv(); this.music.connect(this.master);
     this.delay = ctx.createDelay(1); this.delay.delayTime.value = 60 / 132 * 0.75;
     const fb = ctx.createGain(); fb.gain.value = 0.35; const dl = ctx.createGain(); dl.gain.value = 0.35;
     this.delay.connect(fb); fb.connect(this.delay); this.delay.connect(dl); dl.connect(this.music);
@@ -1945,8 +1979,8 @@ const SND = {
     this.wind = loopNoise('lowpass', 700, 0.7);
     this.scrape = loopNoise('highpass', 3500, 1);
   },
-  setOn(v) { this.on = v; store.set('ns_sound', v); if (this.ctx) this.master.gain.setTargetAtTime(v ? 1 : 0, this.ctx.currentTime, 0.05); },
-  duck(v) { if (this.ctx) this.music.gain.setTargetAtTime(v ? 0.2 : 0.42, this.ctx.currentTime, 0.15); },
+  setOn(v) { this.on = v; store.set('ns_sound', v); if (this.ctx) this.master.gain.setTargetAtTime(this.masterLv(), this.ctx.currentTime, 0.05); },
+  duck(v) { if (this.ctx) this.music.gain.setTargetAtTime(this.musicLv() * (v ? 0.48 : 1), this.ctx.currentTime, 0.15); },
   t() { return this.ctx.currentTime; },
   tone(f, t, dur, type = 'square', vol = 0.2, dest = this.sfx, f2 = null) {
     const o = this.ctx.createOscillator(), g = this.ctx.createGain();
@@ -2167,12 +2201,12 @@ const Voice = {
     this.last = now; this.pri = pri; this.until = now + 600 + text.length * 120;
     const cap = $('caption'); $('captionText').textContent = text; cap.style.opacity = 1;
     clearTimeout(this.capT); this.capT = setTimeout(() => cap.style.opacity = 0, 1200 + text.length * 110);
-    if (!this.on || !this.synth) return;
+    if (!this.on || !this.synth || CALL_MODE || VOL.voice <= 0) return;   // 通話モードでは声を出さない（字幕だけ）
     try {
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       let V = { rate: 1.18, pitch: 1 }; try { V = CASTER().voice; } catch (e) {}
-      u.lang = 'ja-JP'; if (this.cv || this.voice) u.voice = this.cv || this.voice; u.rate = V.rate; u.pitch = V.pitch; u.volume = 1;
+      u.lang = 'ja-JP'; if (this.cv || this.voice) u.voice = this.cv || this.voice; u.rate = V.rate; u.pitch = V.pitch; u.volume = VOL.voice;
       u.onstart = () => SND.duck(true); u.onend = u.onerror = () => SND.duck(false);
       this.synth.speak(u);
     } catch (e) {}
@@ -2381,6 +2415,9 @@ const onTouch = e => {
   }
 };
 ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(n => addEventListener(n, onTouch, { passive: false }));
+// iOS Safari のピンチ・ダブルタップでの拡大を止める（レース中に画面が急にズームしないように）
+for (const n of ['gesturestart', 'gesturechange', 'dblclick']) addEventListener(n, e => e.preventDefault(), { passive: false });
+{ let lastEnd = 0; addEventListener('touchend', e => { const now = performance.now(); if (now - lastEnd < 320 && (game.state === 'play' || game.state === 'countdown') && !(e.target.closest && e.target.closest('button'))) e.preventDefault(); lastEnd = now; }, { passive: false }); }
 // 操作の設定: ドリフト（auto=曲がり続けると自動 / manual=ドリフトボタンを押しながら曲がる / null=アシストに合わせる）、スマホのアナログ操作
 const CTRL = { drift: store.get('ns_drift', null), analog: store.get('ns_analog', false), analogPx: 70, padDead: 0.18 };
 const driftManual = () => (CTRL.drift || (Assist.mode === 'off' ? 'manual' : 'auto')) === 'manual';
@@ -2455,14 +2492,14 @@ const LEVELS = {
   // CPU の強さ。速さ（skill / bmax）は控えめにして、差は「上手さ」で出す:
   //  nitro: ニトロの回復(/秒、1回のブーストで25使う) / heatIQ: 熱を見てブーストする確率（低いとオーバーヒートする） / drift: ドリフトターボの上手さ
   //  look: 障害物を見る距離 / aim・item: アイテムの判断 / wob: ふらつき（ミスの多さ） / rb: 追い上げ・手加減の幅 [先行時, 後方時]
-  1: { name: 'かんたん',     skill: [0.84, 0.88], rb: [-0.12, 0.00], boost: [6, 10],  nitro: 2.2, heatIQ: 0.15, item: [2.5, 4.5], look: 22, aim: 0.5, wob: 1.6, drift: 0, rocket: 0.2 },
-  2: { name: 'ふつう',       skill: [0.90, 0.93], rb: [-0.08, 0.01], boost: [4, 7],   nitro: 2.8, heatIQ: 0.35, item: [1.2, 3],   look: 38, aim: 0.8, wob: 1.2, drift: 0.3, rocket: 0.4 },
-  3: { name: 'むずかしい',   skill: [0.93, 0.96], rb: [-0.05, 0.015], boost: [3, 5.5], nitro: 3.3, heatIQ: 0.55, item: [0.6, 2],   look: 55, aim: 1.0, wob: 0.9, bmax: 1.0, drift: 0.55, rocket: 0.6 },
-  4: { name: 'エキスパート', skill: [0.96, 0.99], rb: [-0.04, 0.02], boost: [2.5, 4.5], nitro: 3.8, heatIQ: 0.7,  item: [0.4, 1.2], look: 70, aim: 1.2, wob: 0.6, bmax: 1.01, drift: 0.8, rocket: 0.8 },
-  5: { name: '鬼',           skill: [0.945, 0.975], rb: [-0.03, 0.025], boost: [2, 3.5], nitro: 4.3, heatIQ: 0.85, item: [0.2, 0.7], look: 80, aim: 1.5, wob: 0.4, bmax: 1.02, drift: 1.0, rocket: 0.9 },
-  6: { name: '神',           skill: [0.965, 0.995], rb: [-0.03, 0.03], boost: [1.6, 3], nitro: 4.8, heatIQ: 0.95, item: [0.15, 0.5], look: 90, aim: 1.8, wob: 0.25, bmax: 1.03, drift: 1.2, rocket: 1.0 },
+  1: { name: 'かんたん',     skill: [0.84, 0.88], rb: [-0.12, 0.00], boost: [6, 10],  nitro: 2.2, heatIQ: 0.15, bash: 0, item: [2.5, 4.5], look: 22, aim: 0.5, wob: 1.6, drift: 0, rocket: 0.2 },
+  2: { name: 'ふつう',       skill: [0.90, 0.93], rb: [-0.08, 0.01], boost: [4, 7],   nitro: 2.8, heatIQ: 0.35, bash: 0, item: [1.2, 3],   look: 38, aim: 0.8, wob: 1.2, drift: 0.3, rocket: 0.4 },
+  3: { name: 'むずかしい',   skill: [0.93, 0.96], rb: [-0.05, 0.015], boost: [3, 5.5], nitro: 3.3, heatIQ: 0.55, bash: 0.1, item: [0.6, 2],   look: 55, aim: 1.0, wob: 0.9, bmax: 1.0, drift: 0.55, rocket: 0.6 },
+  4: { name: 'エキスパート', skill: [0.96, 0.99], rb: [-0.04, 0.02], boost: [2.5, 4.5], nitro: 3.8, heatIQ: 0.7,  bash: 0.2, item: [0.4, 1.2], look: 70, aim: 1.2, wob: 0.6, bmax: 1.01, drift: 0.8, rocket: 0.8 },
+  5: { name: '鬼',           skill: [0.945, 0.975], rb: [-0.03, 0.025], boost: [2, 3.5], nitro: 4.3, heatIQ: 0.85, bash: 0.3, item: [0.2, 0.7], look: 80, aim: 1.5, wob: 0.4, bmax: 1.02, drift: 1.0, rocket: 0.9 },
+  6: { name: '神',           skill: [0.965, 0.995], rb: [-0.03, 0.03], boost: [1.6, 3], nitro: 4.8, heatIQ: 0.95, bash: 0.4, item: [0.15, 0.5], look: 90, aim: 1.8, wob: 0.25, bmax: 1.03, drift: 1.2, rocket: 1.0 },
   // Lv7: アシスト不可・ミラー・CPUは最適ライン（カーブの内側を突く）
-  7: { name: 'HARDCORE',     skill: [0.975, 1.005], rb: [-0.02, 0.03], boost: [1.3, 2.5], nitro: 5.3, heatIQ: 1.0, item: [0.1, 0.4], look: 100, aim: 2.0, wob: 0.2, bmax: 1.04, drift: 1.4, rocket: 1.0, opt: true, mirror: true, noAssist: true },
+  7: { name: 'HARDCORE',     skill: [0.975, 1.005], rb: [-0.02, 0.03], boost: [1.3, 2.5], nitro: 5.3, heatIQ: 1.0, bash: 0.5, item: [0.1, 0.4], look: 100, aim: 2.0, wob: 0.2, bmax: 1.04, drift: 1.4, rocket: 1.0, opt: true, mirror: true, noAssist: true },
 };
 const LV = () => LEVELS[game.lv] || LEVELS[2];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
@@ -3218,6 +3255,58 @@ function interactions(c) {
   }
 }
 // 車同士の接触
+// ---- AIコーチ: レースの記録から、いちばん効く改善点を2〜3個アドバイスする ----
+const Coach = {
+  tips() {
+    const R = RUN, p = player, out = [], add = (w, t) => out.push({ w, t });
+    const dev = (() => { try { return TA.devTime(stageIdx); } catch (e) { return 0; } })(), ratio = dev && p.finishTime ? p.finishTime / dev : 0;
+    const dr = R.dr || 0, jr = dr ? (R.just || 0) / dr : 0, fl = R.failLog || [], cnt = k => fl.filter(f => f.why === k || f.why.startsWith(k)).length;
+    if ((R.overheat || 0) >= 2) add(5 + R.overheat, `オーバーヒートが${R.overheat}回。熱バーが白い枠（${(p.stats.coolWin || HEAT.win).join('〜')}%）に入ったらブーストを離すと、急冷して次がすぐ使えます。`);
+    if (dr >= 3 && jr < 0.3) add(6, `ジャストドリフトが${dr}回中${R.just || 0}回（${Math.round(jr * 100)}%）。段が上がってゲージが白く光った瞬間に離すと、ターボが1.5倍になります。`);
+    if (dr < 3 && !game.assistUsed) add(5, `ドリフトが${dr}回だけ。カーブで曲がる方向に${driftManual() ? 'ドリフトボタンを押しながら' : 'ハンドルを切り続けて'}、ターボをためましょう。`);
+    if ((R.wallHit || 0) >= 2) add(4 + R.wallHit, `壁に${R.wallHit}回激突。カーブの手前で外側から入り、出口で内側をかすめるラインを意識すると減速しません。`);
+    else if ((R.scrape || 0) >= 6) add(3, `壁にこすった回数が${R.scrape}回。少し早めにハンドルを戻すと、コースランクのノーヒット点が上がります。`);
+    if ((R.hardLand || 0) >= 2) add(4 + R.hardLand, `HARD LANDING が${R.hardLand}回。空中で${isTouch ? 'BOOSTボタン' : 'SPACE'}を押し続けて機首を上げ、画面の ANGLE が緑のうちに着地しよう（30%減速を防げます）。`);
+    if (cnt('laser') >= 1) add(5 + cnt('laser'), `レーザーに${cnt('laser')}回感電。緑の矢印の車線は光らない「抜け道」です。ブースト中なら突き破れます。`);
+    if (cnt('obstacle') >= 2) add(4, `障害物に${cnt('obstacle')}回衝突。ボールや動くバーは、手前で早めに車線を変えると安全です。`);
+    if (cnt('item') >= 2) add(3, `アイテムを${cnt('item')}回くらいました。シールドは先頭のときに取っておくと、後ろからのミサイルを防げます。`);
+    if ((R.flowMax || 1) < 1.5 && !game.assistUsed) add(3, 'フロー倍率が伸びませんでした。ジャストドリフト・ブーストパッド・ニアミスを3秒以内に繋ぐと、スコア倍率が最大×3まで上がります。');
+    if ((R.boost || 0) <= 1 && !game.assistUsed && game.mode !== 'ta') add(4, 'ニトロをほとんど使っていません。ゲージが25以上あれば、直線でどんどん使いましょう。');
+    if (ratio && ratio < 1.0) add(1, `開発者タイムより${((1 - ratio) * 100).toFixed(1)}%速い！ ${LV().name}の上の難易度やタイムアタックの NEON メダルに挑戦してみよう。`);
+    else if (ratio && ratio < 1.05 && p.rank !== 1) add(2, 'タイムは開発者に迫っています。順位を上げるには、CPUの後ろについてスリップストリームから抜くのが効果的です。');
+    if (p.rank === 1 && game.lv <= 2 && !out.some(o => o.w >= 5)) add(2, `楽勝でした！ 次は難易度「${(LEVELS[game.lv + 1] || LV()).name}」に上げてみましょう。`);
+    if (game.assistUsed && p.rank === 1 && game.lv >= 3) add(2, 'アシストありで勝てています。設定でアシストを「一部」や「オフ」にすると、報酬が満額になり、Sランクも狙えます。');
+    return out.sort((a, b) => b.w - a.w).slice(0, 3).map(o => o.t);
+  },
+  show() {
+    const el = $('rCoach'); if (!el) return;
+    const T = game.tut || game.split ? [] : this.tips();
+    el.classList.toggle('hidden', !T.length); if (!T.length) return;
+    el.innerHTML = `<div class='rounded-xl bg-white/5 px-3 py-1.5 jp text-[11px] leading-snug border-l-2' style='border-color:${CASTER().col}'><div class='text-[10px] font-black tracking-[.2em] mb-0.5' style='color:${CASTER().col}'>AI COACH ／ ${CASTER().n}</div>${T.map(t => `<div class='flex gap-1.5'><span style='color:${CASTER().col}'>▶</span><span class='text-white/85'>${t}</span></div>`).join('')}</div>`;
+    setTimeout(() => { if (game.state === 'result') say(CASTER().tr(T[0].replace(/（.*?）/g, '')), 2); }, 2600);
+  },
+};
+const Bash = {
+  // vic を dir（+1 = 右へ、-1 = 左へ）に吹っ飛ばす。att は仕掛けた側（null 可）
+  apply(vic, dir, att) {
+    if (vic.invuln > 0 || vic.shield > 0 || vic.air) { if (vic.shield > 0 && vic.isPlayer && live()) pop('BLOCK!', '#29f3ff', 24); return false; }
+    const k = att ? Math.sqrt(att.stats.mass / vic.stats.mass) : 1;
+    vic.latV = dir * BASH.push * clamp(k, 0.6, 1.6); vic.v *= 1 - BASH.speedLoss; vic.spin = Math.max(vic.spin, BASH.spin); vic.invuln = 0.6; vic.bashT = 0.5;
+    if (vic.drifting) { vic.drifting = false; vic.driftHold = 0; vic.charge = 0; vic.cStage = 0; }
+    if (nearCam(vic)) emit(vic.pos, 40, { speed: 16, color: 0xffd400, color2: 0xff2bd6, size: 0.8, life: 0.5 });
+    if (vic.isPlayer && live()) { pop('BASHED!', '#ff2050', 34); cam.shake = Math.max(cam.shake, 0.9); SND.crash(); vib([90, 30, 60]); RUN.bashed = (RUN.bashed || 0) + 1; }
+    return true;
+  },
+  hit(att, vic, dir) {
+    if (game.t - (att.bashCd || -9) < BASH.cd) return; att.bashCd = game.t;
+    if (typeof vic.remote === 'string' && !vic.remote.startsWith('cpu:')) {   // オンラインの相手: 向こうの画面で飛ばしてもらう
+      if (!netSendHit(vic.remote, att, ['b', dir])) return;
+    } else if (vic.remote) { if (!NET.host) { if (!netSendHit(vic.remote, att, ['b', dir])) return; } else if (!this.apply(vic, dir, att)) return; }
+    else if (!this.apply(vic, dir, att)) return;
+    att.v *= 1 - BASH.selfLoss;
+    if (att.isPlayer && live()) { RUN.bash = (RUN.bash || 0) + 1; addScore(BASH.score); Dopa.ev('hit'); Flow.ev('near'); pop(`SIDE ATTACK! +${BASH.score}`, '#ffd400', 32); SND.smash(); vib([30, 20, 70]); cam.kick = Math.max(cam.kick, 6); if (Math.random() < 0.5) say(['体当たり！ 吹っ飛ばした！', 'サイドアタック炸裂！'], 1); }
+  },
+};
 function carCollisions() {
   for (let i = 0; i < cars.length; i++) for (let j = i + 1; j < cars.length; j++) {
     const a = cars[i], b = cars[j];
@@ -3226,6 +3315,12 @@ function carCollisions() {
     const sg = dx === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dx);
     const ov = 2.25 - Math.abs(dx);
     if (a.remote && b.remote) continue;
+    // サイドアタック: 横に並んで（前後の差が小さい）、片方がハンドルを相手に向けて勢いよく寄ってきたとき
+    if (Math.abs(ds) < BASH.ds && !a.air && !b.air) {
+      const ta = (a.latV - b.latV) * sg, steerA = Math.sign(a.steer) === sg && Math.abs(a.steer) > 0.4, steerB = Math.sign(b.steer) === -sg && Math.abs(b.steer) > 0.4;
+      if (ta > BASH.closing && steerA && !a.remote && a.latV * sg >= b.latV * -sg) Bash.hit(a, b, sg);
+      else if (ta > BASH.closing && steerB && !b.remote) Bash.hit(b, a, -sg);
+    }
     let ma = a.stats.mass, mb = b.stats.mass;
     if (a.remote) ma = 1e6; if (b.remote) mb = 1e6;
     const ka = mb / (ma + mb), kb = ma / (ma + mb);
@@ -3259,6 +3354,11 @@ function aiControl(c, dt) {
   for (const o of cars) {
     if (o === c) continue; const ds = o.s - c.s;
     if (ds > 0 && ds < 13 && Math.abs(o.x - tx) < 2.4 && o.v < c.v + 3) tx = o.x + (o.x > 0 ? -3.3 : 3.3);
+  }
+  // 強い CPU はときどき横の相手に体当たり（サイドアタック）を仕掛ける
+  if (!c.isPlayer && !c.dev && (L.bash || 0) > 0) {
+    if (!a.bashTgt && Math.random() < L.bash * dt) { const o = cars.find(o => o !== c && Math.abs(o.s - c.s) < 2.2 && Math.abs(o.x - c.x) < 4.5 && !o.air); if (o) { a.bashTgt = o; a.bashT = 0.6; } }
+    if (a.bashTgt) { a.bashT -= dt; tx = a.bashTgt.x; if (a.bashT <= 0 || Math.abs(a.bashTgt.s - c.s) > 3) a.bashTgt = null; }
   }
   tx = clamp(tx, -6.2, 6.2);
   const latK = latKAt(c.s);
@@ -3373,7 +3473,10 @@ function updateCameraFor(c, cam, camera, dt) {
   camera.lookAt(cam.look);
   cam.fov = damp(cam.fov, 62 + sp * 13 + b * 10, 4, dt);
   cam.kick = damp(cam.kick, 0, 3.2, dt);
-  camera.fov = clamp(cam.fov + cam.kick, 50, 120); camera.updateProjectionMatrix();
+  // 演出の画角の揺れは控えめに（急にズームしたように見えないよう、上限と変化の速さをおさえる）
+  const kick = clamp(cam.kick, CAMK.minKick, CAMK.maxKick);
+  cam.fovOut = damp(cam.fovOut ?? cam.fov, cam.fov + kick, CAMK.ease, dt);
+  camera.fov = clamp(cam.fovOut, 55, 100); camera.updateProjectionMatrix();
   sky.position.copy(camera.position);
   floor.position.x = camera.position.x; floor.position.z = camera.position.z;
   pMat.uniforms.uScale.value = renderer.domElement.height * 0.5 / Math.tan(camera.fov * D2R * 0.5);
@@ -3653,7 +3756,7 @@ function renderStandings() {
   }).join('');
 }
 function showResult() {
-  game.state = 'result';
+  game.state = 'result'; $('rCoach').classList.add('hidden');
   $('hud').classList.add('hidden'); $('hud2').classList.add('hidden'); showOnly('result'); resize();
   $('btnRank').classList.toggle('hidden', !(game.mode === 'ta' && !NET.racing && !game.split));
   NetSeries.render();
@@ -4048,6 +4151,7 @@ function onNetPeers(ch) {
       if (!NET.racing || game.state === 'title') continue;
       const atk = NET.remotes.get(p.peer) || null;
       if (hk[1] === NET.me && NET.teams && NET.teams[p.peer] !== undefined && NET.teams[p.peer] === NET.teams[NET.me]) continue;   // チーム戦: 味方の攻撃は当たらない
+      if (hk[2] === 'b') { const dir = hk[3] === 1 ? 1 : -1; if (hk[1] === NET.me) Bash.apply(player, dir, atk); else if (NET.host && typeof hk[1] === 'string' && hk[1].startsWith('cpu:')) { const c = cpuPool[+hk[1].slice(4)]; if (c && cars.includes(c)) Bash.apply(c, dir, atk); } continue; }   // サイドアタック
       if (hk[1] === NET.me) { hitCar(player, atk); emit(player.pos, 80, { speed: 26, color: 0xff6a00, color2: 0xffd400, size: 1.3, life: 0.9, grav: 8 }); SND.explode(0.9); }
       else if (NET.host && typeof hk[1] === 'string' && hk[1].startsWith('cpu:')) { const c = cpuPool[+hk[1].slice(4)]; if (c && cars.includes(c)) hitCar(c, atk); }
     }
@@ -4181,9 +4285,9 @@ function applyRemote(c, dt) {
   c.spin = Math.max(c.spin, clamp(spin, 0, 1.5)); c.padT = fl & 1 ? 0.15 : 0; c.shield = fl & 2 ? 1 : 0;
   if ((fl & 4) && !c.finished) { c.finished = true; c.finishTime = ft; }
 }
-function netSendHit(target, owner) {
+function netSendHit(target, owner, extra) {
   if (!NET.r || !owner || !owner.isPlayer && !(NET.host && cpuPool.includes(owner))) return false;
-  NET.hitSeq++; NET.hitsOut.push([NET.hitSeq, target]); if (NET.hitsOut.length > 8) NET.hitsOut.shift();
+  NET.hitSeq++; NET.hitsOut.push(extra ? [NET.hitSeq, target, ...extra] : [NET.hitSeq, target]); if (NET.hitsOut.length > 8) NET.hitsOut.shift();
   netPresence({ k: NET.hitsOut });
   return true;
 }
@@ -4419,7 +4523,7 @@ const Slot = {
 const RAR = { N: { w: 5500, c: '#c4cad8', rf: 20 }, R: { w: 3100, c: '#29f3ff', rf: 50 }, SR: { w: 1150, c: '#c77dff', rf: 120 }, SSR: { w: 220, c: '#ffd400', rf: 400 },
   UR: { w: 28, c: '#ff2bd6', rf: 1500 }, GOD: { w: 2, c: '#ffe680', rf: 7777 } };
 const RAR_ORDER = ['N', 'R', 'SR', 'SSR', 'UR', 'GOD'];
-const PITY = 80, MIS_RW = 200;   // 80回でSSR以上確定
+const PITY = 80, MIS_RW = REWARD.mission;   // 80回でSSR以上確定
 const ratePct = k => { const t = RAR_ORDER.reduce((a, r) => a + RAR[r].w, 0); const v = RAR[k].w / t * 100; return (v >= 1 ? v.toFixed(1).replace(/\.0$/, '') : v.toFixed(2)) + '%'; };
 const COS = [
   { id: 'DEFAULT', k: 'paint', n: 'ノーマル', r: 'N', g: false },
@@ -4551,7 +4655,7 @@ function loginBonus() {
   const k = dayKey(); if (PF.login.d === k) return null;
   const y = dayKey(new Date(Date.now() - 864e5));
   PF.login.streak = PF.login.d === y ? PF.login.streak + 1 : 1; PF.login.d = k;
-  const st = PF.login.streak, gain = 100 + Math.min(st, 7) * 50;
+  const st = PF.login.streak, gain = REWARD.login[0] + Math.min(st, 7) * REWARD.login[1];
   PF.neon += gain; let tix = 0; if (st % 7 === 0) { PF.tix++; tix = 1; }
   savePF(); return { st, gain, tix };
 }
@@ -4611,7 +4715,7 @@ function addXP(x, msgs) {
   let ups = 0; PF.xp += x;
   while (PF.xp >= needXP(PF.lv)) {
     PF.xp -= needXP(PF.lv); PF.lv++; ups++;
-    const g = 100 + PF.lv * 20; PF.neon += g; let s = `${I('up')} LEVEL UP!  Lv.${PF.lv}　${NE()}+${g}`;
+    const g = REWARD.levelUp[0] + PF.lv * REWARD.levelUp[1]; PF.neon += g; let s = `${I('up')} LEVEL UP!  Lv.${PF.lv}　${NE()}+${g}`;
     if (PF.lv % 5 === 0) { PF.tix++; s += `　${TK()}+1`; }
     msgs.push([s, '#3bff9d']);
   }
@@ -4649,7 +4753,7 @@ function pull(n, useTix) {
   if (useTix) { if (PF.tix < 1) return; PF.tix--; }
   else { const cost = n === 10 ? 2700 : 300; if (PF.neon < cost) { SND.buzz(); toast(`${NE()} ネオンが足りません。レースで稼ごう！`, '#ff2050'); return; } PF.neon -= cost; }
   const res = [];
-  for (let i = 0; i < n; i++) res.push(rollOne(n === 10 && i === 9 && !res.some(r => RAR_ORDER.indexOf(r.it.r) >= 2) ? 2 : 0));
+  for (let i = 0; i < n; i++) res.push(rollOne(0));   // 10連の「SR以上確定」はなし（天井は残る）
   savePF(); gachaFx(res, useTix ? 'TICKET' : n === 10 ? 2700 : 300);
 }
 // ---- ドーパミンスロット: 結果のレア度で絵柄が決まる（バラバラ=N / 2つ=R / ★★★♥♥♥●●●=SR / BAR×3=SSR / ◆×3=UR / 7×3=GOD）----
@@ -4692,7 +4796,8 @@ class DReel {
         const base = Math.floor(min / this.n) * this.n - dir * k * this.n + i;
         if ((dir > 0 && base <= min) || (dir < 0 && base >= min)) { if (to === null || (dir > 0 ? base > to : base < to)) to = base; }
       }
-      this.v = 0; this.anim = { from, to, t0: performance.now(), dur, done };
+      this.v = 0; const A = this.anim = { from, to, t0: performance.now(), dur, done };
+      setTimeout(() => { if (this.anim === A) { this.pos = to; this.anim = null; this.draw(); done(); } }, dur + 40);   // コマ落ちしても時間どおりに止まる
     });
   }
   tick(dt) {
@@ -4745,6 +4850,23 @@ async function gachaFx(res, bet = 300) {
   const setSc = c => cab.style.setProperty('--sc', c);
   fx.onclick = e => { if (pushRes) { pushRes(); return; } if (e.target.closest && e.target.closest('.stopb')) return; skipped = true; finish(); };
   try {
+    // 10連: 1回ずつテンポよく回す（そろうのは本当に当たった回だけ）。SSR以上があれば、それを最後にフル演出で回す
+    if (res.length > 1) {
+      const feat = top >= 3 ? res.findIndex(r => RAR_ORDER.indexOf(r.it.r) === top) : -1;
+      const order = res.map((r, i) => i).filter(i => i !== feat);
+      let k = 0;
+      for (const i of order) {
+        k++; const rr = res[i].it.r, cb = dsCombo(rr), win = cb[0] === cb[1] && cb[1] === cb[2];
+        msg(`${k} / ${res.length}`, '#fff'); R.forEach(r => { r.el.classList.remove('hit'); r.spin(24); }); $('dsWin').textContent = '---';
+        dsSound('lever'); await W(200);
+        await Promise.all([0, 1, 2].map(j => new Promise(ok => setTimeout(() => R[j].stop(cb[j], 150, 3).then(() => { dsSound('stop'); vibSoft(8); ok(); }), j * 80))));
+        if (win) { setSc(RAR_SC[rr]); R.forEach(r => r.el.classList.add('hit')); $('dsWin').textContent = DS_WIN[rr]; msg(`${k} / ${res.length}　${rr}!`, RAR_SC[rr]); SND.itemGet(); vib(25); await W(450); setSc('#ff2bd6'); }
+        else await W(90);
+      }
+      R.forEach(r => r.el.classList.remove('hit'));
+      if (feat < 0) { await W(300); finish(); return; }
+      msg('ラスト 1回…！', '#ffd400'); await W(700);
+    }
     // 1. レバーフリーズ（GODは必ず / 虹は半分）
     if (rar === 'GOD' || (rar === 'UR' && Math.random() < 0.5)) {
       cab.classList.add('freeze'); vig.classList.add('on'); msg('………', '#666'); dsSound('freeze'); vib([400]);
@@ -4849,7 +4971,7 @@ function htmlGacha() {
       <button id='gxT' class='mbtn' ${PF.tix < 1 ? 'disabled' : ''}>${TK()} チケットで1回（${PF.tix}枚）</button>
     </div>
     <div class='text-xs font-black text-yellow-300'>SSR以上 確定まで あと ${PITY - PF.pity} 回</div>
-    <div class='text-[10px] text-white/50 leading-snug'>排出率　N ${ratePct('N')} ／ R ${ratePct('R')} ／ SR ${ratePct('SR')} ／ SSR ${ratePct('SSR')} ／ UR ${ratePct('UR')} ／ ？？？ ${ratePct('GOD')}<br>10連はSR以上が1つ確定</div>
+    <div class='text-[10px] text-white/50 leading-snug'>排出率　N ${ratePct('N')} ／ R ${ratePct('R')} ／ SR ${ratePct('SR')} ／ SSR ${ratePct('SSR')} ／ UR ${ratePct('UR')} ／ ？？？ ${ratePct('GOD')}<br>10連は10回それぞれ抽選（確定枠なし）・80回でSSR以上確定</div>
     <div class='text-[10px] text-white/50'>コレクション ${own} / ${pool.length}</div>
     </div>
   </div>`;
@@ -5552,8 +5674,8 @@ const COLOR = [
       if (game.state !== 'play' && game.state !== 'finish' && game.state !== 'result') return;
       { const lab = $('caption').querySelector('span'); lab.textContent = '解説'; lab.style.color = ''; } $('captionText').textContent = line; $('caption').style.opacity = 1;
       clearTimeout(Voice.capT); Voice.capT = setTimeout(() => $('caption').style.opacity = 0, 1400 + line.length * 100);
-      if (!Voice.on || !Voice.synth) return;
-      try { const u = new SpeechSynthesisUtterance(line); u.lang = 'ja-JP'; if (Voice.voice2 || Voice.voice) u.voice = Voice.voice2 || Voice.voice; u.rate = 1.08; u.pitch = 0.82; u.volume = 0.95; u.onstart = () => SND.duck(true); u.onend = u.onerror = () => SND.duck(false); Voice.synth.speak(u); } catch (e) {}
+      if (!Voice.on || !Voice.synth || CALL_MODE || VOL.voice <= 0) return;
+      try { const u = new SpeechSynthesisUtterance(line); u.lang = 'ja-JP'; if (Voice.voice2 || Voice.voice) u.voice = Voice.voice2 || Voice.voice; u.rate = 1.08; u.pitch = 0.82; u.volume = 0.95 * VOL.voice; u.onstart = () => SND.duck(true); u.onend = u.onerror = () => SND.duck(false); Voice.synth.speak(u); } catch (e) {}
     }, wait);
   };
   // 2人目の声 (あれば別の日本語音声を使う)
@@ -5645,7 +5767,7 @@ const Meta = {
     let grade0 = taRes ? taRes.grade : calcGrade(r, cars.length);
     if (assisted && taRes && GRADES.indexOf(grade0) > GRADES.indexOf(ASSIST.taRankCap)) grade0 = ASSIST.taRankCap;   // アシスト中のTAはランクA止まり
     const n = cars.length, grade = grade0, msgs = taRes ? taRes.msgs : [], t = PF.tot, add = (k, v) => { t[k] = (t[k] || 0) + (v || 0); };
-    const neon = Math.round(aMul * ((taRes ? taRes.neon : 0) + game.coins + (taRes ? 30 : r === 1 ? 150 : r === 2 ? 100 : r === 3 ? 70 : 30) + (RUN.maxTier || 0) * 15 + ({ 'S+': 120, S: 70, A: 40, B: 20, C: 0 }[grade]) + (RUN.neonBonus || 0)));
+    const neon = Math.round(aMul * ((taRes ? taRes.neon : 0) + Math.floor(game.coins / REWARD.coinDiv) + (taRes ? REWARD.taBase : REWARD.place[Math.min(r, 4) - 1]) + (RUN.maxTier || 0) * REWARD.tier + (REWARD.grade[grade] || 0) + (RUN.neonBonus || 0)));
     let xp = Math.min(1500, Math.round(score / 150)) + (r === 1 ? 200 : 0) + 100;
     if (assisted) msgs.push([`${I('wheels')} アシスト使用中: XP・ネオン ×${ASSIST.rewardMul}${taRes ? `／タイムアタックのランクは${ASSIST.taRankCap}まで` : ''}`, '#3bff9d']);
     if ((RUN.flowMax || 1) >= 2) msgs.push([`${I('turbo')} 最高フロー ×${RUN.flowMax.toFixed(2).replace(/0$/, '')}`, '#ffd400']);
@@ -5682,6 +5804,7 @@ const Meta = {
       bar.style.width = '100%';
       setTimeout(() => { bar.style.transition = 'none'; bar.style.width = '0%'; void bar.offsetWidth; bar.style.transition = ''; bar.style.width = fin; $('rwLv').textContent = PF.lv; SND.fanfare(); vib([60, 40, 60, 40, 160]); }, 900);
     }, 700);
+    Coach.show();
     const box = $('rMsgs'); box.innerHTML = '';
     msgs.forEach((m, i) => setTimeout(() => { if (game.state !== 'result') return; const el = document.createElement('div'); el.className = 'rmsg jp'; el.style.borderColor = m[1]; el.innerHTML = m[0]; box.appendChild(el); SND.itemGet(); vibSoft([15, 20, 15]); }, 1500 + i * 500));
   },
@@ -5791,6 +5914,19 @@ setTimeout(() => {
     <div><b class='text-yellow-300'>フロー・コンボ</b>：ジャストドリフト／PERFECT LANDING／ブーストパッド／スリップストリーム／ニアミスを${FLOW.window}秒以内に繋ぐと、スコア倍率が ×1.0 → 最大 ×${FLOW.max.toFixed(1)}。倍率が上がるほど実況・画面・BGMが熱くなります。</div>
     <div><b class='text-red-300'>壁</b>：かんたん・ふつうは軽い減速だけ。むずかしい・エキスパートは減速＋フロー切れ。鬼・神は減速＋フロー切れ＋ニトロ熱+${WALL.heatAdd}%。</div></div>`);
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-2'>SOUND / VOICE / VIBRATION</div>`);
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>音量・通話モード</div><div id='setVol' class='flex flex-col gap-1.5 text-xs'></div>`);
+  Meta.renderVol = () => { const b = $('setVol'); if (!b) return;
+    const row = (k, n) => `<label class='flex items-center gap-2'><span class='w-16 text-white/75'>${n}</span><input type='range' min='0' max='100' value='${Math.round(VOL[k] * 100)}' data-vol='${k}' class='flex-1 accent-pink-500'><span class='w-9 text-right tabular-nums' id='vv_${k}'>${Math.round(VOL[k] * 100)}</span></label>`;
+    b.innerHTML = `<button id='callTog' class='tog ${CALL_MODE ? 'on' : ''}' style='align-self:flex-start'>${I('mic')} 通話モード ${CALL_MODE ? 'ON' : 'OFF'}</button>
+      <div class='text-[10px] text-white/55 -mt-0.5'>友達と通話しながら遊ぶときに。ゲームの音を小さくして通話の音と混ぜ、実況は声を出さず字幕だけにします（iPhone はマナーモードだとゲームの音が鳴りません）。</div>
+      ${row('master', '全体')}${row('music', 'BGM')}${row('sfx', '効果音')}${row('voice', '実況の声')}`;
+    $('callTog').onclick = () => { SND.init(); SND.setCall(!CALL_MODE); Meta.renderVol(); syncCallChip(); };
+    b.querySelectorAll('[data-vol]').forEach(x => x.oninput = () => { VOL[x.dataset.vol] = x.value / 100; store.set('ns_vol', VOL); $('vv_' + x.dataset.vol).textContent = x.value; SND.applyVol(); });
+  };
+  Meta.renderVol();
+  window.syncCallChip = () => document.querySelectorAll('.callChip').forEach(b => { b.textContent = `通話モード ${CALL_MODE ? 'ON' : 'OFF'}`; b.classList.toggle('on', CALL_MODE); });
+  document.querySelectorAll('.callChip').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); SND.init(); SND.setCall(!CALL_MODE); syncCallChip(); Meta.renderVol(); toast(CALL_MODE ? '通話モード ON：ゲームの音を小さく・実況は字幕だけ' : '通話モード OFF', '#29f3ff'); }));
+  syncCallChip();
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>実況キャラ</div><div id='setCaster' class='grid grid-cols-1 sm:grid-cols-2 gap-1.5'></div><div class='text-[10px] text-white/50 mt-1'>押すとその人の声で試し聞きできます。声の聞こえ方は端末によって違います。</div>`);
   Meta.renderCaster = () => { const b = $('setCaster'); if (!b) return;
     b.innerHTML = Object.entries(CASTERS).map(([k, C]) => `<button data-cs='${k}' class='text-left rounded px-3 py-2 border ${k === CASTER_ID ? 'bg-white/10' : 'bg-white/5'}' style='border-color:${k === CASTER_ID ? C.col : 'rgba(255,255,255,.15)'};${k === CASTER_ID ? `box-shadow:0 0 12px ${C.col}66` : ''}'>
