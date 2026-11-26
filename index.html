@@ -2116,9 +2116,18 @@ const Voice = {
     if (!this.synth) return;
     const choose = () => {
       const vs = this.synth.getVoices().filter(v => /^ja/i.test(v.lang));
+      this.voices = vs;
       this.voice = vs.find(v => /Google|Kyoko|Otoya|Nanami|Keita|Haruka/i.test(v.name)) || vs[0] || null;
+      this.pickVoice();
     };
     choose(); try { this.synth.addEventListener('voiceschanged', choose); } catch (e) {}
+  },
+  // 実況キャラごとの声（男声がある端末なら、熱い人・分析メガネは男声）
+  pickVoice() {
+    let C = null; try { C = CASTER(); } catch (e) {}   // 起動直後はまだキャラ一覧がない
+    const vs = this.voices || [];
+    const male = vs.find(v => /Otoya|Keita|Ichiro|Hattori|Male|男性/i.test(v.name)), female = vs.find(v => /Kyoko|Nanami|Haruka|O-ren|Female|女性/i.test(v.name));
+    this.cv = C && C.male ? (male || this.voice) : C && C.id !== 'std' ? (female || this.voice) : this.voice;
   },
   unlock() { if (!this.synth || !this.on) return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; this.synth.speak(u); } catch (e) {} },
   say(text, pri = 1) {
@@ -2132,7 +2141,8 @@ const Voice = {
     try {
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ja-JP'; if (this.voice) u.voice = this.voice; u.rate = 1.18; u.pitch = 1.0; u.volume = 1;
+      let V = { rate: 1.18, pitch: 1 }; try { V = CASTER().voice; } catch (e) {}
+      u.lang = 'ja-JP'; if (this.cv || this.voice) u.voice = this.cv || this.voice; u.rate = V.rate; u.pitch = V.pitch; u.volume = 1;
       u.onstart = () => SND.duck(true); u.onend = u.onerror = () => SND.duck(false);
       this.synth.speak(u);
     } catch (e) {}
@@ -2144,7 +2154,7 @@ Voice.init();
 const _rk = r => cars.find(c => c.rank === r);
 const _gap = (a, b) => (a && b) ? Math.abs(a.s - b.s) / Math.max(30, (a.v + b.v) / 2) : 0;
 const _gs = t => t < 1 ? '1秒以内' : `およそ${t.toFixed(1)}秒`;
-const LINES = {
+const LINES_STD = {
   get start() { return [`${STAGE.jp}、全${cars.length}台がグリッドに並びました。シグナルが変わって、いまスタート！`, `ネオンスカイウェイ・グランプリ、${STAGE.jp}。各車一斉にスタートを切りました！`]; },
   rocket: ['見事なロケットスタート！ 蹴り出しが完璧です！', 'スタートダッシュ成功、一気に前へ！'],
   get first() { const b = _rk(2); return [`トップに躍り出た！ 2番手${b ? b.name : ''}との差は${_gs(_gap(player, b))}！`, 'ついに先頭！ ここからは追われる立場です！', 'トップ奪取！ レースの主導権を握りました！']; },
@@ -2164,7 +2174,111 @@ const LINES = {
   fever: ['フィーバータイム突入！ 脳汁全開！', 'フィーバー！ 止まらない！'], trick: ['トリック決まった！', '美しいエア！'],
   stage: n => [`ステージ、${n}！`],
 };
-const say = (lines, pri) => Voice.say(typeof lines === 'string' ? lines : pick(lines), pri);
+// ---- 実況キャラ（設定で選べる）。L = 場面ごとのセリフの差し替え、tr = どのセリフにもかける口調、voice = 声の高さ・速さ ----
+const _me = () => player ? Math.round(player.v * KMH) : 0;
+const _nm = (r, d) => { const o = _rk(r); return o && !o.isPlayer ? o.name : d; };
+const CASTERS = {
+  std: { n: '実況アナ', tag: '実況', d: '落ち着いたプロの中継。2人目の解説つき', col: '#29f3ff', voice: { rate: 1.18, pitch: 1.0 }, L: {}, D: {}, F: null, tr: t => t, sample: 'さあ、ネオンスカイウェイ・グランプリ、まもなくスタートです！' },
+  fun: { n: 'ふざけてる人', tag: 'ふざけ', d: 'ボケ倒す。たまに関係ない話をする', col: '#ffd400', voice: { rate: 1.22, pitch: 1.3 }, sample: 'はいどーもー！ 本日の実況は、昨日カップ麺にお湯を入れ忘れた私がお送りします！',
+    L: {
+      get start() { return [`はいスタート！ ${STAGE.jp}、全${cars.length}台…あ、ちゃんと数えてないです！`, 'よーいドン！ …って言う前にもう走ってた！ みんなせっかち！']; },
+      rocket: ['ロケットスタート！ 今の、たぶん本人もびっくりしてます！', 'スタートダッシュ！ 朝の通学もこれくらい速ければ！'],
+      get first() { return ['1位！ 1位ですよ奥さん！', 'トップ！ 後ろのみんな、悔しかったら追いついてごらん〜！', '先頭！ 景色がいいですね〜、前に誰もいない！']; },
+      up: r => [`${r}位に浮上！ ${_nm(r + 1, '誰か')}さん、ごめんね〜！`, `抜いた！ 今の追い越し、ちょっと失礼でしたね！ ${r}位！`],
+      down: r => [`${r}位に後退！ …まあ、人生そういう日もある！`, `抜かれた！ ${r}位！ 今のはきっと風のせい！`],
+      item: { TURBO: 'ターボ！ 早く押して押して！', TRIPLE: 'トリプルターボ！ 3回もいいの！？ 欲張り！', BOMB: 'ボム！ 置き土産のプレゼント！', MISSILE: 'ミサイル！ 前の人、逃げてー！', SHIELD: 'シールド！ これで無敵…ではない！' },
+      bomb: ['ボム置いた！ 後ろの人、足元注意でーす！'], missile: ['ミサイル発射！ いってらっしゃーい！'],
+      hitOther: n => [`${n}に命中！ ドーン！ ${n}さん、今どんな気持ち！？`, `${n}撃沈！ いい音しましたね〜！`],
+      hitMe: ['被弾！ 痛い痛い！ 見てるこっちも痛い！', 'くらった！ 今のは見なかったことにしましょう！'], hitMeBy: n => [`${n}にやられた！ ${n}、あとで体育館裏な！`],
+      guard: ['シールドで防いだ！ 残念でした〜！'], jump: ['飛んだー！ 鳥？ 飛行機？ いいえ、車です！', 'ジャンプ！ 着地のこと考えてる！？'], loop: ['一回転！ 目が回る〜！', 'ループ！ 朝ごはん出そう！'],
+      crash: ['クラッシュ！ …はい、今のはなかったことに！', 'あーっと接触！ 保険入ってますか！？'], smash: ['ぶっ壊した！ 修理代は請求しないでください！'],
+      drift: ['ドリフト！ タイヤさんお疲れさまです！', 'キュキュキュ〜！ 床がきれいになりました！'],
+      get final() { return ['最後の直線！ ここで転んだら伝説です！', 'ラストスパート！ 晩ごはんのことは一旦忘れて！']; },
+      cp: r => [`チェックポイント！ ${r}位！ ここでトイレ休憩…はないです！`],
+      goal: r => r === 1 ? ['優勝！ おめでとう！ 賞品は私の拍手です！ パチパチ！', 'ゴール！ 1位！ 今日の晩ごはん、ちょっと豪華にしていいですよ！'] : [`ゴール！ ${r}位！ 参加することに意義がある…って、誰が言ったんでしたっけ！`],
+      boost: ['ブースト！ びゅーん！', 'ニトロ！ 燃料代が心配！'], zap: ['ビリビリ！ 静電気どころじゃない！'], jackpot: ['ジャックポット！ 宝くじより当たる！'],
+      fever: ['フィーバー！ 踊れ踊れ〜！', 'フィーバータイム！ 近所迷惑にご注意を！'], trick: ['今の技、名前つけましょう！ 「くるくるドーン」で！', 'トリック！ 才能の無駄づかい！'],
+    },
+    D: { max: ['脳汁マックス！ 脳みそ、もう溶けてます！'], ur: ['虹色！ 今日の運、全部使った！'], god: ['ゴッド！？ 嘘でしょ！？ 宝くじ買いに行こう！'] },
+    tr: t => Math.random() < 0.18 ? t + pick(['…知らんけど！', '…って、お腹すいたな。', '…あ、今のカットで！']) : t },
+  dopa: { n: 'ドパガキ', tag: 'ドパ', d: '脳汁ドパドパの小学生。テンションが常に限界', col: '#ff2bd6', voice: { rate: 1.38, pitch: 1.6 }, sample: 'うおおおお！ はやく走ろ！ 脳汁出したい！ ドパドパしたいー！',
+    L: {
+      get start() { return ['うおおおおお！ スタートだあああ！ 脳汁の時間だああ！', 'いくぞおおお！ ドパドパするぞおおお！']; },
+      rocket: ['ロケットスタートきたあああ！ 脳汁出たああ！', 'スタートダッシュやばすぎ！ ドパったああ！'],
+      get first() { return ['1位いいい！ 最強！ ぼくらが最強！', 'トップだああ！ 脳汁があふれて止まらない！']; },
+      up: r => [`抜いたああ！ ${r}位！ やばいやばいやばい！`, `${r}位！ 気持ちよすぎる！ もっと抜きたい！`],
+      down: r => [`ええええ！ ${r}位！？ ムカつくー！`, `抜かれたああ！ ${r}位！ 絶対やり返す！`],
+      item: { TURBO: 'ターボきたあ！ 押す押す押す！', TRIPLE: 'トリプルターボ！ 3回もドパれる！', BOMB: 'ボムだあ！ ばくはつさせたい！', MISSILE: 'ミサイルきたあ！ 撃ちたい撃ちたい！', SHIELD: 'シールド！ 無敵モードだあ！' },
+      bomb: ['ボムどーん！ 後ろ爆発しろおお！'], missile: ['ミサイル発射ああ！ 当たれええ！'],
+      hitOther: n => [`当たったああ！ ${n}吹っ飛んだ！ 脳汁えぐい！`, `${n}撃墜！ きもちいいいい！`],
+      hitMe: ['いったあああ！ くやしいい！', 'やられたああ！ 脳汁が引いていく…！'], hitMeBy: n => [`${n}ゆるさなああい！`],
+      guard: ['シールドで守ったああ！ ざまあ！'], jump: ['とんだああああ！', 'たかいたかいたかい！ 脳汁ジャンプ！'], loop: ['くるくるくるくるー！ 一回転！', 'ループやばい！ 頭ぐるぐる！'],
+      crash: ['ぎゃああああ！ ぶつかったああ！', 'あああ！ 脳汁こぼれたあ！'], smash: ['ぶっこわしたああ！ スカッとするう！'],
+      drift: ['ドリフトきもちいいい！', 'ギュイイイン！ 脳汁ドリフトおお！'],
+      get final() { return ['ラストだああ！ 全部出しきれええ！']; },
+      cp: r => [`チェックポイント！ いま${r}位！ もっといけるう！`],
+      goal: r => r === 1 ? ['優勝だあああ！ 脳汁マックスううう！ もう一回やりたい！', 'いちいいいい！ 最強！ 天才！ 神！'] : [`${r}位でゴール！ くっそー！ もう一回！ もう一回！`],
+      boost: ['ブーストおおお！', 'ニトロどーん！ はやいはやい！'], zap: ['ビリビリしたあ！ いたあい！'], jackpot: ['大当たりだあああ！ 脳汁ドバドバ！'],
+      fever: ['フィーバーだああああ！ 脳汁止まらなああい！', 'フィーバー！ ドパドパドパドパ！'], trick: ['トリックきまったああ！ かっこよすぎ！', 'くるくるドーン！ 天才！'],
+    },
+    D: { rank: r => [`脳汁ランク${r}！ まだまだ出せる！`], max: ['脳汁マックスううう！ ぼくの脳、もうダメえええ！'], ur: ['虹きたあああ！ 一生の運つかったああ！'], god: ['ゴッドおおおお！ 777！ 脳汁で溺れるううう！'] },
+    F: [['フローだあ！ つながってる！'], ['倍率2倍！ やばい！ やばい！'], ['2.5倍！ 脳汁でゾーン入った！'], ['3倍いいい！ 脳汁の向こう側！']],
+    tr: t => { t = t.replace(/！/g, '！！').replace(/！！！！/g, '！！！'); return Math.random() < 0.15 ? t + pick(['ドパドパ！', 'やばすぎ！', '脳汁ぅぅ！']) : t; } },
+  hot: { n: '熱い人', tag: '熱血', d: 'とにかく熱い。全力で応援してくれる', col: '#ff6a3d', voice: { rate: 1.28, pitch: 0.92 }, male: true, sample: 'いいか、勝負は気持ちだ！ 最後の最後まで、絶対にアクセルを緩めるなよ！',
+    L: {
+      get start() { return ['いくぞ！ ここからがお前の戦いだ！ 魂を燃やせえええ！', `${STAGE.jp}！ 全${cars.length}台、熱い戦いの幕開けだあ！`]; },
+      rocket: ['完璧なスタートだ！ その一歩が勝負を決めるんだ！'],
+      get first() { return ['トップだ！ だが油断するな！ 本当の勝負はここからだ！', '先頭！ お前ならできると信じていたぞ！']; },
+      up: r => [`よし抜いた！ ${r}位！ 前だけを見ろ！`, `いいぞ！ ${r}位！ まだまだ上を目指せる！`],
+      down: r => [`${r}位！ 下を向くな！ 悔しさをアクセルに変えろ！`, '抜かれた！ だがここからだ！ 諦めたらそこで終わりだ！'],
+      item: { TURBO: 'ターボだ！ 勝負所で使え！', TRIPLE: 'トリプルターボ！ 一気に勝負を決めろ！', BOMB: 'ボムだ！ 後ろを断ち切れ！', MISSILE: 'ミサイル！ 前を撃ち抜け！', SHIELD: 'シールド！ 守りも強さだ！' },
+      bomb: ['ボムを置いた！ 背中で語れ！'], missile: ['ミサイル発射！ 狙いを外すなよ！'],
+      hitOther: n => [`命中！ ${n}を撃ち抜いた！ その勢いだ！`], hitMe: ['くっ…被弾！ だが立ち上がれ！ まだ終わってない！'], hitMeBy: n => [`${n}にやられた！ この悔しさを忘れるな！`],
+      guard: ['守り切った！ 準備していた者が勝つんだ！'], jump: ['飛べええ！ 空まで届け！'], loop: ['ループだ！ 恐れるな！ 突っ込め！'],
+      crash: ['クラッシュ！ だが失敗は成長のチャンスだ！', '痛い！ でも止まるな！ すぐ立て直せ！'], smash: ['粉砕！ 壁なんてぶち破れ！'],
+      drift: ['見事なドリフトだ！ 攻めの姿勢、最高だ！', 'そのラインだ！ 攻めて攻めて攻めまくれ！'],
+      get final() { return player.rank === 1 ? ['最後の直線！ 逃げ切れ！ 全てを出し切れえええ！'] : [`最後の直線！ トップまであと少しだ！ 限界を超えろおおお！`]; },
+      cp: r => [`チェックポイント通過！ ${r}位！ ここからもう一段ギアを上げろ！`],
+      goal: r => r === 1 ? ['優勝だああ！ お前は最高だ！ 胸を張れ！', 'やったぞ！ その努力が、この勝利を呼んだんだ！'] : [`${r}位！ よく走りきった！ 次は絶対に勝てる！ 俺は信じてる！`],
+      boost: ['いけええええ！', '燃えろニトロ！'], zap: ['感電！ だが負けるな！'], jackpot: ['ジャックポット！ 運も実力のうちだ！'],
+      fever: ['フィーバーだ！ 燃えろ燃えろ燃えろお！'], trick: ['見事な技だ！ 魅せてくれるじゃないか！'],
+    },
+    D: { max: ['脳汁マックス！ 今のお前は無敵だ！'], ur: ['虹色！ 引き寄せたな！'], god: ['ゴッド！！ 奇跡は、諦めない者にだけ起きるんだ！'] },
+    F: [['いい流れだ！ そのまま行け！'], ['2倍！ 止まるな！ 攻め続けろ！'], ['2.5倍！ ゾーンに入ったな！'], ['3倍！ お前は今、最高の走りをしている！']],
+    tr: t => Math.random() < 0.15 ? t + pick(['熱くなれ！', '諦めるな！', '燃えてきたああ！']) : t },
+  nerd: { n: '分析メガネ', tag: '分析', d: 'メガネをクイッとしながらデータで語る', col: '#9d6bff', voice: { rate: 1.08, pitch: 0.82 }, male: true, sample: 'クイッ。統計的に見て、このコースの勝敗は最初の3コーナーで決まります。',
+    L: {
+      get start() { return [`スタート。${STAGE.jp}、全長${(goalS / 1000).toFixed(1)}キロ、出走${cars.length}台。データ上は混戦が予想されます。`]; },
+      rocket: ['反応時間、極めて優秀。ロケットスタート成立です。'],
+      get first() { const b = _rk(2); return [`トップに立ちました。2位との差は${_gs(_gap(player, b))}。現在の勝率、およそ${Math.min(95, 50 + cars.length * 5)}パーセント。`]; },
+      up: r => [`${r}位に浮上。今のパスで、平均ラップに対しておよそ0.3秒を稼ぎました。`, `オーバーテイク成立。${r}位。計算通りです。`],
+      down: r => [`${r}位に後退。ただし残り距離を考えれば、逆転確率はまだ十分にあります。`],
+      item: { TURBO: 'ターボを取得。直線で使えば最大効率です。', TRIPLE: 'トリプルターボ。3回に分けると、加速の損失が最小になります。', BOMB: 'ボムを取得。後続との差が短いときに有効です。', MISSILE: 'ミサイル取得。命中率は前方180メートル以内で最も高くなります。', SHIELD: 'シールド取得。被弾リスクを大幅に低減します。' },
+      bomb: ['ボム設置。後続の進路を予測した位置です。'], missile: ['ミサイル発射。誘導性能、良好。'],
+      hitOther: n => [`命中。${n}の速度は約45パーセント低下しました。`], hitMe: ['被弾。損失、およそ1.5秒。想定内です。…たぶん。'], hitMeBy: n => [`${n}の攻撃。後方への警戒が不足していましたね。`],
+      guard: ['シールドで無効化。期待値どおりの働きです。'], get jump() { return [`踏み切り速度、時速${_me()}キロ。滞空時間に期待できます。`]; }, loop: ['ループ区間。遠心力で路面に吸着しています。理論上、落ちません。'],
+      crash: ['クラッシュ。ライン取りの誤差は約2メートル。修正可能です。'], smash: ['障害物を破壊。ブースト中の突破判定、成功です。'],
+      drift: ['ドリフトターボ。チャージ時間と出力は比例します。理想的なリリースでした。'],
+      get final() { return [`最終直線。現在${player.rank}位、時速${_me()}キロ。ここからの順位変動確率は約3割です。`]; },
+      cp: r => [`チェックポイント通過、${r}位。区間タイムは良好です。クイッ。`],
+      goal: r => [`ゴール。${r}位。タイム${player.finishTime ? fmtTime(player.finishTime) : ''}。` + (r === 1 ? 'すべて計算通りです。' : '改善点は、ドリフトのジャスト率ですね。')],
+      get boost() { return [`ブースト。時速${_me()}キロから加速中。`]; }, zap: ['感電。レーザーの周期は約1.8秒。点滅の隙間を狙うべきでした。'], jackpot: ['ジャックポット。出現確率から考えると、幸運です。'],
+      fever: ['フィーバー突入。スコア効率が2倍になりました。'], trick: ['トリック成功。種類を混ぜるほど得点係数が上がります。'],
+    },
+    D: { rank: r => [`脳汁ランク${r}。スコア倍率が0.25上昇しました。`], max: ['脳汁マックス。倍率2.75倍。理論上の最大値です。'], ur: ['UR。出現率0.28パーセント。…データが、震えています。'], god: ['ゴッド。確率0.02パーセント。…メガネが、割れそうです。'] },
+    F: [['フロー倍率1.5。順調です。'], ['フロー2倍。スコア効率、倍増。'], ['フロー2.5倍。統計的に、ほぼ見かけない数値です。'], ['フロー3倍。最大値に到達。計算を超えました。']],
+    tr: t => Math.random() < 0.2 ? 'クイッ。' + t : t },
+};
+let CASTER_ID = store.get('ns_caster', 'std'); if (!CASTERS[CASTER_ID]) CASTER_ID = 'std';
+for (const k in CASTERS) CASTERS[k].id = k;
+const CASTER = () => CASTERS[CASTER_ID] || CASTERS.std;
+const casterProxy = (base, key) => new Proxy(base, { get(t, k, r) { const P = CASTER()[key]; return P && k in P ? Reflect.get(P, k) : Reflect.get(t, k, r); } });
+const LINES = casterProxy(LINES_STD, 'L');
+function setCaster(id) {
+  if (!CASTERS[id]) return; CASTER_ID = id; store.set('ns_caster', id); Voice.pickVoice();
+  const C = CASTER(); Voice.say(C.sample, 3);
+}
+const say = (lines, pri) => Voice.say(CASTER().tr(typeof lines === 'string' ? lines : pick(lines)), pri);
 
 /* =====================================================================
    11. 入力
@@ -2758,7 +2872,7 @@ const Skill = {
   },
 };
 // B4. フロー・コンボ
-const FLOW_LINES = [
+const FLOW_LINES_STD = [
   ['フローに乗った！', 'いい流れだ！'],
   ['倍率2倍！ 止まらない！', '流れるような走り！'],
   ['×2.5！ 完全にゾーンに入った！', 'これは手がつけられない！'],
@@ -2781,7 +2895,7 @@ const Flow = {
     const col = ['#29f3ff', '#3bff9d', '#ffd400', '#ff2bd6'][t - 1];
     pop(`FLOW ×${this.mul.toFixed(1)}`, col, 26 + t * 5);
     flash(col, 0.1 + t * 0.06); cam.kick = Math.max(cam.kick, 4 + t * 3); vibSoft([15, 15, 15 + t * 10]);
-    say(FLOW_LINES[t - 1], t >= 3 ? 2 : 1);
+    say((CASTER().F || FLOW_LINES_STD)[t - 1], t >= 3 ? 2 : 1);
   },
   brk() {
     if (this.n >= 2 && live()) { pop('FLOW BREAK', '#ff2050', 22); }
@@ -4082,13 +4196,14 @@ function updateHUD2() {
 const DOPA_RANKS = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS', '脳汁MAX'];
 const DOPA_COLS = ['#8a8aa0', '#3bff9d', '#29f3ff', '#9d6bff', '#ffd400', '#ff8a00', '#ff2bd6', '#ffffff'];
 const DOPA_PTS = { coin: 6, jackpot: 60, near: 35, trick: 25, air: 15, ring: 30, drift: 30, smash: 45, hit: 60, pad: 12, loop: 50, pass: 35, boost: 8, item: 10, fever: 80, slot: 40, draft: 25 };
-const DLINES = {
+const DLINES_STD = {
   rank: r => [`脳汁ランク${r}！`, `${r}ランク突入！ノッてきた！`],
   max: ['脳汁マックス！！脳が溶けるぞ！', '脳汁マックス到達！もう誰にも止められない！'],
   reach: ['リーチ！', 'リーチだ！そろうか！？'], slot: ['スロット大当たり！', 'そろったー！大当たり！'], seven: ['スリーセブン！！超大当たり！'],
   ur: ['ウルトラレア！ 虹色だー！ 神引き！'], ssr: ['エスエスアール！ 金色きたー！'],
   god: ['セブン！セブン！セブン！ ゴッド降臨！！！', 'まさかの777！ ゴッドだーーー！！'], reach: ['リーチ！', 'きたきたリーチ！', 'そろうか！？'],
 };
+const DLINES = casterProxy(DLINES_STD, 'D');
 let RUN = { maxTier: 0 };
 const dopaCol = t => t >= 7 ? `hsl(${Math.floor(game.t * 400) % 360},100%,62%)` : DOPA_COLS[t];
 // 脳汁ランク: アクションを途切れさせずに繋ぐほどランクUP → スコア倍率UP。ミスで2ランクダウン
@@ -5256,16 +5371,16 @@ const COLOR = [
   const orig = Voice.say.bind(Voice);
   let lastColor = 0, statusT = 0;
   Voice.say = (text, pri = 1) => {
-    $('caption').querySelector('span').textContent = '実況';
+    const C = CASTER(); const lab = $('caption').querySelector('span'); lab.textContent = C.tag; lab.style.color = C.col;
     orig(text, pri);
     const now = performance.now();
-    if (now - lastColor < 9000 || Math.random() > 0.45 || game.state === 'title') return;
+    if (CASTER_ID !== 'std' || now - lastColor < 9000 || Math.random() > 0.45 || game.state === 'title') return;
     const hit = COLOR.find(([re]) => re.test(text)); if (!hit) return;
     lastColor = now;
     const line = pick(hit[1]), wait = 700 + text.length * 115;
     setTimeout(() => {
       if (game.state !== 'play' && game.state !== 'finish' && game.state !== 'result') return;
-      $('caption').querySelector('span').textContent = '解説'; $('captionText').textContent = line; $('caption').style.opacity = 1;
+      { const lab = $('caption').querySelector('span'); lab.textContent = '解説'; lab.style.color = ''; } $('captionText').textContent = line; $('caption').style.opacity = 1;
       clearTimeout(Voice.capT); Voice.capT = setTimeout(() => $('caption').style.opacity = 0, 1400 + line.length * 100);
       if (!Voice.on || !Voice.synth) return;
       try { const u = new SpeechSynthesisUtterance(line); u.lang = 'ja-JP'; if (Voice.voice2 || Voice.voice) u.voice = Voice.voice2 || Voice.voice; u.rate = 1.08; u.pitch = 0.82; u.volume = 0.95; u.onstart = () => SND.duck(true); u.onend = u.onerror = () => SND.duck(false); Voice.synth.speak(u); } catch (e) {}
@@ -5504,6 +5619,13 @@ setTimeout(() => {
     <div><b class='text-yellow-300'>フロー・コンボ</b>：ジャストドリフト／PERFECT LANDING／ブーストパッド／スリップストリーム／ニアミスを${FLOW.window}秒以内に繋ぐと、スコア倍率が ×1.0 → 最大 ×${FLOW.max.toFixed(1)}。倍率が上がるほど実況・画面・BGMが熱くなります。</div>
     <div><b class='text-red-300'>壁</b>：かんたん・ふつうは軽い減速だけ。むずかしい・エキスパートは減速＋フロー切れ。鬼・神は減速＋フロー切れ＋ニトロ熱+${WALL.heatAdd}%。</div></div>`);
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-2'>SOUND / VOICE / VIBRATION</div>`);
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>実況キャラ</div><div id='setCaster' class='grid grid-cols-1 sm:grid-cols-2 gap-1.5'></div><div class='text-[10px] text-white/50 mt-1'>押すとその人の声で試し聞きできます。声の聞こえ方は端末によって違います。</div>`);
+  Meta.renderCaster = () => { const b = $('setCaster'); if (!b) return;
+    b.innerHTML = Object.entries(CASTERS).map(([k, C]) => `<button data-cs='${k}' class='text-left rounded px-3 py-2 border ${k === CASTER_ID ? 'bg-white/10' : 'bg-white/5'}' style='border-color:${k === CASTER_ID ? C.col : 'rgba(255,255,255,.15)'};${k === CASTER_ID ? `box-shadow:0 0 12px ${C.col}66` : ''}'>
+      <div class='flex items-center gap-2'><b class='text-sm' style='color:${C.col}'>${C.n}</b>${k === CASTER_ID ? `<span class='text-[10px] font-black' style='color:${C.col}'>使用中</span>` : ''}</div><div class='text-[11px] text-white/70 leading-snug'>${C.d}</div></button>`).join('');
+    b.querySelectorAll('[data-cs]').forEach(x => x.onclick = () => { SND.init(); Voice.unlock(); setCaster(x.dataset.cs); Meta.renderCaster(); });
+  };
+  Meta.renderCaster();
   opts.className = 'flex flex-wrap items-center gap-2'; set.appendChild(opts);
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>操作方法</div>`);
   const ctl = document.createElement('div'); ctl.className = 'flex flex-col gap-1.5 text-xs text-white/80';
@@ -5867,7 +5989,7 @@ toTitle();
 $('loading').remove();
 requestAnimationFrame(frame);
 // 検証用フック
-window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, get RUN() { return RUN; }, autopilot: false,
+window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, CASTERS, setCaster, get RUN() { return RUN; }, autopilot: false,
   setQuality: q => { quality = q; applyQuality(); },
   sim: (sec, boost, items) => { for (let i = 0; i < sec * 60; i++) { if (boost && player.nitro >= 50) input.boostReq = true; if (items && player.item && player.roulette <= 0) input.itemReq = true; update(1 / 60); } } };
 </script>
