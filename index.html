@@ -6616,6 +6616,34 @@ html,body{font-family:var(--race)}
   background:rgba(8,6,18,.92);border:1px solid rgba(255,255,255,.16);border-left:3px solid var(--acc);border-radius:3px;font-size:12px;line-height:1.45;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 #a2hs b{color:#ffd400}
 #a2hs button{flex:none;font-weight:800;font-size:11px;padding:4px 10px;border:1px solid rgba(255,255,255,.3);border-radius:2px}
+/* ---- タップしやすさ: 操作ボタンは最低 44px 四方・間隔 6〜8px（スマホ横向きでも） ---- */
+#btnPause,#btnMute{width:44px !important;height:44px !important}
+#sBack,#gBack,#gCus,#btnReplay,#btnRank,#btnTitle,#rBtns button,.seg button,#gChips .carchip,#a2hs button,.callChip{min-height:44px !important}
+.seg button{min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+#gPrev,#gNext,#gP2Prev,#gP2Next{width:44px !important;height:44px !important;flex:none}
+#gGo,#titleMenu .mbtn,#titleMenu .start-btn{min-height:44px}
+.metab{min-width:44px;min-height:44px;justify-content:center}
+#rBtns{gap:8px !important}
+#gChips{gap:8px !important}
+#metaBtns{gap:8px !important}
+/* 低い画面ではタイトルのメニューを2列にして、1つ1つを 44px の高さにする */
+@media (max-height:500px){
+  #titleMenu{display:grid !important;grid-template-columns:1fr 1fr;gap:6px !important;width:min(380px,48vw) !important}
+  #titleMenu .start-btn{grid-column:1 / -1;min-height:44px}
+  #titleMenu .mbtn{min-height:44px;font-size:12px !important;padding:.2em .8em !important;letter-spacing:.02em !important}
+  #titleMenu .mbtn.hidden,#titleMenu .start-btn.hidden{display:none !important}
+  #metaBtns{gap:6px !important}
+  #gChips{gap:6px !important}
+  /* 結果画面: REPLAY・TITLE などをスクロールしなくても押せるよう右下に固定 */
+  #rBtns{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));z-index:35;margin:0 !important;padding:6px;background:rgba(8,6,18,.86);border:1px solid rgba(255,255,255,.14);border-radius:3px}
+  #rBtns button{font-size:12px !important;padding:0 1em !important}
+  #result>.panel{padding-bottom:64px !important}
+}
+@media (max-height:360px){
+  #titleMenu .start-btn{font-size:16px !important;padding:0 1em !important}
+  #titleMenu .mbtn{font-size:11px !important}
+  .callChip{display:none}
+}
 </style>
 <script>
 // ホーム画面に追加すると、ブラウザのバーなしの全画面で遊べる。まだ追加していないスマホで1回だけ案内する
