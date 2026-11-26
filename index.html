@@ -708,6 +708,14 @@ const CRANK = {
   just: { full: 0.8, pts: 20 },                 // ジャスト率 80% で満点
   assistCap: 'A',                               // アシスト中はAまで
 };
+// 車の性能の効き方（CAR_TYPES の stats と組み合わせて使う）
+const CARK = {
+  accPow: 2.2,        // 加速（acc）の効き: 再加速の速さ = 基本 × acc^accPow（パッド・ブースト後・壁や被弾のあと）
+  boostAcc: 2.4,      // ブースト中の加速の基本値（× acc）
+  landAcc: 1.6,       // 着地後 0.8 秒の加速ボーナス（× acc）
+  driftHdl: 0.25,     // ドリフト中の曲がりやすさ = 1.15 + (hdl-1) × これ
+  chargeHdl: 0.6,     // ドリフトのチャージ速度 = 1 + (hdl-1) × これ
+};
 // B5. 壁ペナルティ（難易度 Lv ごと。hit = 当たった瞬間の減速率、scrape = こすり続けたときの減速/秒）
 const WALL = {
   hit:    [0, 0.04, 0.04, 0.09, 0.09, 0.12, 0.12],   // index = game.lv (1〜6)
@@ -1674,34 +1682,34 @@ const CAR_TYPES = {
     body: [[2.3, 0.28], [2.4, 0.5], [0.75, 0.8], [-0.05, 1.18], [-1.25, 1.14], [-2.1, 0.88], [-2.22, 0.3]], w: 1.96,
     glass: [[0.72, 0.8], [-0.05, 1.22], [-1.2, 1.18], [-1.55, 0.92], [-0.6, 0.78]], gw: 1.98,
     wh: { r: 0.42, w: 0.34, x: 1.02, zf: -1.45, zr: 1.5 }, zf: -2.42, zr: 2.22, ny: 0.5, ty: 0.78, flameX: 0.5, flameY: 0.45,
-    stats: { top: 1.0, acc: 1.0, hdl: 1.0, mass: 1.0, dmg: 0.32 }, bars: [3, 3, 3, 3],
+    stats: { top: 1.0, acc: 1.0, hdl: 1.0, mass: 1.0, dmg: 0.32, justW: 1.5, coolWin: [76, 96] }, bars: [3, 3, 3, 3],   // バランス型の長所: ジャスト窓1.5倍・急冷の枠が広い
     extras: () => [['p', box(2.3, 0.07, 0.5, 0, 1.34, 1.95)], ...sym(k => ['p', box(0.07, 0.25, 0.2, 0.7 * k, 1.2, 1.95)]), [N, box(2.32, 0.03, 0.04, 0, 1.38, 2.2)]] },
   PHANTOM: { jp: '最高速特化スーパーカー', desc: '直線番長。最高速はトップクラスだが立ち上がりは重い。', paint: 0x0b0b12, neon: 0xff2bd6,
     body: [[2.7, 0.25], [2.82, 0.42], [1.05, 0.62], [0.15, 1.0], [-1.0, 1.0], [-2.5, 0.75], [-2.62, 0.28]], w: 2.2,
     glass: [[1.0, 0.62], [0.15, 1.04], [-0.95, 1.04], [-1.45, 0.8], [-0.2, 0.6]], gw: 2.1,
     wh: { r: 0.45, w: 0.4, x: 1.15, zf: -1.75, zr: 1.8 }, zf: -2.84, zr: 2.62, ny: 0.48, ty: 0.68, flameX: 0.6, flameY: 0.4,
-    stats: { top: 1.06, acc: 0.84, hdl: 0.9, mass: 1.05, dmg: 0.32 }, bars: [5, 2, 2, 3],
+    stats: { top: 1.02, acc: 0.84, hdl: 0.9, mass: 1.05, dmg: 0.32 }, bars: [5, 2, 2, 3],
     extras: () => [['p', box(2.7, 0.08, 0.75, 0, 1.52, 2.3)], ...sym(k => ['p', box(0.08, 0.5, 0.25, 0.75 * k, 1.25, 2.25)]), [N, box(2.72, 0.03, 0.05, 0, 1.58, 2.66)],
       ...sym(k => [N, box(0.04, 0.16, 0.9, 1.13 * k, 0.56, 0.7)]), ['d', box(2.0, 0.16, 0.4, 0, 0.26, 2.55)]] },
   BLITZ: { jp: '加速・旋回特化ラリーハッチ', desc: '小回りと加速は最強。ぶつかり合いには弱い。', paint: 0x0f6a7a, neon: 0x3bff9d,
     body: [[1.9, 0.3], [2.0, 0.62], [1.2, 0.86], [0.6, 1.45], [-1.5, 1.45], [-1.85, 1.2], [-1.92, 0.3]], w: 1.9,
     glass: [[1.15, 0.86], [0.6, 1.5], [-1.4, 1.5], [-1.62, 1.12], [0.2, 0.84]], gw: 1.92,
     wh: { r: 0.44, w: 0.36, x: 1.0, zf: -1.25, zr: 1.3 }, zf: -2.02, zr: 1.94, ny: 0.55, ty: 1.0, flameX: 0.45, flameY: 0.45,
-    stats: { top: 0.96, acc: 1.35, hdl: 1.22, mass: 0.8, dmg: 0.3 }, bars: [2, 5, 5, 1],
+    stats: { top: 0.985, acc: 1.35, hdl: 1.22, mass: 0.8, dmg: 0.3 }, bars: [2, 5, 5, 1],
     extras: () => [['w', box(1.4, 0.12, 0.18, 0, 1.58, -0.3)], ['p', box(1.8, 0.06, 0.5, 0, 1.52, 1.6)], [N, box(1.82, 0.03, 0.04, 0, 1.56, 1.85)],
       ...sym(k => ['d', box(0.34, 0.32, 0.04, 0.88 * k, 0.3, 1.8)]), ...sym(k => ['w', box(0.3, 0.16, 0.05, 0.55 * k, 0.7, -2.0)])] },
   TITAN: { jp: '重量級マッスル', desc: '体当たりで相手を弾き飛ばす。障害物に当たっても失速しにくい。', paint: 0x8a4200, neon: 0xff8a00,
     body: [[2.4, 0.35], [2.46, 0.86], [1.0, 0.96], [0.3, 1.5], [-1.1, 1.5], [-1.6, 1.02], [-2.4, 0.96], [-2.46, 0.35]], w: 2.3,
     glass: [[0.95, 0.96], [0.3, 1.54], [-1.05, 1.54], [-1.5, 1.06], [0, 0.95]], gw: 2.2,
     wh: { r: 0.52, w: 0.46, x: 1.18, zf: -1.55, zr: 1.6 }, zf: -2.5, zr: 2.48, ny: 0.62, ty: 0.85, flameX: 0.65, flameY: 0.42,
-    stats: { top: 1.0, acc: 0.9, hdl: 0.88, mass: 1.7, dmg: 0.5 }, bars: [3, 2, 2, 5],
+    stats: { top: 0.995, acc: 0.9, hdl: 0.88, mass: 1.7, dmg: 0.5 }, bars: [3, 2, 2, 5],
     extras: () => [['p', box(0.8, 0.26, 0.9, 0, 1.06, -1.4)], [N, box(0.6, 0.04, 0.05, 0, 1.14, -1.86)], ['d', box(2.1, 0.32, 0.14, 0, 0.52, -2.6)],
       ...sym(k => ['d', box(0.1, 0.5, 0.1, 0.7 * k, 0.6, -2.62)]), ...sym(k => ['d', box(0.26, 0.26, 0.5, 0.62 * k, 0.4, 2.5)])] },
   AERO: { jp: 'フォーミュラ型エアロ', desc: '軽くて速いオープンホイール。ただし被弾するとダメージ大。', paint: 0xe8e8f0, neon: 0xff3b5c,
     body: [[2.85, 0.25], [2.95, 0.38], [0.9, 0.62], [0.05, 0.92], [-0.6, 1.05], [-2.0, 0.8], [-2.3, 0.3]], w: 1.05,
     glass: [[0.6, 0.66], [0.02, 1.02], [-0.55, 1.08], [-0.8, 0.8], [0, 0.64]], gw: 0.9,
     wh: { r: 0.45, w: 0.46, x: 1.18, zf: -1.6, zr: 1.55 }, zf: -2.96, zr: 2.3, ny: 0.55, ty: 0.8, flameX: 0.25, flameY: 0.55,
-    stats: { top: 1.03, acc: 1.12, hdl: 1.08, mass: 0.7, dmg: 0.2 }, bars: [4, 4, 4, 1],
+    stats: { top: 1.01, acc: 1.05, hdl: 1.05, mass: 0.7, dmg: 0.2 }, bars: [4, 3, 3, 1],
     extras: () => [['p', box(2.7, 0.06, 0.55, 0, 0.22, -2.7)], [N, box(2.72, 0.03, 0.05, 0, 0.27, -2.98)], ...sym(k => ['p', box(0.05, 0.32, 0.62, 1.35 * k, 0.32, -2.7)]),
       ['p', box(2.4, 0.08, 0.62, 0, 1.42, 2.05)], ...sym(k => ['p', box(0.06, 0.62, 0.72, 1.2 * k, 1.16, 2.05)]), [N, box(2.42, 0.03, 0.05, 0, 1.48, 2.37)],
       ...sym(k => ['p', box(0.5, 0.38, 1.9, 0.74 * k, 0.45, 0.3)]), ...sym(k => [N, box(0.04, 0.06, 1.7, 1.0 * k, 0.55, 0.3)])] },
@@ -1710,7 +1718,7 @@ const CAR_TYPES = {
     body: [[1.55, 0.55], [1.7, 0.82], [1.25, 1.2], [0.55, 1.28], [0.1, 1.12], [-0.55, 1.12], [-1.05, 1.02], [-1.5, 1.0], [-1.55, 0.78], [-0.6, 0.52], [0.6, 0.4]], w: 0.56,
     glass: [[1.2, 1.18], [0.92, 1.52], [0.72, 1.5], [0.86, 1.2]], gw: 0.46,
     wh: { r: 0.46, w: 0.2, x: 0, zf: -1.22, zr: 1.12 }, zf: -1.72, zr: 1.55, ny: 0.62, ty: 1.0, flameX: 0.1, flameY: 0.78,
-    stats: { top: 1.02, acc: 1.16, hdl: 1.16, mass: 0.5, dmg: 0.42 }, bars: [4, 5, 5, 1],
+    stats: { top: 1.0, acc: 1.12, hdl: 1.12, mass: 0.5, dmg: 0.25 }, bars: [3, 4, 4, 1],
     extras: () => [
       ['d', box(0.42, 0.5, 0.42, 0, 1.55, 0.05).rotateX(-0.75)],            // ライダーの胴（前傾）
       ['p', box(0.36, 0.34, 0.42, 0, 1.86, -0.42)],                          // ヘルメット
@@ -2777,7 +2785,8 @@ const Skill = {
       if (c.heat >= 100) this.overheat(c);
       else if (Assist.of(c) === 'full' && c.heat >= HEAT.win[1] - 2) c.boostT = 0;   // フル: 急冷の枠で自動的に離す
     } else {
-      if (c.wasBoost && c.heat >= HEAT.win[0] && c.heat <= HEAT.win[1]) {   // 80〜95%で離した → 急冷
+      const cw = c.stats.coolWin || HEAT.win;
+      if (c.wasBoost && c.heat >= cw[0] && c.heat <= cw[1]) {   // 80〜95%で離した → 急冷
         c.heatFastT = HEAT.coolFastT;
         if (this.fx(c)) { RUN.cool = (RUN.cool || 0) + 1; pop('COOL RELEASE!', '#29f3ff', 24); addScore(200); SND.tick(); vibSoft([10, 20, 10]); }
       }
@@ -2826,13 +2835,13 @@ const Skill = {
   driftStart(c) { c.charge = 0; c.cStage = 0; c.justT = 0; c.pulseT = 0; c.counter = false; },
   driftTick(c, dt, ctl) {
     c.counter = Math.abs(ctl) > 0.3 && Math.sign(ctl) === -c.driftDir;   // 逆ハンドルで角度を深める
-    c.charge += dt * (c.counter ? DRIFT.counterMul : 1);
+    c.charge += dt * (c.counter ? DRIFT.counterMul : 1) * (1 + (c.stats.hdl - 1) * CARK.chargeHdl);
     let st = 0; while (st < 4 && c.charge >= DRIFT.stages[st]) st++;
     if (st > c.cStage) {
-      c.cStage = st; c.justT = DRIFT.justWin; c.pulseT = DRIFT.neonPulse;
+      c.cStage = st; c.justT = DRIFT.justWin * (c.stats.justW || 1); c.pulseT = DRIFT.neonPulse;
       if (this.fx(c)) { if (SND.ok()) SND.tone(440 * Math.pow(2, st * 4 / 12), SND.t(), 0.09, 'square', 0.08); vib(st >= 4 ? [25, 20, 25] : 10 + st * 6); }
     } else if (c.cStage >= 4) {
-      c.pulseT -= dt; if (c.pulseT <= 0) { c.pulseT = DRIFT.neonPulse; c.justT = DRIFT.justWin; }
+      c.pulseT -= dt; if (c.pulseT <= 0) { c.pulseT = DRIFT.neonPulse; c.justT = DRIFT.justWin * (c.stats.justW || 1); }
     }
   },
   driftRelease(c) {
@@ -2937,7 +2946,9 @@ function physics(c, dt, ctl) {
   c.scraping = false;
 
   if (!c.air) {
-    const rateV = c.v < target ? (boosting(c) ? 2.4 : 0.36 * c.stats.acc) : (ending ? 1.0 : 0.45);
+    const ak = Math.pow(c.stats.acc, CARK.accPow), landB = (c.landT || 0) > 0 ? CARK.landAcc * c.stats.acc : 1;
+    if (c.landT > 0) c.landT -= dt;
+    const rateV = c.v < target ? (boosting(c) ? CARK.boostAcc * c.stats.acc : 0.36 * ak * landB) : (ending ? 1.0 : 0.45);
     c.v += (target - c.v) * rateV * dt;
     if (fl & (F_LIFT | F_DROP | F_LAUNCH | F_SPLASH | F_CREST) || c.rideF) Ride.tick(c, fl, dt);
     if (fl & F_LIFT) { c.v = damp(c.v, (fl & F_CREST) ? RIDE.crestV : RIDE.liftV, 3, dt); c.boostT = 0; c.padT = 0; }
@@ -2947,7 +2958,7 @@ function physics(c, dt, ctl) {
     c.v = Math.max(c.v, 0);
     // 横方向: 速度に慣性を持たせてなめらかに
     const latK = latKAt(c.s);
-    const targetLat = c.steer * (15 + c.v * 0.15) * c.stats.hdl * (c.drifting ? 1.15 : 1);
+    const targetLat = c.steer * (15 + c.v * 0.15) * c.stats.hdl * (c.drifting ? 1.15 + (c.stats.hdl - 1) * CARK.driftHdl : 1);
     c.latV = damp(c.latV, targetLat, (fl & F_ICE) ? 2.0 : 8, dt);
     let dx = c.latV - latK * c.v * c.v * ((fl & F_ICE) ? 0.5 : 0.42) + ((fl & F_WIND) ? game.wind || 0 : 0);
     const lim = HALF_W - CAR_HALF_W - 0.2;
@@ -3034,7 +3045,7 @@ function land(c) {
   const impact = clamp(-c.st.vel.dot(fr.up) / 30, 0.15, 1);
   // B3. 着地アングル: 進行方向と路面のなす角
   const vlen = c.st.vel.length() || 1, landDeg = Math.asin(clamp(-c.st.vel.dot(fr.up) / vlen, -1, 1)) / D2R;
-  c.v = Math.max(c.st.vel.dot(fr.fwd), c.hop ? 10 : 25); c.air = false; c.h = 0; c.latV = c.st.vel.dot(fr.right) * 0.5;
+  c.v = Math.max(c.st.vel.dot(fr.fwd), c.hop ? 10 : 25); c.air = false; c.landT = 0.8; c.h = 0; c.latV = c.st.vel.dot(fr.right) * 0.5;
   if (nearCam(c)) emit(c.pos, c.isPlayer ? 30 : 10, { speed: 14, color: 0x29f3ff, color2: 0xff2bd6, size: 0.7, life: 0.6, grav: 6 });
   if (c.isPlayer) {
     cam.shake = Math.max(cam.shake, 0.5 * impact);
@@ -3472,7 +3483,8 @@ let _dgInit = false;
 function skillHUD(c) {
   const hg = $('heatG'), h = clamp(c.heat || 0, 0, 100);
   $('heatFill').style.height = h.toFixed(1) + '%';
-  hg.classList.toggle('hot', h >= HEAT.win[0] && !(c.heatStall > 0)); hg.classList.toggle('stall', c.heatStall > 0); hg.classList.toggle('cool', c.heatFastT > 0);
+  const cw = c.stats.coolWin || HEAT.win, wb = hg.querySelector('b'); if (wb && wb.dataset.k !== String(cw)) { wb.dataset.k = String(cw); wb.style.bottom = cw[0] + '%'; wb.style.height = (cw[1] - cw[0]) + '%'; }
+  hg.classList.toggle('hot', h >= cw[0] && !(c.heatStall > 0)); hg.classList.toggle('stall', c.heatStall > 0); hg.classList.toggle('cool', c.heatFastT > 0);
   if (!_dgInit) { _dgInit = true; const max = DRIFT.stages[3]; $('driftG').querySelectorAll('s').forEach((e, i) => e.style.left = (DRIFT.stages[i] / max * 100) + '%'); }
   const dg = $('driftG'), on = !!c.drifting && live(), airOn = c.air && !c.hop && c.airT > 0.15 && live();
   dg.classList.toggle('on', on || airOn); dg.classList.toggle('just', on && c.justT > 0); dg.classList.toggle('air', airOn && !on);
