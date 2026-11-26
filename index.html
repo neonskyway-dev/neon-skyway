@@ -93,6 +93,8 @@
   #btnBoost.ready{filter:drop-shadow(0 0 10px #ff2bd6)}
   /* ---- 腕前システムの HUD（ニトロ熱 / ドリフトチャージ / フロー / アシスト） ---- */
   #btnBoost{position:relative}
+  #btnDrift{width:62px;height:62px;border-radius:50%;font-weight:900;font-size:11px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a1a6a,#1a0626);border:2px solid #ff2bd6;box-shadow:0 0 10px #ff2bd666;align-self:center}
+  #btnDrift.on{background:#ff2bd6;box-shadow:0 0 18px #ff2bd6}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
   #heatG>i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#29f3ff,#ffd400 60%,#ff2050)}
   #heatG>b{position:absolute;left:0;right:0;bottom:80%;height:15%;border-top:1px solid #fff;border-bottom:1px solid #fff;background:rgba(255,255,255,.25)}
@@ -323,6 +325,7 @@
 
   <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-end gap-4">
     <button id="btnItem" class="pointer-events-auto empty"><span class="in" id="itemIcon"></span><span id="itemCount" class="hidden">x3</span></button>
+    <button id="btnDrift" class="pointer-events-auto" style="display:none">DRIFT</button>
     <button id="btnBoost" class="pointer-events-auto"><div id="heatG"><i id="heatFill"></i><b></b></div><span>BOOST</span></button>
   </div>
   <div id="driftG"><div id="driftLbl" class="lbl">DRIFT</div><div class="bar"><i id="driftFill"></i><s style="left:18.75%"></s><s style="left:40.6%"></s><s style="left:68.75%"></s></div></div>
@@ -2332,6 +2335,7 @@ addEventListener('keydown', e => {
   }
   if (['ArrowLeft', 'KeyA'].includes(e.code)) input.kl = true;
   if (['ArrowRight', 'KeyD'].includes(e.code)) input.kr = true;
+  if (e.code === 'KeyC' || e.code === 'ShiftRight') input.dk = true;   // ドリフト（手動モード）
   if (e.repeat) return;
   if (['Space', 'ArrowUp', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
   if (['KeyX', 'KeyE', 'ArrowDown', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
@@ -2354,6 +2358,7 @@ addEventListener('keyup', e => {
   }
   if (['ArrowLeft', 'KeyA'].includes(e.code)) input.kl = false;
   if (['ArrowRight', 'KeyD'].includes(e.code)) input.kr = false;
+  if (e.code === 'KeyC' || e.code === 'ShiftRight') input.dk = false;
 });
 const onTouch = e => {
   if (e.target.closest && e.target.closest('button')) return;
@@ -2366,7 +2371,7 @@ const onTouch = e => {
       const mid = game.split ? (pl ? W * 0.75 : W * 0.25) : W / 2;
       input.touches.set(t.identifier, { pl, side: x < mid ? -1 : 1, x0: t.clientX, y0: t.clientY, used: false });
     } else if (e.type === 'touchmove') {
-      const d = input.touches.get(t.identifier); if (!d || d.used) continue;
+      const d = input.touches.get(t.identifier); if (d) d.x = t.clientX; if (!d || d.used) continue;
       const tgt = d.pl ? input2 : input;
       const airMe = !d.pl && player.air && game.state === 'play', dx = t.clientX - d.x0, dy = t.clientY - d.y0;
       if (airMe && Math.hypot(dx, dy) > 60) { const a = Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI, k = a < 25 ? 'roll' : a > 65 ? (dy < 0 ? 'flip' : 'back') : 'spin'; if (Meta.trick(player, k, Math.sign(dx) || 1)) d.used = true; }
@@ -2376,19 +2381,48 @@ const onTouch = e => {
   }
 };
 ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(n => addEventListener(n, onTouch, { passive: false }));
+// 操作の設定: ドリフト（auto=曲がり続けると自動 / manual=ドリフトボタンを押しながら曲がる / null=アシストに合わせる）、スマホのアナログ操作
+const CTRL = { drift: store.get('ns_drift', null), analog: store.get('ns_analog', false), analogPx: 70, padDead: 0.18 };
+const driftManual = () => (CTRL.drift || (Assist.mode === 'off' ? 'manual' : 'auto')) === 'manual';
 function steerInput(pl = 0) {
   const inp = pl ? input2 : input;
   let v = (inp.kr ? 1 : 0) - (inp.kl ? 1 : 0);
-  let l = false, r = false; for (const t of input.touches.values()) if ((t.pl || 0) === pl) t.side < 0 ? l = true : r = true;
-  v += (r ? 1 : 0) - (l ? 1 : 0);
+  let l = false, r = false, a = 0, an = false;
+  for (const t of input.touches.values()) if ((t.pl || 0) === pl) {
+    if (CTRL.analog && !game.split) { an = true; a += clamp(((t.x ?? t.x0) - t.x0) / CTRL.analogPx, -1, 1); }   // アナログ: 触れた所からのドラッグ量
+    else t.side < 0 ? l = true : r = true;
+  }
+  v += an ? a : (r ? 1 : 0) - (l ? 1 : 0);
+  if (!pl) v += Pad.axis;   // ゲームパッドの左スティック
   return clamp(v, -1, 1);
 }
+// ゲームパッド（Gamepad API）: 左スティック=ハンドル / A=ブースト（長押しで延長）/ B=アイテム / X・RB=ドリフト / START=ポーズ
+const Pad = {
+  axis: 0, boost: false, drift: false, prev: [],
+  poll() {
+    const gp = (navigator.getGamepads ? [...navigator.getGamepads()] : []).find(g => g && g.connected);
+    if (!gp) { this.axis = 0; this.boost = this.drift = false; return; }
+    const x = gp.axes[0] || 0, b = i => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = i => b(i) && !this.prev[i];
+    this.axis = Math.abs(x) > CTRL.padDead ? (x - Math.sign(x) * CTRL.padDead) / (1 - CTRL.padDead) : 0;
+    if (b(14)) this.axis = -1; if (b(15)) this.axis = 1;   // 十字キー
+    this.boost = b(0); this.drift = b(2) || b(5);
+    if (edge(0)) input.boostReq = true;
+    if (edge(1) || edge(4)) input.itemReq = true;
+    if (edge(9)) togglePause();
+    if (edge(0) && game.state === 'title') { if (game.menu === 'stage') openGarage(); else if (!game.menu) openStageSel(); }
+    else if (edge(0) && game.state === 'garage') startGame();
+    this.prev = gp.buttons.map(x => x.pressed);
+  },
+};
+function driftHeld(c) { return c.ctrl === 'p2' ? !!input2.dk : !!(input.dk || input.db || Pad.drift); }
 $('btnBoost').addEventListener('pointerdown', e => { e.preventDefault(); input.boostReq = true; input.bb = true; });
+$('btnDrift').addEventListener('pointerdown', e => { e.preventDefault(); input.db = true; $('btnDrift').classList.add('on'); });
+for (const n of ['pointerup', 'pointercancel', 'pointerleave']) $('btnDrift').addEventListener(n, () => { input.db = false; $('btnDrift').classList.remove('on'); });
 for (const n of ['pointerup', 'pointercancel', 'pointerleave']) $('btnBoost').addEventListener(n, () => { input.bb = false; });
 // ブーストを押し続けているか（ニトロ熱: 押しっぱなしで延長、離した瞬間の熱で冷え方が変わる）
 function boostHeld(pl = 0) {
   const inp = pl ? input2 : input;
-  if (inp.bk || (!pl && input.bb)) return true;
+  if (inp.bk || (!pl && (input.bb || Pad.boost))) return true;
   for (const t of input.touches.values()) if ((t.pl || 0) === pl && t.boost) return true;
   return false;
 }
@@ -2997,9 +3031,15 @@ function physics(c, dt, ctl) {
     }
     if (c.ctrl) {
       const into = Math.sign(c.steer) === Math.sign(latK) && Math.abs(latK) > 0.0018;
+      const manual = !c.remote && driftManual() && !(DEBUG && window.__game?.autopilot);
       if (!c.drifting) {
-        if (Math.abs(ctl) > 0.7 && c.v > 42 && into && !ending) { c.driftHold += dt; if (c.driftHold > 0.22) { c.drifting = true; c.driftDir = Math.sign(ctl); c.driftT = 0; Skill.driftStart(c); } }
+        if (manual) { if (driftHeld(c) && Math.abs(ctl) > 0.5 && c.v > 36 && !ending) { c.drifting = true; c.driftDir = Math.sign(ctl); c.driftT = 0; Skill.driftStart(c); } }   // 手動: ボタンを押しながら曲がる
+        else if (Math.abs(ctl) > 0.7 && c.v > 42 && into && !ending) { c.driftHold += dt; if (c.driftHold > 0.22) { c.drifting = true; c.driftDir = Math.sign(ctl); c.driftT = 0; Skill.driftStart(c); } }
         else c.driftHold = 0;
+      } else if (manual) {   // 手動: ボタンを離した瞬間がリリース（ジャスト判定）
+        c.driftT += dt; c.nitro = Math.min(100, c.nitro + dt * 5); if (fxOn) addScore(dt * 150);
+        Skill.driftTick(c, dt, ctl);
+        if (!driftHeld(c) || c.v < 30 || ending) endDrift(c);
       } else {
         c.driftT += dt; c.nitro = Math.min(100, c.nitro + dt * 5); if (fxOn) addScore(dt * 150);
         Skill.driftTick(c, dt, ctl);
@@ -3569,6 +3609,7 @@ function startGame() {
   if (game.split) { cam2.intro = 1; input2.kl = input2.kr = false; }
   game.splitEndT = 0; resize();
   $('touchHints').style.display = isTouch ? '' : 'none'; $('keyHint').style.display = isTouch ? 'none' : '';
+  $('btnDrift').style.display = isTouch && driftManual() && !game.split ? '' : 'none';
   game.state = 'countdown'; game.cdT = 3.8; game.cdLast = 4; cam.intro = 1; resize();
   SND.pickTrack(); SND.startMusic('intro', true); Meta.onStart();
   say(LINES.start, 3);
@@ -5746,6 +5787,16 @@ setTimeout(() => {
     b.querySelectorAll('[data-cs]').forEach(x => x.onclick = () => { SND.init(); Voice.unlock(); setCaster(x.dataset.cs); Meta.renderCaster(); });
   };
   Meta.renderCaster();
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>操作</div><div id='setCtrl' class='flex flex-col gap-2 text-xs'></div>`);
+  Meta.renderCtrl = () => { const b = $('setCtrl'); if (!b) return;
+    const seg = (key, opts, cur) => `<div class='seg'>${opts.map(([v, n]) => `<button data-ck='${key}' data-v='${v}' class='${String(cur) === String(v) ? 'on' : ''}'>${n}</button>`).join('')}</div>`;
+    b.innerHTML = `<div class='flex flex-wrap items-center gap-2'><span class='w-28 text-white/75'>ドリフト</span>${seg('drift', [['null', 'アシストに合わせる'], ['auto', '自動'], ['manual', '手動']], CTRL.drift ?? 'null')}</div>
+      <div class='text-[10px] text-white/50 -mt-1'>自動＝カーブで曲がり続けると始まる／手動＝ドリフトボタン（キーボード C、スマホは画面の DRIFT、パッドは X）を押しながら曲がると始まり、離した瞬間がジャスト判定。「アシストに合わせる」はオフのとき手動、フル・一部のとき自動。</div>
+      <div class='flex flex-wrap items-center gap-2'><span class='w-28 text-white/75'>スマホのハンドル</span>${seg('analog', [['false', '左右タッチ'], ['true', 'アナログ（ドラッグ量）']], CTRL.analog)}</div>
+      <div class='text-[10px] text-white/50 -mt-1'>アナログ: 触れた場所から左右にずらした量でハンドルの強さが変わります。ゲームパッドもつなぐだけで使えます（左スティック・A ブースト・B アイテム・X/RB ドリフト・START ポーズ）。</div>`;
+    b.querySelectorAll('[data-ck]').forEach(x => x.onclick = () => { const k = x.dataset.ck, v = x.dataset.v; if (k === 'drift') { CTRL.drift = v === 'null' ? null : v; store.set('ns_drift', CTRL.drift); } else { CTRL.analog = v === 'true'; store.set('ns_analog', CTRL.analog); } SND.tick(); Meta.renderCtrl(); });
+  };
+  Meta.renderCtrl();
   opts.className = 'flex flex-wrap items-center gap-2'; set.appendChild(opts);
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>操作方法</div>`);
   const ctl = document.createElement('div'); ctl.className = 'flex flex-col gap-1.5 text-xs text-white/80';
@@ -6010,6 +6061,7 @@ function update(dt) {
   game.t += dt;
   const st = game.state;
   if (st === 'countdown') countdownTick(dt);
+  Pad.poll();
   if (input.boostReq) { input.boostReq = false; tryBoost(); }
   if (input.itemReq) { input.itemReq = false; if (st === 'play') { if (player.item && player.roulette <= 0) useItem(player); else SND.buzz(); } }
   if (game.split && p2) {
