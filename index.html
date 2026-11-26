@@ -160,6 +160,10 @@
   #btnJump .ic{width:22px;height:22px;color:#ffd400}
   #btnJump:active{transform:scale(.92)}
   #btnJump.cool{opacity:.45}
+  #btnTaunt{width:50px;height:50px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:9px;color:#fff;background:rgba(40,8,40,.75);border:2px solid #ff8ad8;align-self:center;line-height:1.1}
+  #btnTaunt .em{font-size:20px}
+  #btnTaunt:active{transform:scale(.9)}
+  #btnTaunt.cool{opacity:.4}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
   #heatG>i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#29f3ff,#ffd400 60%,#ff2050)}
   #heatG>b{position:absolute;left:0;right:0;bottom:80%;height:15%;border-top:1px solid #fff;border-bottom:1px solid #fff;background:rgba(255,255,255,.25)}
@@ -434,6 +438,7 @@
 
   <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-end gap-4">
     <button id="btnItem" class="pointer-events-auto empty"><span class="in" id="itemIcon"></span><span id="itemCount" class="hidden">x3</span></button>
+    <button id="btnTaunt" class="pointer-events-auto" aria-label="煽る"><span class="em">😜</span><span>煽る</span></button>
     <button id="btnJump" class="pointer-events-auto"><i data-i="jump"></i><span>JUMP</span></button>
     <button id="btnDrift" class="pointer-events-auto" style="display:none">DRIFT</button>
     <button id="btnBoost" class="pointer-events-auto"><div id="heatG"><i id="heatFill"></i><b></b></div><span>BOOST</span></button>
@@ -841,6 +846,8 @@ const SHOP = {
 // サイドアタック: 並走中にハンドルを相手に向けて勢いよく寄せると、相手を横に吹っ飛ばす
 // ジャンプボタン: 上向きの速さ（約0.6秒・高さ1.5m）、使える間隔(秒)、踏み切りで残る速さ。空中はアイテム・障害物に当たらない
 const JUMP = { v: 9.5, cd: 1.6, keep: 0.98 };
+// 煽る: 届く距離(m)、使える間隔(秒)、煽られたCPUがふらつく時間(秒)と幅、成功時のスコア・ニトロ、CPUが煽ってくる確率(毎秒)
+const TAUNT = { range: 30, cd: 4, fluster: 1.6, swerve: 3.2, score: 300, nitro: 8, cpuRate: 0.025 };
 const BASH = { ds: 2.8, closing: 5.5, push: 24, speedLoss: 0.12, spin: 0.35, selfLoss: 0.03, cd: 0.9, score: 400 };
 // ネオン（ゲーム内通貨）の入り方。1レース 約200前後（以前は約690でたまりすぎていた）
 const REWARD = {
@@ -2113,6 +2120,7 @@ const SND = {
   explode(vol = 1) { if (!this.ok() || vol < 0.05) return; const t = this.t(); this.noiseHit(t, 1.4, 1.2 * vol, 'lowpass', 5000, 60); this.tone(120, t, 0.9, 'sine', 1.0 * vol, this.sfx, 28); this.tone(60, t, 0.5, 'square', 0.3 * vol, this.sfx, 30); this.noiseHit(t + 0.05, 0.6, 0.5 * vol, 'highpass', 3000, 800); },
   crash() { if (!this.ok()) return; const t = this.t(); this.noiseHit(t, 1.1, 1.0, 'lowpass', 4000, 80); this.tone(140, t, 0.6, 'sine', 0.9, this.sfx, 30); this.tone(90, t, 0.3, 'square', 0.3, this.sfx, 40); },
   bump() { if (!this.ok()) return; const t = this.t(); this.noiseHit(t, 0.18, 0.6, 'lowpass', 1500, 200); this.tone(160, t, 0.15, 'square', 0.25, this.sfx, 60); },
+  horn() { if (!this.ok()) return; const t = this.t(); this.tone(392, t, 0.13, 'square', 0.16, this.sfx); this.tone(494, t, 0.13, 'square', 0.12, this.sfx); this.tone(392, t + 0.17, 0.22, 'square', 0.16, this.sfx); this.tone(494, t + 0.17, 0.22, 'square', 0.12, this.sfx); },
   jump() { if (!this.ok()) return; const t = this.t(); this.tone(260, t, 0.4, 'triangle', 0.35, this.sfx, 1000); this.noiseHit(t, 0.5, 0.35, 'bandpass', 1500, 400, this.sfx, 2); },
   land(p) { if (!this.ok()) return; const t = this.t(); this.noiseHit(t, 0.3, 0.7 * p, 'lowpass', 900, 100); this.tone(110, t, 0.25, 'sine', 0.8 * p, this.sfx, 40); },
   smash() { if (!this.ok()) return; const t = this.t(); this.noiseHit(t, 0.6, 1.0, 'highpass', 2000, 500); this.tone(600, t, 0.3, 'square', 0.2, this.sfx, 150); },
@@ -2459,7 +2467,7 @@ const say = (lines, pri) => Voice.say(CASTER().tr(typeof lines === 'string' ? li
 /* =====================================================================
    11. 入力
    ===================================================================== */
-const input = { kl: false, kr: false, touches: new Map(), boostReq: false, itemReq: false, jumpReq: false };
+const input = { kl: false, kr: false, touches: new Map(), boostReq: false, itemReq: false, jumpReq: false, tauntReq: false };
 const P2KEYS = { l: ['ArrowLeft'], r: ['ArrowRight'], b: ['ArrowUp', 'ShiftRight', 'Slash'], i: ['ArrowDown', 'Period', 'Enter'] };
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
@@ -2477,6 +2485,7 @@ addEventListener('keydown', e => {
     if (['Space', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
     if (['KeyX', 'KeyE', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
     if (e.code === 'KeyJ') { input.jumpReq = true; e.preventDefault(); }
+    if (e.code === 'KeyH') { input.tauntReq = true; e.preventDefault(); }
     if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
     return;
   }
@@ -2487,6 +2496,7 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
   if (['KeyX', 'KeyE', 'ArrowDown', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
   if (e.code === 'KeyJ' && game.state === 'play') { input.jumpReq = true; e.preventDefault(); }
+  if (e.code === 'KeyH' && game.state === 'play') { input.tauntReq = true; e.preventDefault(); }
   if (e.code === 'Enter' && game.state === 'title') { if (game.menu === 'stage') openGarage(); else openStageSel(); return; }
   if (game.state === 'title' && game.menu === 'stage' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selectStage((stageIdx + (e.code === 'ArrowRight' ? 1 : -1) + STAGES.length) % STAGES.length); return; }
   else if (e.code === 'Enter' && game.state === 'garage') startGame();
@@ -2555,11 +2565,12 @@ const Pad = {
     if (!gp) { this.axis = 0; this.boost = this.drift = false; return; }
     const x = gp.axes[0] || 0, b = i => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = i => b(i) && !this.prev[i];
     this.axis = Math.abs(x) > CTRL.padDead ? (x - Math.sign(x) * CTRL.padDead) / (1 - CTRL.padDead) : 0;
-    if (b(14)) this.axis = -1; if (b(15)) this.axis = 1;   // 十字キー
+    if (b(14)) this.axis = -1; if (b(15)) this.axis = 1;   // 十字キー（左右）
     this.boost = b(0); this.drift = b(2) || b(5);
     if (edge(0)) input.boostReq = true;
     if (edge(1) || edge(4)) input.itemReq = true;
     if (edge(3)) input.jumpReq = true;   // Y ボタン = ジャンプ
+    if (edge(12) && game.state === 'play') input.tauntReq = true;   // 十字キー上 = 煽る
     if (edge(9)) togglePause();
     if (edge(0) && game.state === 'title') { if (game.menu === 'stage') openGarage(); else if (!game.menu) openStageSel(); }
     else if (edge(0) && game.state === 'garage') startGame();
@@ -2597,6 +2608,7 @@ const Assist = {
 };
 $('btnItem').addEventListener('pointerdown', e => { e.preventDefault(); input.itemReq = true; });
 $('btnJump').addEventListener('pointerdown', e => { e.preventDefault(); input.jumpReq = true; });
+$('btnTaunt').addEventListener('pointerdown', e => { e.preventDefault(); input.tauntReq = true; });
 
 /* =====================================================================
    12. レーサー (プレイヤー + CPU)
@@ -2920,6 +2932,55 @@ function explode(s, x, h, owner, victim) {
   if (d < 40) cam.shake = Math.max(cam.shake, 1 - d / 50);
   if (d < 80 && live()) vib([Math.round(30 + 90 * (1 - d / 80)), 30, Math.round(20 + 50 * (1 - d / 80))]);
   for (const c of cars) if (c === victim || (Math.abs(c.s - s) < 8 && Math.abs(c.x - x) < 5.5 && c.h < 4)) hitCar(c, owner);
+}
+// 煽る: クラクション＋車の上に顔マーク。近くの相手（30m以内）を煽るとスコア。CPU はしばらくふらつく。オンラインでは相手の画面に「煽られた！」
+const Taunt = {
+  tex: {},
+  texOf(k) { return this.tex[k] || (this.tex[k] = canvasTex(128, 128, (c, w, h) => { c.font = '92px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(k === 'angry' ? '💢' : '😜', w / 2, h / 2 + 6); })); },
+  emote(c, k) {
+    if (!c || !c.model) return;
+    if (!c.emo) { c.emo = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, depthTest: false, transparent: true, sizeAttenuation: false })); c.emo.renderOrder = 9; c.model.root.add(c.emo); }
+    if (c.emo.parent !== c.model.root) c.model.root.add(c.emo);
+    c.emo.material.map = this.texOf(k); c.emo.material.needsUpdate = true; c.emo.position.y = 3.4; c.emo.visible = true; c.emoT = 1.6;
+  },
+  tick(dt) {
+    for (const c of cars) {
+      if (c.emoT > 0) { c.emoT -= dt; const k = 1.6 - c.emoT, sc = 0.09 * (k < 0.15 ? k / 0.15 * 1.3 : k < 0.3 ? 1.3 - (k - 0.15) * 2 : 1); c.emo.scale.set(sc, sc, 1); c.emo.position.y = 3.4 + Math.sin(k * 14) * 0.15; if (c.emoT <= 0) c.emo.visible = false; }
+      // CPU もたまに煽ってくる（見た目とクラクションだけ・プレイヤーはふらつかない）
+      if (game.state === 'play' && !c.ctrl && !c.remote && !c.finished && c.s > player.s && c.s - player.s < 18 && Math.random() < TAUNT.cpuRate * dt && game.t - (c.tauntCd ?? -9) > TAUNT.cd * 3) {
+        c.tauntCd = game.t; this.emote(c, 'taunt'); this.emote(player, 'angry');
+        if (nearCam(c)) { SND.horn(); pop(`${c.name}に煽られた！`, '#ff8ad8', 22); if (Math.random() < 0.5) say([`${c.name}、挑発してきた！`, 'おっと、煽られています！ 見返してやれ！'], 1); }
+      }
+    }
+  },
+  use(c) {
+    if (game.state !== 'play' || !c || c.finished) return false;
+    if (game.t - (c.tauntCd ?? -9) < TAUNT.cd) return false;
+    c.tauntCd = game.t; this.emote(c, 'taunt');
+    if (c.isPlayer) { SND.horn(); vib([20, 30, 20]); }
+    let tgt = null, bd = TAUNT.range;
+    for (const o of cars) { if (o === c || o.finished) continue; const d = Math.abs(o.s - c.s); if (d < bd) { bd = d; tgt = o; } }
+    if (tgt && NET.teams && tgt.remote && NET.teams[tgt.remote] !== undefined && NET.teams[tgt.remote] === NET.teams[NET.me]) tgt = null;   // チーム戦の味方は煽らない
+    if (!tgt) { if (c.isPlayer && live()) pop('ププー！', '#ff8ad8', 24); return true; }
+    if (tgt.remote) netTaunt(tgt.remote); else { tgt.tauntT = TAUNT.fluster; this.emote(tgt, 'angry'); }
+    if (c.isPlayer && live()) {
+      RUN.taunt = (RUN.taunt || 0) + 1; addScore(TAUNT.score); c.nitro = Math.min(100, c.nitro + TAUNT.nitro); Dopa.ev('near');
+      pop(`${tgt.s > c.s ? '後ろから煽った！' : '煽り返し！'} ${tgt.name} +${TAUNT.score}`, '#ff8ad8', 28);
+      if (Math.random() < 0.6) say([`${tgt.name}を挑発！ 相手はカッカしています！`, 'クラクション一発！ 心理戦です！', `煽った！ ${tgt.name}、ハンドルが乱れる！`], 1);
+    }
+    return true;
+  },
+  // オンラインで受け取った「煽り」
+  recv(atk, toMe, cpu) {
+    if (atk) this.emote(atk, 'taunt');
+    if (toMe) { this.emote(player, 'angry'); SND.horn(); vib([30, 40, 30]); pop(`${atk ? atk.name : 'だれか'}に煽られた！`, '#ff8ad8', 26); }
+    else if (cpu) { cpu.tauntT = TAUNT.fluster; this.emote(cpu, 'angry'); }
+  },
+};
+function netTaunt(target) {
+  if (!NET.r) return;
+  NET.tnSeq = (NET.tnSeq || 0) + 1; NET.tnOut = NET.tnOut || []; NET.tnOut.push([NET.tnSeq, target]); if (NET.tnOut.length > 4) NET.tnOut.shift();
+  netPresence({ tn: NET.tnOut });
 }
 // ジャンプボタン（地面にいるときだけ・ループ／谷の上では不可）。着地ボーナスやトリックは出ない小ジャンプ
 function doJump(c) {
@@ -3536,6 +3597,7 @@ function aiControl(c, dt) {
     if (!a.bashTgt && Math.random() < L.bash * dt) { const o = cars.find(o => o !== c && Math.abs(o.s - c.s) < 2.2 && Math.abs(o.x - c.x) < 4.5 && !o.air); if (o) { a.bashTgt = o; a.bashT = 0.6; } }
     if (a.bashTgt) { a.bashT -= dt; tx = a.bashTgt.x; if (a.bashT <= 0 || Math.abs(a.bashTgt.s - c.s) > 3) a.bashTgt = null; }
   }
+  if (c.tauntT > 0) { c.tauntT -= dt; tx += Math.sin(game.t * 7 + c.s * 0.05) * TAUNT.swerve; }   // 煽られてふらつく
   tx = clamp(tx, -6.2, 6.2);
   const latK = latKAt(c.s);
   if (!c.isPlayer && !c.air) {
@@ -3814,6 +3876,7 @@ function updateHUD(dt) {
   for (const o of cars) if (o.dot) o.dot.style.left = clamp(o.s / goalS, 0, 1) * 100 + '%';
   const bb = $('btnBoost'); bb.style.setProperty('--n', c.nitro.toFixed(1)); bb.classList.toggle('ready', c.nitro >= 25 && !(c.heatStall > 0));
   $('btnJump').classList.toggle('cool', !!c.air || game.t - (c.jumpCd ?? -9) < JUMP.cd);
+  $('btnTaunt').classList.toggle('cool', game.t - (c.tauntCd ?? -9) < TAUNT.cd);
   skillHUD(c);
   // アイテム枠 (ルーレット演出)
   const bi = $('btnItem');
@@ -4298,7 +4361,7 @@ async function netEnter(code, asHost) {
   try {
     NET.r = await NET.api.join('ns-' + code.toLowerCase());
   } catch (e) { netStatus('接続できませんでした（' + (e && e.code || 'error') + '）。少し待ってもう一度試してください。'); return; }
-  NET.code = code; NET.host = !!asHost; NET.active = true; NET.seenRace = 0; NET.synced = !!asHost; NET.joinT = performance.now(); NET.noHostT = 0; NET.raceId = 0; NET.seenHits.clear(); NET.hitsOut = [];
+  NET.code = code; NET.host = !!asHost; NET.active = true; NET.seenRace = 0; NET.synced = !!asHost; NET.joinT = performance.now(); NET.noHostT = 0; NET.raceId = 0; NET.seenHits.clear(); NET.hitsOut = []; NET.tnOut = [];
   NET.unsub = NET.r.onPeers(ch => onNetPeers(ch), err => { netStatus('接続が切れました（' + err.code + '）'); netLeave(true); });
   if (NET.myPk === null) NET.myPk = stageIdx;
   netPresence({ v: 1, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
@@ -4334,6 +4397,15 @@ function onNetPeers(ch) {
       if (hk[2] === 'b') { const dir = hk[3] === 1 ? 1 : -1; if (hk[1] === NET.me) Bash.apply(player, dir, atk); else if (NET.host && typeof hk[1] === 'string' && hk[1].startsWith('cpu:')) { const c = cpuPool[+hk[1].slice(4)]; if (c && cars.includes(c)) Bash.apply(c, dir, atk); } continue; }   // サイドアタック
       if (hk[1] === NET.me) { hitCar(player, atk); emit(player.pos, 80, { speed: 26, color: 0xff6a00, color2: 0xffd400, size: 1.3, life: 0.9, grav: 8 }); SND.explode(0.9); }
       else if (NET.host && typeof hk[1] === 'string' && hk[1].startsWith('cpu:')) { const c = cpuPool[+hk[1].slice(4)]; if (c && cars.includes(c)) hitCar(c, atk); }
+    }
+    // 煽りの受信（攻撃とは別の欄なので、古い版の人には何も起きない）
+    if (Array.isArray(pr.tn)) for (const tk of pr.tn) {
+      if (!Array.isArray(tk)) continue;
+      const key = p.peer + ':t' + tk[0]; if (NET.seenHits.has(key)) continue; NET.seenHits.add(key);
+      if (!NET.racing || game.state !== 'play') continue;
+      const atk = NET.remotes.get(p.peer) || null;
+      const cpu = NET.host && typeof tk[1] === 'string' && tk[1].startsWith('cpu:') ? cpuPool[+tk[1].slice(4)] : null;
+      Taunt.recv(atk, tk[1] === NET.me, cpu && cars.includes(cpu) ? cpu : null);
     }
     // ホストのシリーズ（3レースの合計）
     if (pr.h && pr.ser && typeof pr.ser === 'object' && JSON.stringify(pr.ser) !== JSON.stringify(NET.hostSer)) { NET.hostSer = pr.ser; if (game.state === 'result' && NET.racing) NetSeries.render(); }
@@ -6496,6 +6568,8 @@ function update(dt) {
   if (st === 'countdown') countdownTick(dt);
   Pad.poll();
   if (input.boostReq) { input.boostReq = false; tryBoost(); }
+  if (input.tauntReq) { input.tauntReq = false; if (st === 'play' && !Taunt.use(player)) SND.buzz(); }
+  if (st === 'play' || st === 'result') Taunt.tick(dt);
   if (input.jumpReq) { input.jumpReq = false; if (st === 'play' && !doJump(player) && !player.air) SND.buzz(); }
   if (input.itemReq) { input.itemReq = false; if (st === 'play') { if (player.item && player.roulette <= 0) useItem(player); else SND.buzz(); } }
   if (game.split && p2) {
