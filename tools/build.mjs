@@ -16,7 +16,13 @@ let code = html.slice(start + OPEN.length, end);
 // 検証用フック（window.__game）は公開版から外す。チート防止も兼ねる
 const HOOK = '// 検証用フック';
 const h = code.indexOf(HOOK);
-if (h >= 0) code = code.slice(0, h);
+if (h < 0) throw new Error('検証用フックの目印（// 検証用フック）が見つかりません。公開版に検証用コードが残るので中止します');
+code = code.slice(0, h);
+// DEBUG を必ず false に固定（localhost で開いても公開版では検証用の分岐が動かない）
+const DBG = /const DEBUG = [^\n]*;/;
+if (!DBG.test(code)) throw new Error('const DEBUG が見つかりません');
+code = code.replace(DBG, 'const DEBUG = false;');
+code = code.replace(/window\.__game/g, '(void 0)');   // 残りの参照も消す（DEBUG=false なので元々動かない）
 
 // ---- 公式ドメイン判定（コピー対策） ----
 // 公式の場所以外で開かれたら「非公式コピー」と表示し、オンライン機能（Supabase）を止める。
@@ -74,6 +80,7 @@ if (obf) {
   }).getObfuscatedCode();
 }
 
+if (/__game/.test(code)) throw new Error('公開版に __game が残っています');
 const banner = '/* © 2026 NEON SKYWAY. All rights reserved. 無断での複製・改変・再配布を禁じます。 */\n';
 const out = html.slice(0, start) + OPEN + banner + code + html.slice(end);
 mkdirSync(OUT_DIR, { recursive: true });

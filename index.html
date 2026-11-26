@@ -727,6 +727,8 @@ const ordinal = n => (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'n
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
 const rng = mulberry32(20261124);
 const rr = (a, b) => a + rng() * (b - a);
+// 検証用（自動運転など）は localhost か URL に ?debug があるときだけ有効。公開版ではビルドで丸ごと外す
+const DEBUG = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /[?&]debug\b/.test(location.search);
 const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 
@@ -5403,7 +5405,7 @@ const COLOR = [
   };
 }
 const _gF = FR();
-setTimeout(() => { if (window.__game) Object.assign(window.__game, { SC, TA, TRK }); }, 0);
+if (DEBUG) setTimeout(() => { if (window.__game) Object.assign(window.__game, { SC, TA, TRK }); }, 0);
 const _trP = new V3(), _trV = new V3(), _trC = new THREE.Color();
 const Meta = {
   tab: 'mis',
@@ -5866,7 +5868,7 @@ function step(dt) {
     if (c.remote) { applyRemote(c, dt); updateCarTransform(c, dt); continue; }
     let ctl = 0;
     if (c.ctrl) {
-      if (st === 'play' && !c.finished) ctl = window.__game?.autopilot ? aiControl(c, dt) : (game.mirror ? -1 : 1) * steerInput(c.ctrl === 'p2' ? 1 : 0);
+      if (st === 'play' && !c.finished) ctl = DEBUG && window.__game?.autopilot ? (window.__game.botCtl ? window.__game.botCtl(c, dt) : aiControl(c, dt)) : (game.mirror ? -1 : 1) * steerInput(c.ctrl === 'p2' ? 1 : 0);
       else if (st === 'title') ctl = aiControl(c, dt);
       else ctl = clamp(-c.x * 0.2, -1, 1);
     } else ctl = aiControl(c, dt);
@@ -5988,8 +5990,9 @@ applyQuality();
 toTitle();
 $('loading').remove();
 requestAnimationFrame(frame);
-// 検証用フック
-window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, CASTERS, setCaster, get RUN() { return RUN; }, autopilot: false,
+// 検証用フック（DEBUG のときだけ。ビルドでこの行から下は削除される）
+if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR() { return TR; }, get COURSE() { return COURSE; }, get coins() { return coins; }, get obstacles() { return obstacles; }, get itemBoxes() { return itemBoxes; }, get gaps() { return gaps; }, get goalS() { return goalS; }, get airRings() { return airRings; }, STAGES, buildStage, checkCourse, selectStage, NET, Skill, Flow, Assist, TA, GhostNet, CASTERS, setCaster, get RUN() { return RUN; }, autopilot: false,
+  update, startGame, aiControl, input, LEVELS, CAR_TYPES, TYPE_KEYS, CRANK, CourseRank, MEDALS, ASSIST, HEAT, DRIFT, WALL, setPlayerType, latKAt, get stageIdx() { return stageIdx; }, get STAGE() { return STAGE; }, PF, Practice, Modes,
   setQuality: q => { quality = q; applyQuality(); },
   sim: (sec, boost, items) => { for (let i = 0; i < sec * 60; i++) { if (boost && player.nitro >= 50) input.boostReq = true; if (items && player.item && player.roulette <= 0) input.itemReq = true; update(1 / 60); } } };
 </script>

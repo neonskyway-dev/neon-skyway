@@ -60,3 +60,24 @@
 - 既定の公式ドメイン: `neon-skyway.pages.dev`（とそのプレビュー用サブドメイン）、`neonskyway-dev.github.io`、`localhost`
 - Cloudflare Pages のプロジェクト名が違うときや独自ドメインを使うときは、環境変数 `OFFICIAL_HOSTS`（カンマ区切り）で上書きする
 - `public/_headers`・`public/robots.txt` は dist にコピーされる（テスト公開中は検索エンジンに載せない）
+
+### 検証用フック（window.__game）について
+
+- `localhost` / `127.0.0.1` で開いたとき、または URL に `?debug` を付けたときだけ有効（自動運転・自動レースの計測用）
+- `npm run build` の dist では、フック以降を削除し `DEBUG = false` に固定。`__game` が残っていたらビルドが失敗する
+
+### リポジトリを非公開にして dist だけを公開する手順（手作業）
+
+いまは公開リポジトリの `index.html`（難読化前）が GitHub Pages でそのまま配信されています。コードを守るには、次のどちらかにします。
+
+**A. Cloudflare Pages（おすすめ・無料で非公開リポジトリOK）**
+1. https://dash.cloudflare.com → Workers & Pages → Create → Pages → 「Connect to Git」で `neonskyway-dev/neon-skyway` を選ぶ
+2. Build command: `npm install && npm run build` ／ Build output directory: `dist` ／ プロジェクト名 `neon-skyway`（→ `neon-skyway.pages.dev`）
+3. 公開を確認したら、GitHub のリポジトリ → Settings → General → 一番下「Change repository visibility」→ **Make private**
+4. GitHub Pages は Settings → Pages → 「Unpublish site」で止める（非公開リポジトリの Pages は有料プランが必要なので、止めておくのが確実）
+5. ホーム画面に追加している人は、新しい URL で追加し直す（ローカルの記録はドメインごとなので引き継がれない）
+
+**B. GitHub Pages のまま dist を配信する（リポジトリは公開のまま or 有料プランで非公開）**
+1. Settings → Pages → Source を **GitHub Actions** に変更
+2. `.github/workflows/pages.yml` を作り、`npm ci && npm run build` → `actions/upload-pages-artifact`（path: `dist`）→ `actions/deploy-pages` の3ステップにする
+3. この場合もリポジトリが公開なら元のコードは読めるので、コード保護には A か、GitHub Pro 以上でリポジトリを非公開にする必要がある
