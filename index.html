@@ -655,6 +655,7 @@ const ASSIST = {
   steer: { full: 1.0, partial: 0.6 },    // 壁へ向かう横移動を打ち消す割合（壁の直前で最大）
   autoNitro: 50,            // full: ニトロがこれ以上あれば自動でブースト
   autoNitroHeat: 50,        // full: 熱がこれ未満のときだけ自動ブースト（オーバーヒートしない）
+  autoNitroNeedInput: 3,    // full: 直近この秒数以内にハンドル操作があったときだけ自動ニトロ（無操作では勝てない）
   driftGrace: 0.35,         // full: ハンドルを一瞬ゆるめてもドリフトが切れない時間(秒)
 };
 // B1. ドリフト4段階チャージ
@@ -2393,14 +2394,17 @@ $('btnItem').addEventListener('pointerdown', e => { e.preventDefault(); input.it
 //  skill: 基本スピード倍率の範囲 / rb: 追いつき・手加減の幅 / boost: ニトロ間隔(秒) / item: アイテム使用までの迷い(秒)
 //  look: 障害物を見る距離(m) / aim: 攻撃アイテムを撃つ射程の倍率 / wob: ライン取りのブレ
 const LEVELS = {
-  1: { name: 'かんたん',     skill: [0.82, 0.88], rb: [-0.14, 0.04], boost: [12, 20], item: [2.5, 4.5], look: 22, aim: 0.5, wob: 1.6, drift: 0, rocket: 0.2 },
-  2: { name: 'ふつう',       skill: [0.90, 0.95], rb: [-0.08, 0.08], boost: [8, 13],  item: [1.2, 3],   look: 38, aim: 0.8, wob: 1.2, drift: 0.3, rocket: 0.4 },
-  3: { name: 'むずかしい',   skill: [0.97, 1.02], rb: [-0.04, 0.12], boost: [5, 8],   item: [0.6, 2],   look: 55, aim: 1.0, wob: 0.9, bmax: 1.02, drift: 0.55, rocket: 0.6 },
-  4: { name: 'エキスパート', skill: [1.02, 1.06], rb: [-0.01, 0.14], boost: [3.5, 5.5], item: [0.4, 1.2], look: 70, aim: 1.2, wob: 0.6, bmax: 1.05, drift: 0.8, rocket: 0.8 },
-  5: { name: '鬼',           skill: [1.06, 1.10], rb: [0, 0.14], boost: [2.6, 4], item: [0.2, 0.7], look: 80, aim: 1.5, wob: 0.4, bmax: 1.08, drift: 1.0, rocket: 0.9 },
-  6: { name: '神',           skill: [1.10, 1.13], rb: [0, 0.12], boost: [2.2, 3.2], item: [0.15, 0.5], look: 90, aim: 1.8, wob: 0.25, bmax: 1.11, drift: 1.2, rocket: 1.0 },
-  // Lv7: アシスト不可・ミラー・CPUは最適ライン（カーブの内側を突く／手加減なし）
-  7: { name: 'HARDCORE',     skill: [1.12, 1.15], rb: [0, 0.10], boost: [1.8, 2.6], item: [0.1, 0.4], look: 100, aim: 2.0, wob: 0.2, bmax: 1.13, drift: 1.4, rocket: 1.0, opt: true, mirror: true, noAssist: true },
+  // CPU の強さ。速さ（skill / bmax）は控えめにして、差は「上手さ」で出す:
+  //  nitro: ニトロの回復(/秒、1回のブーストで25使う) / heatIQ: 熱を見てブーストする確率（低いとオーバーヒートする） / drift: ドリフトターボの上手さ
+  //  look: 障害物を見る距離 / aim・item: アイテムの判断 / wob: ふらつき（ミスの多さ） / rb: 追い上げ・手加減の幅 [先行時, 後方時]
+  1: { name: 'かんたん',     skill: [0.84, 0.88], rb: [-0.12, 0.00], boost: [6, 10],  nitro: 2.2, heatIQ: 0.15, item: [2.5, 4.5], look: 22, aim: 0.5, wob: 1.6, drift: 0, rocket: 0.2 },
+  2: { name: 'ふつう',       skill: [0.90, 0.93], rb: [-0.08, 0.01], boost: [4, 7],   nitro: 2.8, heatIQ: 0.35, item: [1.2, 3],   look: 38, aim: 0.8, wob: 1.2, drift: 0.3, rocket: 0.4 },
+  3: { name: 'むずかしい',   skill: [0.93, 0.96], rb: [-0.05, 0.015], boost: [3, 5.5], nitro: 3.3, heatIQ: 0.55, item: [0.6, 2],   look: 55, aim: 1.0, wob: 0.9, bmax: 1.0, drift: 0.55, rocket: 0.6 },
+  4: { name: 'エキスパート', skill: [0.95, 0.98], rb: [-0.04, 0.02], boost: [2.5, 4.5], nitro: 3.8, heatIQ: 0.7,  item: [0.4, 1.2], look: 70, aim: 1.2, wob: 0.6, bmax: 1.01, drift: 0.8, rocket: 0.8 },
+  5: { name: '鬼',           skill: [0.93, 0.96], rb: [-0.03, 0.025], boost: [2, 3.5], nitro: 4.3, heatIQ: 0.85, item: [0.2, 0.7], look: 80, aim: 1.5, wob: 0.4, bmax: 1.02, drift: 1.0, rocket: 0.9 },
+  6: { name: '神',           skill: [0.95, 0.98], rb: [-0.03, 0.03], boost: [1.6, 3], nitro: 4.8, heatIQ: 0.95, item: [0.15, 0.5], look: 90, aim: 1.8, wob: 0.25, bmax: 1.03, drift: 1.2, rocket: 1.0 },
+  // Lv7: アシスト不可・ミラー・CPUは最適ライン（カーブの内側を突く）
+  7: { name: 'HARDCORE',     skill: [0.955, 0.985], rb: [-0.02, 0.03], boost: [1.3, 2.5], nitro: 5.3, heatIQ: 1.0, item: [0.1, 0.4], look: 100, aim: 2.0, wob: 0.2, bmax: 1.04, drift: 1.4, rocket: 1.0, opt: true, mirror: true, noAssist: true },
 };
 const LV = () => LEVELS[game.lv] || LEVELS[2];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
@@ -2749,7 +2753,7 @@ const Skill = {
     }
     // アシスト「フル」: 自動ニトロ（熱が低いときだけ。オーバーヒートしない）
     if (Assist.of(c) === 'full' && !c.air && !c.drifting && c.boostT <= 0 && c.heatStall <= 0 && c.v > 30 && c.spin <= 0
-        && c.nitro >= ASSIST.autoNitro && (c.heat || 0) < ASSIST.autoNitroHeat) tryBoost(c);
+        && c.nitro >= ASSIST.autoNitro && (c.heat || 0) < ASSIST.autoNitroHeat && game.t - (c.lastSteerT ?? -99) <= ASSIST.autoNitroNeedInput) tryBoost(c);
   },
   // B3. 空中の機首: 押している間は上がり、離すと進行方向へ戻る。フルは HARD LANDING にならない所まで自動で起こす
   pitchTick(c, dt) {
@@ -2913,7 +2917,7 @@ function physics(c, dt, ctl) {
   if (c.trickT > 0) c.trickT -= dt;
   if (c.ctrl) Skill.preTick(c, dt);
   if (c.boostT > 0) c.boostT -= dt; if (c.padT > 0) c.padT -= dt;
-  if (c.ctrl) Skill.heatTick(c, dt);
+  if (!c.dev) Skill.heatTick(c, dt);   // ニトロ熱は CPU にも同じルール（開発者タイム計測用のボットだけ除外）
   if (c.invuln > 0) c.invuln -= dt; if (c.shield > 0) c.shield -= dt;
   // ハンドル: 入力をなめらかに立ち上げる
   const rate = (ctl === 0 || Math.sign(ctl) !== Math.sign(c.steer)) ? 9 : 5.5;
@@ -2997,7 +3001,7 @@ function physics(c, dt, ctl) {
     }
     if (c.airT > 7) respawnAfterGap(c);
   }
-  c.prevCtl = ctl;
+  c.prevCtl = ctl; if (c.ctrl && Math.abs(ctl) > 0.3) c.lastSteerT = game.t;
   if (c.s >= TR.len - 5) c.s = TR.len - 5;
   if (fxOn) game.maxV = Math.max(game.maxV, c.v);
 
@@ -3190,9 +3194,18 @@ function aiControl(c, dt) {
   // 速度: ラバーバンド (離されすぎず、離しすぎず)
   const gap = player.s - c.s;
   a.mult = c.isPlayer ? 1 : a.skill + clamp(gap / 450, L.rb[0], L.rb[1]);
-  if (!c.isPlayer || game.state === 'title') {
+  if (game.state === 'title') {   // タイトル画面の飾りの走り
     a.boostT -= dt;
-    if (a.boostT < 0) { a.boostT = rnd(L.boost); startBoost(c, 1.5, false); if (nearCam(c) && !c.isPlayer && live()) SND.whoosh(); }
+    if (a.boostT < 0) { a.boostT = rnd(L.boost); startBoost(c, 1.5, false); }
+  } else if (!c.isPlayer && !c.dev) {
+    // CPU もプレイヤーと同じ: ニトロを25使って1.9秒。熱が上がり、100%で失速。上手い CPU は熱を見て、急冷の枠（80〜95%）に収まるときだけ踏む
+    c.nitro = Math.min(100, c.nitro + (L.nitro || 5) * dt);
+    a.boostT -= dt;
+    if (a.boostT < 0 && c.nitro >= 25 && c.boostT <= 0 && !(c.heatStall > 0) && !c.air) {
+      const after = (c.heat || 0) + HEAT.rate * 1.9, smart = Math.random() < (L.heatIQ ?? 0.5);
+      if (!smart || after <= HEAT.win[1]) { c.nitro -= 25; startBoost(c, 1.9, false); a.boostT = rnd(L.boost); if (nearCam(c) && live()) SND.whoosh(); }
+      else a.boostT = 0.25;   // 冷めるのを待つ
+    }
   }
   // アイテム使用
   if (c.item && c.roulette <= 0) {
