@@ -363,6 +363,7 @@
     <button data-t='gacha' class='metab'><i data-i='gacha'></i><span>スロット</span><i id='badgeGacha'></i></button>
     <button data-t='cus' class='metab'><i data-i='palette'></i><span>カスタム</span></button>
     <button data-t='ach' class='metab'><i data-i='trophy'></i><span>実績</span></button>
+    <button data-t='shop' class='metab'><i data-i='gift'></i><span>ショップ</span></button>
     <button data-t='set' class='metab'><i data-i='gear'></i><span>設定</span></button>
   </div>
   <div id="titleMain" class="relative flex flex-col items-center">
@@ -549,7 +550,7 @@
 <div id='meta' class='fixed inset-0 z-30 hidden items-center justify-center bg-black/60 backdrop-blur-sm px-2'>
   <div class='panel rounded-2xl w-full max-w-[880px] h-[94vh] flex flex-col overflow-hidden'>
     <div class='flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap'>
-      <div id='mTabs' class='seg bg-black/50 jp'><button data-t='mis'>ミッション</button><button data-t='gacha'>スロット</button><button data-t='cus'>カスタム</button><button data-t='ach'>実績</button><button data-t='set'>設定</button></div>
+      <div id='mTabs' class='seg bg-black/50 jp'><button data-t='mis'>ミッション</button><button data-t='gacha'>スロット</button><button data-t='cus'>カスタム</button><button data-t='ach'>実績</button><button data-t='shop'>ショップ</button><button data-t='set'>設定</button></div>
       <div class='flex-1'></div>
       <div id='mWallet' class='text-xs sm:text-sm font-black'></div>
       <button id='mClose' class='jp rounded-full px-4 py-1.5 text-xs font-bold border border-white/40 bg-black/40'>閉じる</button>
@@ -711,6 +712,13 @@ const CRANK = {
 // レーザーゲート: 3車線のうち1車線は光らない「抜け道」。点滅のたびに場所が変わる（運ではなく、見てよければ抜けられる）
 const LASER = { lanes: [-5.3, 0, 5.3], laneW: 5.3, safeW: 2.4 };   // safeW: 抜け道の中心からこの幅(m)以内なら当たらない
 const laserSafe = (o, t = game.t) => LASER.lanes[((Math.floor(t / o.period + o.phase) * 7 + Math.floor(o.s || 0)) % 3 + 3) % 3];
+// ネオンの使い道: スロットのかぶり→欠片（好きなアイテムと交換）／週替わりショップ／車のチューン（オンライン対戦とタイムアタックでは無効）
+const SHOP = {
+  shardGain: { N: 1, R: 2, SR: 5, SSR: 15, UR: 40 },          // かぶったときにもらえる欠片
+  shardCost: { N: 8, R: 20, SR: 60, SSR: 200, UR: 600 },      // 交換に必要な欠片（UR はたくさん必要）
+  weeklyN: 4, weeklyPrice: { N: 800, R: 2000, SR: 6000, SSR: 20000, UR: 60000 }, weeklyTix: 2500,
+  tune: { max: 3, step: 0.03, cost: [3000, 8000, 20000] },   // 加速・ハンドリングを1段ごとに +3%
+};
 // スコアの倍率（足し算）
 const SCORE = { fever: 1, maxMul: 4 };
 // 車の性能の効き方（CAR_TYPES の stats と組み合わせて使う）
@@ -3553,6 +3561,8 @@ function startGame() {
   SND.init(); Voice.unlock();
   if (isTouch) { try { document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {}); } catch (e) {} }
   setupRace(game.nCpu);
+  { const base = CAR_TYPES[player.type].stats, T = tuneOf(player.type), ok = tuneAllowed();   // チューン（対象外のモードでは素の性能）
+    player.stats = ok && (T.acc || T.hdl) ? { ...base, acc: base.acc * (1 + T.acc * SHOP.tune.step), hdl: base.hdl * (1 + T.hdl * SHOP.tune.step) } : base; }
   Modes.apply();
   showOnly(null);
   $('hud').classList.toggle('hidden', !!game.split); $('hud2').classList.toggle('hidden', !game.split);
@@ -4578,7 +4588,7 @@ function rollOne(minIdx = 0) {
   if (rar === 'GOD') PF.tot.god777 = (PF.tot.god777 || 0) + 1;
   const items = COS.filter(c => c.r === rar && c.g !== false), it = items[(Math.random() * items.length) | 0];
   const dup = !!PF.owned[it.id];
-  if (dup) PF.neon += RAR[rar].rf; else PF.owned[it.id] = 1;
+  if (dup) { const sh = SHOP.shardGain[rar]; if (sh) PF.shard = (PF.shard || 0) + sh; else PF.neon += RAR[rar].rf; } else PF.owned[it.id] = 1;
   PF.tot.pulls = (PF.tot.pulls || 0) + 1; if (rar === 'UR') PF.tot.ur = (PF.tot.ur || 0) + 1;
   return { it, dup };
 }
@@ -4780,7 +4790,7 @@ function htmlGacha() {
     <div class='shrink-0'>${dsMachine('#ff2bd6', false, 'clamp(18px, 6.5vh, 30px)')}</div>
     <div class='flex flex-col items-center text-center gap-1.5 min-w-0 max-w-[380px]'>
     <div class='text-lg font-black neon-pink tracking-wider leading-tight'>ドーパミンスロット</div>
-    <div class='text-[10px] text-white/70 leading-snug'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？<br>かぶったらネオンに自動変換</div>
+    <div class='text-[10px] text-white/70 leading-snug'>そろった絵柄でレア度が決まる！ BAR×3＝SSR、◆×3＝UR …そして 7×3 は？？？<br>かぶったら欠片に（ショップで好きなアイテムと交換）</div>
     <div class='flex flex-wrap gap-2 justify-center'>
       <button id='gx1' class='mbtn' ${PF.neon < 300 ? 'disabled' : ''}>1回　${NE()}300</button>
       <button id='gx10' class='start-btn !px-5 !py-2 text-sm !tracking-[.08em]' ${PF.neon < 2700 ? `disabled style='opacity:.45;animation:none'` : ''}>10連　${NE()}2700</button>
@@ -4791,6 +4801,50 @@ function htmlGacha() {
     <div class='text-[10px] text-white/50'>コレクション ${own} / ${pool.length}</div>
     </div>
   </div>`;
+}
+// ---- ショップ ----
+const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return t.getUTCFullYear() + '-W' + Math.ceil(((t - y0) / 864e5 + 1) / 7); };
+function weeklyItems() {
+  const k = weekKey(); let h = 5; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  const R = mulberry32(h), pool = COS.filter(c => c.g !== false && c.r !== 'GOD'), out = [];
+  while (out.length < SHOP.weeklyN && pool.length) out.push(pool.splice((R() * pool.length) | 0, 1)[0]);
+  return { k, items: out };
+}
+const tuneOf = k => (PF.tune && PF.tune[k]) || { acc: 0, hdl: 0 };
+const tuneAllowed = () => !NET.racing && game.mode !== 'ta' && !game.split;
+function htmlShop() {
+  const W = weeklyItems(), bought = (PF.wbuy && PF.wbuy.k === W.k) ? PF.wbuy.ids : [];
+  const card = (c, price, kind) => { const own = !!PF.owned[c.id], done = kind === 'w' && bought.includes(c.id);
+    return `<div class='mcard flex items-center gap-2'><span style='color:${RAR[c.r].c}' class='text-[10px] font-black w-8'>${c.r}</span>${cosIcon(c)}<span class='flex-1 text-xs truncate'>${c.k === 'title' ? '「' + c.n + '」' : c.n}<small class='text-white/50'> ${KIND_JP[c.k]}</small></span>
+      ${own ? `<span class='text-[10px] text-green-300'>所持</span>` : done ? `<span class='text-[10px] text-white/50'>購入済み</span>` : `<button class='mbtn !py-1 !px-3 text-[11px]' data-buy='${kind}' data-id='${c.id}'>${kind === 'w' ? NE() + price.toLocaleString() : '欠片 ' + price}</button>`}</div>`; };
+  const ex = COS.filter(c => c.g !== false && c.r !== 'GOD' && !PF.owned[c.id]).sort((a, b) => RAR_ORDER.indexOf(a.r) - RAR_ORDER.indexOf(b.r));
+  const tuneRow = k => { const T = tuneOf(k), row = st => { const lv = T[st], cost = SHOP.tune.cost[lv]; return `<div class='flex items-center gap-2 text-xs'><span class='w-20'>${st === 'acc' ? '加速' : 'ハンドリング'}</span><span class='flex gap-1'>${Array.from({ length: SHOP.tune.max }, (_, i) => `<i class='inline-block w-4 h-2 rounded-sm ${i < lv ? 'bg-cyan-300' : 'bg-white/15'}'></i>`).join('')}</span><span class='text-white/50'>+${Math.round(lv * SHOP.tune.step * 100)}%</span>${lv < SHOP.tune.max ? `<button class='mbtn !py-0.5 !px-2 text-[10px] ml-auto' data-tune='${k}:${st}'>${NE()}${cost.toLocaleString()}</button>` : `<span class='ml-auto text-[10px] text-green-300'>MAX</span>`}</div>`; };
+    return `<div class='mcard'><div class='text-xs font-black mb-1' style='color:${hex(CAR_TYPES[k].neon)}'>${k}</div>${row('acc')}${row('hdl')}</div>`; };
+  return `<div class='grid sm:grid-cols-2 gap-2 mt-1'>
+    <div class='flex flex-col gap-1.5'><div class='mhd'>週替わりショップ <span class='text-white/45 tracking-normal font-bold'>${W.k}・毎週月曜に入れ替え</span></div>
+      ${W.items.map(c => card(c, SHOP.weeklyPrice[c.r], 'w')).join('')}
+      <div class='mcard flex items-center gap-2 text-xs'><span class='flex-1'>${TK()} スロットのチケット</span><button class='mbtn !py-1 !px-3 text-[11px]' data-buy='tix'>${NE()}${SHOP.weeklyTix.toLocaleString()}</button></div>
+      <div class='mhd mt-2'>チューン <span class='text-white/45 tracking-normal font-bold'>オンライン対戦・タイムアタック・ランキングでは無効</span></div>
+      ${TYPE_KEYS.map(tuneRow).join('')}
+    </div>
+    <div class='flex flex-col gap-1.5'><div class='mhd'>欠片で交換 <span class='text-white/45 tracking-normal font-bold'>手持ち ${PF.shard || 0}（スロットでかぶると増える）</span></div>
+      ${ex.length ? ex.map(c => card(c, SHOP.shardCost[c.r], 's')).join('') : `<div class='text-xs text-white/60'>交換できるアイテムは全部そろっています！</div>`}
+    </div></div>`;
+}
+function bindShop(body) {
+  const W = weeklyItems();
+  body.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.buy, c = COS_BY[b.dataset.id];
+    if (kind === 'tix') { if (PF.neon < SHOP.weeklyTix) return SND.buzz(); PF.neon -= SHOP.weeklyTix; PF.tix++; }
+    else if (kind === 'w') { const pr = SHOP.weeklyPrice[c.r]; if (PF.neon < pr) return SND.buzz(); PF.neon -= pr; PF.owned[c.id] = 1; if (!PF.wbuy || PF.wbuy.k !== W.k) PF.wbuy = { k: W.k, ids: [] }; PF.wbuy.ids.push(c.id); }
+    else { const pr = SHOP.shardCost[c.r]; if ((PF.shard || 0) < pr) return SND.buzz(); PF.shard -= pr; PF.owned[c.id] = 1; }
+    savePF(); SND.itemGet(); vibSoft(20); const msgs = []; checkAch(msgs); showMsgs(msgs, 200); Meta.render();
+  });
+  body.querySelectorAll('[data-tune]').forEach(b => b.onclick = () => {
+    const [k, st] = b.dataset.tune.split(':'); PF.tune = PF.tune || {}; const T = PF.tune[k] = { ...tuneOf(k) }, cost = SHOP.tune.cost[T[st]];
+    if (T[st] >= SHOP.tune.max || PF.neon < cost) return SND.buzz();
+    PF.neon -= cost; T[st]++; savePF(); SND.pad(); vibSoft(25); Meta.render();
+  });
 }
 function htmlCus() {
   const sec = k => {
@@ -5515,7 +5569,8 @@ const Meta = {
     const body = $('mBody'), isSet = this.tab === 'set';
     $('mSet').classList.toggle('hidden', !isSet); body.classList.toggle('hidden', isSet);
     if (isSet) { syncOpts(); return; }
-    body.innerHTML = this.tab === 'mis' ? htmlMis() : this.tab === 'gacha' ? htmlGacha() : this.tab === 'cus' ? htmlCus() : htmlAch();
+    body.innerHTML = this.tab === 'mis' ? htmlMis() : this.tab === 'gacha' ? htmlGacha() : this.tab === 'cus' ? htmlCus() : this.tab === 'shop' ? htmlShop() : htmlAch();
+    if (this.tab === 'shop') bindShop(body);
     if (this.tab === 'gacha') { $('gx1').onclick = () => pull(1, false); $('gx10').onclick = () => pull(10, false); $('gxT').onclick = () => pull(1, true); }
     if (this.tab === 'cus') body.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => { PF.eq[b.dataset.k] = b.dataset.id; savePF(); this.applyPaint(); this.render(); SND.tick(); vibSoft(15); }));
   },
