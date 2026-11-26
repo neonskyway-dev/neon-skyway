@@ -4392,7 +4392,7 @@ COS.push(
   { id: 'M_COOL', k: 'title', n: '冷却の達人', r: 'SR', g: false }, { id: 'M_FLOW', k: 'title', n: 'フローの化身', r: 'SSR', g: false },
   { id: 'M_HC', k: 'title', n: 'ハードコア', r: 'UR', g: false }, { id: 'M_DAILY', k: 'title', n: '日替わりの鬼', r: 'SR', g: false },
   { id: 'M_SSS', k: 'title', n: 'SSSコレクター', r: 'UR', g: false },
-  { id: 'T_NEONM', k: 'title', n: 'ネオンの領域', r: 'UR', g: false }, { id: 'T_GODM', k: 'title', n: '神速', r: 'UR', g: false }, { id: 'M_COAST', k: 'title', n: '絶叫マシン中毒', r: 'SR', g: false },
+  { id: 'T_NEONM', k: 'title', n: 'ネオンの領域', r: 'UR', g: false }, { id: 'T_ONIALL', k: 'title', n: '鬼の全制覇', r: 'UR', g: false }, { id: 'T_GOLDNA', k: 'title', n: '素手のゴールド', r: 'SSR', g: false }, { id: 'T_DEVBEAT', k: 'title', n: '開発者超え', r: 'SSR', g: false }, { id: 'T_GODM', k: 'title', n: '神速', r: 'UR', g: false }, { id: 'M_COAST', k: 'title', n: '絶叫マシン中毒', r: 'SR', g: false },
 );
 const COS_BY = Object.fromEntries(COS.map(c => [c.id, c]));
 const KIND_JP = { paint: 'ボディカラー', trail: 'トレイル', title: '称号' };
@@ -4407,8 +4407,8 @@ const ACH = [
   cnt('race50', '走り屋', 'レース通算50回', 'races', 50, 800),
   cnt('coin1k', '小金持ち', 'コイン通算1,000枚', 'coins', 1000, 200),
   cnt('coin10k', 'コイン王', 'コイン通算10,000枚', 'coins', 10000, 1000),
-  cnt('drift100', 'ドリフトキング', 'ドリフトターボ通算100回', 'drift', 100, 400),
-  cnt('trick100', 'エアリアリスト', '空中トリック通算100回', 'trick', 100, 400),
+  cnt('drift100', 'ドリフトキング', 'ドリフトターボ通算300回', 'drift', 300, 600),
+  cnt('trick100', 'エアリアリスト', '空中トリック通算300回', 'trick', 300, 600),
   cnt('smash100', 'デストロイヤー', '障害物破壊 通算100回', 'smash', 100, 400),
   cnt('hit50', 'スナイパー', 'アイテム命中 通算50回', 'hit', 50, 500),
   cnt('fever50', 'フィーバー中毒', 'フィーバー通算50回', 'fever', 50, 600),
@@ -4430,14 +4430,20 @@ const ACH = [
   cnt('style10', 'スタイルマスター', '1回のジャンプで3種類のトリックを10回決める', 'style', 10, 800, 'T_STYLE'),
   cnt('godTrick', 'ゴッドトリック', '1回のジャンプで5種類のトリックを全部決める', 'godTrick', 1, 1500, 'T_GODTR'),
   cnt('tut', 'はじめの一歩', 'チュートリアルを最後までやる', 'tut', 1, 300),
-  cnt('mDrift', 'ドリフト職人', 'ジャストドリフト通算50回', 'just', 50, 1000, 'M_DRIFT'),
-  cnt('mLand', '着地マスター', 'PERFECT LANDING 通算50回', 'pland', 50, 1000, 'M_LAND'),
-  cnt('mNoHit', 'ノーヒッター', '被弾・壁・転倒なしで10回完走', 'noHit', 10, 1500, 'M_NOHIT'),
-  cnt('mNear', 'ギリギリ職人', 'ニアミス通算200回', 'near', 200, 1000, 'M_NEAR'),
-  cnt('mCool', '冷却の達人', 'COOL RELEASE 通算100回', 'cool', 100, 800, 'M_COOL'),
+  cnt('mDrift', 'ドリフト職人', 'ジャストドリフト通算300回', 'just', 300, 1500, 'M_DRIFT'),
+  cnt('mLand', '着地マスター', 'PERFECT LANDING 通算200回', 'pland', 200, 1500, 'M_LAND'),
+  cnt('mNoHit', 'ノーヒッター', '被弾・壁の激突・転倒なしで30回完走（Lv3以上）', 'noHit', 30, 2000, 'M_NOHIT'),
+  cnt('mNear', 'ギリギリ職人', 'ニアミス通算500回', 'near', 500, 1500, 'M_NEAR'),
+  cnt('mCool', '冷却の達人', 'COOL RELEASE 通算300回', 'cool', 300, 1200, 'M_COOL'),
   cnt('mFlow', 'フローの化身', 'フロー×3.0に到達', 'flow3', 1, 1200, 'M_FLOW'),
   cnt('mHC', 'ハードコア', 'HARDCORE で優勝', 'hcWin', 1, 3000, 'M_HC'),
-  cnt('mDaily', '日替わりの鬼', '日替わり縛りを7回クリア', 'daily', 7, 1500, 'M_DAILY'),
+  cnt('mDaily', '日替わりの鬼', '日替わり縛りを14回クリア', 'daily', 14, 2000, 'M_DAILY'),
+  // 腕前の実績（回数ではなく、うまさでしか取れない）
+  { id: 'oniAll', n: '鬼の全制覇', d: 'CPU「鬼」以上で全コース1位', f: () => STAGES.every((_, i) => PF.skill?.oni?.[i]), p: () => [STAGES.filter((_, i) => PF.skill?.oni?.[i]).length, STAGES.length], rw: 8000, title: 'T_ONIALL' },
+  { id: 'goldNA', n: '素手のゴールド', d: 'アシスト「オフ」でタイムアタック全コース GOLD 以上', f: () => STAGES.every((_, i) => (PF.skill?.taNA?.[i] ?? -1) >= 2), p: () => [STAGES.filter((_, i) => (PF.skill?.taNA?.[i] ?? -1) >= 2).length, STAGES.length], rw: 6000, title: 'T_GOLDNA' },
+  { id: 'ss1', n: 'SSの景色', d: 'どこかのコースで コースランク SS 以上', f: () => Object.values(PF.crank || {}).some(v => v >= 4), rw: 2000 },
+  { id: 'neon1', n: 'ネオンの入口', d: 'タイムアタックで NEON メダル（開発者×0.95）', f: () => Object.values(PF.ta || {}).some(v => v.m >= 4), rw: 2000 },
+  { id: 'devBeat', n: '開発者超え', d: 'アシスト「オフ」で5コース、開発者ゴーストに勝つ', f: () => Object.keys(PF.skill?.dev || {}).length >= 5, p: () => [Object.keys(PF.skill?.dev || {}).length, 5], rw: 4000, title: 'T_DEVBEAT' },
   cnt('mSSS', 'SSSコレクター', '3コースでSSSランク', 'sss', 3, 2000, 'M_SSS'),
   cnt('mCoast', '絶叫マシン中毒', 'ドリームパークのドロップを30回', 'drop', 30, 600, 'M_COAST'),
   { id: 'comp', n: 'コンプリート', d: 'スロット景品を全部そろえる（GODを除く）', f: () => COS.every(c => c.g === false || c.r === 'GOD' || PF.owned[c.id]), rw: 5000 },
@@ -4839,9 +4845,10 @@ const TA = {
       pos: new V3(), quat: new THREE.Quaternion(), fwd: new V3(0, 0, -1), up: new V3(0, 1, 0), right: new V3(1, 0, 0), wheelRot: 0, lean: 0, item: null, itemN: 0, roulette: 0, shield: 0, finished: false, rank: 1,
       ai: { skill: 1, mult: 1, lane: 0, laneT: 1e9, boostT: 1e9, itemT: 1e9 } };
     cars = [bot]; for (const b of itemBoxes) b.taken = 1e9;
-    const dt = 1 / 60; let t = 0;
+    const dt = 1 / 60; let t = 0, rt = 0; const rec = [];
     try {
       while (bot.s < goalS && t < 400) {
+        rt -= dt; while (rt <= 0) { rt += 0.1; rec.push(Math.round(bot.s * 10) / 10, Math.round(bot.x * 10) / 10, Math.round(bot.h * 10) / 10); }   // 開発者ゴースト用
         const ctl = aiControl(bot, dt); bot.ai.mult = 1;
         bot.nitro = Math.min(100, bot.nitro + 4.5 * dt);
         if (!boosting(bot) && bot.nitro >= 25) { bot.nitro -= 25; startBoost(bot, 1.9, false); }
@@ -4850,6 +4857,7 @@ const TA = {
     } catch (e) { t = 400; }
     cars = keepCars; itemBoxes.forEach((b, k) => b.taken = keepTaken[k]);
     if (!(t > 10 && t < 399)) t = goalS / 72;
+    (this.devRec || (this.devRec = {}))[i] = rec;
     return (this.dev[i] = Math.round(t * 10) / 10);
   },
   medalOf(i, t) { const d = this.devTime(i); let m = -1; MEDALS.forEach((M, k) => { if (t <= d * M[2]) m = k; }); return m; },
@@ -4857,6 +4865,8 @@ const TA = {
     for (const b of itemBoxes) b.taken = 1e9;
     const d = this.devTime(stageIdx), pb = PF.ta?.[stageIdx];
     try { this.gData = JSON.parse(localStorage.getItem('ns_ghost_' + stageIdx) || 'null'); } catch (e) { this.gData = null; }
+    // 自己ベストが開発者タイムより遅い（またはまだない）あいだは、開発者ゴーストと走る
+    if ((!pb || pb.t > d) && this.devRec && this.devRec[stageIdx]) { this.gData = { r: this.devRec[stageIdx], cp: [] }; setTimeout(() => toast(`${I('flag')} 開発者ゴースト（${fmtTime(d)}）と勝負！`, '#29f3ff', 3200), 400); }
     const dl = GhostNet.dl[stageIdx]; if (dl) { this.gData = { r: dl.r, cp: [] }; setTimeout(() => toast(`${I('globe')} ${dl.name} のゴースト（${fmtTime(dl.t)}）と走ります`, '#9d6bff', 3800), 500); }
     if (!this.ghost) {
       this.ghost = buildCarModel('VIPER', 0x6a7cff, 0xffffff, false, 'GHOST');
@@ -4901,6 +4911,7 @@ const TA = {
       msgs.unshift([`${I('flag')} 自己ベスト更新 ${fmtTime(t)}${pb ? `（−${(pb.t - t).toFixed(2)}秒）` : ''}`, '#3bff9d']);
     }
     GhostNet.afterRun(i, t, this.rec);
+    if (!game.assistUsed) { PF.skill = PF.skill || {}; const na = PF.skill.taNA = PF.skill.taNA || {}; na[i] = Math.max(na[i] ?? -1, m); if (t < d) (PF.skill.dev = PF.skill.dev || {})[i] = 1; }
     const M = MEDALS[m];
     $('rPos').textContent = M ? medalShort(M[0]) : '-'; $('rPos').style.color = M ? M[1] : '#fff'; $('rPosSuf').textContent = '';
     $('rTitle').textContent = (M ? M[0] + ' MEDAL' : 'NO MEDAL') + (isPB ? '　NEW RECORD' : '');
@@ -5534,7 +5545,8 @@ const Meta = {
     if (!taRes && !game.split) Assist.afterRace(r === 1);
     add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
     for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop']) add(k, RUN[k]);
-    if (!player.retired && (RUN.fail || 0) + (RUN.wall || 0) === 0) add('noHit', 1);
+    if (!player.retired && game.lv >= 3 && (RUN.fail || 0) + (RUN.wallHit || 0) === 0) add('noHit', 1);
+    if (r === 1 && !taRes && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
     if ((RUN.flowMax || 1) >= FLOW.max) add('flow3', 1);
     if (r === 1 && !taRes && LV().noAssist) add('hcWin', 1);
     if (game.daily) Daily.result(r, msgs);
