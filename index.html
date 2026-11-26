@@ -160,6 +160,24 @@
   #btnTaunt .ic{width:22px;height:22px;color:#ff8ad8}
   #btnTaunt:active{transform:scale(.9)}
   #btnTaunt.cool{opacity:.4}
+  /* 煽りスタンプ: 選ぶパネル（左上・道路の真ん中はふさがない）と、自分あてのスタンプ表示 */
+  #tauntPick{position:absolute;left:max(10px,env(safe-area-inset-left));top:62px;width:min(330px,46vw);padding:8px;border-radius:4px;background:rgba(8,6,18,.88);border:1px solid rgba(255,138,216,.6);backdrop-filter:blur(6px);display:none;font-family:'Zen Kaku Gothic New',system-ui,sans-serif;z-index:5;touch-action:manipulation}
+  #tauntPick.show{display:block;animation:tpin .15s ease-out}
+  @keyframes tpin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #tauntPick .tp-h{font-size:10px;font-weight:900;letter-spacing:.12em;color:#ff8ad8;margin:2px 0 4px}
+  #tauntPick .tp-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:6px}
+  #tauntPick .tp-row::-webkit-scrollbar{display:none}
+  #tauntPick .tp-tgt{flex:none;min-height:44px;padding:0 10px;border-radius:3px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;gap:5px}
+  #tauntPick .tp-tgt b{font-size:10px;color:rgba(255,255,255,.6)}
+  #tauntPick .tp-tgt.on{border-color:#ff8ad8;background:rgba(255,138,216,.25);box-shadow:0 0 8px rgba(255,138,216,.5)}
+  #tauntPick .tp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  #tauntPick .tp-st{min-height:44px;padding:0 3px;border-radius:3px;border:2px solid var(--sc);background:rgba(0,0,0,.4);color:#fff;font-size:clamp(10px,1.6vw,12px);font-weight:900;line-height:1.15}
+  #tauntPick .tp-st:active{transform:scale(.93);background:var(--sc);color:#05010f}
+  #stampIn{position:absolute;left:50%;top:22%;transform:translateX(-50%);pointer-events:none;text-align:center;opacity:0;font-family:'Zen Kaku Gothic New',system-ui,sans-serif}
+  #stampIn.show{animation:stampin 2.6s ease-out forwards}
+  #stampIn .st-from{font-size:11px;font-weight:800;color:rgba(255,255,255,.85);text-shadow:0 1px 3px #000;margin-bottom:3px}
+  #stampIn .st-txt{display:inline-block;padding:8px 20px;border-radius:6px;background:rgba(8,6,18,.92);border:3px solid var(--sc);color:#fff;font-size:clamp(22px,5vh,34px);font-weight:900;letter-spacing:.04em;box-shadow:0 0 18px var(--sc),0 6px 0 rgba(0,0,0,.4);transform:rotate(-4deg)}
+  @keyframes stampin{0%{opacity:0;transform:translateX(-50%) scale(.3)}10%{opacity:1;transform:translateX(-50%) scale(1.15)}18%{transform:translateX(-50%) scale(1)}82%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-10px)}}
   #heatG{position:absolute;left:calc(100% + 7px);top:6px;bottom:6px;width:8px;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.3)}
   #heatG>i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#29f3ff,#ffd400 60%,#ff2050)}
   #heatG>b{position:absolute;left:0;right:0;bottom:80%;height:15%;border-top:1px solid #fff;border-bottom:1px solid #fff;background:rgba(255,255,255,.25)}
@@ -421,6 +439,8 @@
     </div>
   </div>
 
+  <div id="tauntPick" class="pointer-events-auto"></div>
+  <div id="stampIn"></div>
   <div class="absolute top-2 right-3 sm:top-4 sm:right-5 flex items-start gap-2">
     <canvas id="minimap" width="240" height="170" class="w-[104px] h-[74px] sm:w-[150px] sm:h-[106px] rounded-lg bg-black/45 border border-cyan-400/40"></canvas>
     <div class="flex flex-col gap-2">
@@ -842,7 +862,12 @@ const SHOP = {
 };
 // サイドアタック: 並走中にハンドルを相手に向けて勢いよく寄せると、相手を横に吹っ飛ばす
 // 煽る: 届く距離(m)、使える間隔(秒)、煽られたCPUがふらつく時間(秒)と幅、成功時のスコア・ニトロ、CPUが煽ってくる確率(毎秒)
-const TAUNT = { range: 30, cd: 4, fluster: 1.6, swerve: 3.2, score: 300, nitro: 8, cpuRate: 0.025 };
+const TAUNT = { range: 30, cd: 3, fluster: 1.6, swerve: 3.2, score: 300, nitro: 8, cpuRate: 0.025, cpuReply: 0.45, panelT: 6 };
+// 煽りスタンプ（文字のスタンプ。絵文字は使わない）。taunt: true は CPU が煽ってくるときにも使う
+const STAMPS = [
+  { t: 'お疲れー', c: '#29f3ff' }, { t: 'お先にー', c: '#3bff9d', taunt: true }, { t: 'おそすぎ！', c: '#ff8ad8', taunt: true }, { t: 'かかってこい', c: '#ff3b5c', taunt: true },
+  { t: 'ざんねん！', c: '#b36bff', taunt: true }, { t: 'ナイス！', c: '#ffd400' }, { t: 'GG！', c: '#ffffff' }, { t: 'またね〜', c: '#ff8a3d' },
+];
 const BASH = { ds: 2.8, closing: 5.5, push: 24, speedLoss: 0.12, spin: 0.35, selfLoss: 0.03, cd: 0.9, score: 400 };
 // ネオン（ゲーム内通貨）の入り方。1レース 約200前後（以前は約690でたまりすぎていた）
 const REWARD = {
@@ -2491,6 +2516,7 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'KeyW', 'ShiftLeft'].includes(e.code)) { input.boostReq = true; input.bk = true; e.preventDefault(); }
   if (['KeyX', 'KeyE', 'ArrowDown', 'KeyS', 'KeyZ'].includes(e.code)) { input.itemReq = true; e.preventDefault(); }
   if (e.code === 'KeyH' && game.state === 'play') { input.tauntReq = true; e.preventDefault(); }
+  if (Taunt.open && /^Digit[1-8]$/.test(e.code)) { Taunt.pick(+e.code.slice(5) - 1); e.preventDefault(); }
   if (e.code === 'Enter' && game.state === 'title') { if (game.menu === 'stage') openGarage(); else openStageSel(); return; }
   if (game.state === 'title' && game.menu === 'stage' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selectStage((stageIdx + (e.code === 'ArrowRight' ? 1 : -1) + STAGES.length) % STAGES.length); return; }
   else if (e.code === 'Enter' && game.state === 'garage') startGame();
@@ -2513,7 +2539,7 @@ addEventListener('keyup', e => {
   if (e.code === 'KeyC' || e.code === 'ShiftRight') input.dk = false;
 });
 const onTouch = e => {
-  if (e.target.closest && e.target.closest('button')) return;
+  if (e.target.closest && e.target.closest('button, #tauntPick')) return;
   if (game.state !== 'play' && game.state !== 'countdown') return;
   e.preventDefault();
   for (const t of e.changedTouches) {
@@ -2925,64 +2951,121 @@ function explode(s, x, h, owner, victim) {
   if (d < 80 && live()) vib([Math.round(30 + 90 * (1 - d / 80)), 30, Math.round(20 + 50 * (1 - d / 80))]);
   for (const c of cars) if (c === victim || (Math.abs(c.s - s) < 8 && Math.abs(c.x - x) < 5.5 && c.h < 4)) hitCar(c, owner);
 }
-// 煽る: クラクション＋車の上に顔マーク。近くの相手（30m以内）を煽るとスコア。CPU はしばらくふらつく。オンラインでは相手の画面に「煽られた！」
+// 煽る: ボタンで「相手」と「スタンプ」を選んで送る。送った人の車の上にふきだし、相手の画面にスタンプが大きく出る。
+// 近く（30m以内）の相手に送るとスコア。CPU はしばらくふらつき、ときどきスタンプで言い返してくる
 const Taunt = {
-  tex: {},
-  // 車の上に出すマーク（絵文字ではなくアイコンを描く）: 煽り = ピンクのクラクション、煽られた = 赤い怒りマーク
-  ICON: { taunt: { col: '#ff8ad8', fill: 'M3 10v4h4l7 5V5L7 10z', d: ['M17 9a4 4 0 0 1 0 6', 'M19.5 6.5a7.5 7.5 0 0 1 0 11'] }, angry: { col: '#ff3b5c', fill: '', d: ['M9 3v3a3 3 0 0 1-3 3H3', 'M15 3v3a3 3 0 0 0 3 3h3', 'M9 21v-3a3 3 0 0 0-3-3H3', 'M15 21v-3a3 3 0 0 1 3-3h3'] } },
-  texOf(k) {
-    return this.tex[k] || (this.tex[k] = canvasTex(128, 128, (c, w, h) => {
-      const ic = this.ICON[k] || this.ICON.taunt;
+  tex: {}, open: false, sel: null, openT: 0, queue: [],
+  ICON: { angry: { col: '#ff3b5c', d: ['M9 3v3a3 3 0 0 1-3 3H3', 'M15 3v3a3 3 0 0 0 3 3h3', 'M9 21v-3a3 3 0 0 0-3-3H3', 'M15 21v-3a3 3 0 0 1 3-3h3'] } },
+  angryTex() {
+    return this.tex.angry || (this.tex.angry = canvasTex(128, 128, (c, w, h) => {
+      const ic = this.ICON.angry;
       c.beginPath(); c.arc(w / 2, h / 2, 56, 0, Math.PI * 2); c.fillStyle = 'rgba(8,6,18,.82)'; c.fill(); c.lineWidth = 5; c.strokeStyle = ic.col; c.stroke();
-      c.save(); c.translate(w / 2 - 36, h / 2 - 36); c.scale(3, 3); c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = 2.2; c.strokeStyle = ic.col; c.shadowColor = ic.col; c.shadowBlur = 4;
-      if (ic.fill) { c.globalAlpha = 0.35; c.fillStyle = ic.col; c.fill(new Path2D(ic.fill)); c.globalAlpha = 1; c.stroke(new Path2D(ic.fill)); }
+      c.save(); c.translate(w / 2 - 36, h / 2 - 36); c.scale(3, 3); c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = 2.4; c.strokeStyle = ic.col; c.shadowColor = ic.col; c.shadowBlur = 4;
       for (const d of ic.d) c.stroke(new Path2D(d));
       c.restore();
     }));
   },
-  emote(c, k) {
+  // ふきだし（スタンプの文字）
+  stampTex(i) {
+    const k = 's' + i, S = STAMPS[i] || STAMPS[0];
+    return this.tex[k] || (this.tex[k] = canvasTex(256, 120, (c, w, h) => {
+      c.beginPath(); if (c.roundRect) c.roundRect(8, 8, w - 16, h - 40, 18); else c.rect(8, 8, w - 16, h - 40);
+      c.moveTo(w / 2 - 14, h - 32); c.lineTo(w / 2, h - 10); c.lineTo(w / 2 + 14, h - 32);
+      c.fillStyle = 'rgba(8,6,18,.9)'; c.fill(); c.lineWidth = 6; c.strokeStyle = S.c; c.stroke();
+      c.font = '900 40px "Zen Kaku Gothic New", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      for (let fs = 40; fs > 20 && c.measureText(S.t).width > w - 44; fs -= 2) c.font = `900 ${fs}px "Zen Kaku Gothic New", system-ui, sans-serif`;
+      c.fillStyle = '#fff'; c.shadowColor = S.c; c.shadowBlur = 10; c.fillText(S.t, w / 2, (h - 32) / 2 + 6);
+    }));
+  },
+  spr(c, key, tex, y, dur, ratio) {
     if (!c || !c.model) return;
-    if (!c.emo) { c.emo = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, depthTest: false, transparent: true, sizeAttenuation: false })); c.emo.renderOrder = 9; c.model.root.add(c.emo); }
-    if (c.emo.parent !== c.model.root) c.model.root.add(c.emo);
-    c.emo.material.map = this.texOf(k); c.emo.material.needsUpdate = true; c.emo.position.y = 3.4; c.emo.visible = true; c.emoT = 1.6;
+    let sp = c[key];
+    if (!sp) { sp = c[key] = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, depthTest: false, transparent: true, sizeAttenuation: false })); sp.renderOrder = 9; }
+    if (sp.parent !== c.model.root) c.model.root.add(sp);
+    sp.material.map = tex; sp.material.needsUpdate = true; sp.position.y = y; sp.visible = true; sp.userData = { t: dur, dur, y, ratio };
+  },
+  emote(c) { this.spr(c, 'emo', this.angryTex(), 3.4, 1.6, 1); },
+  bubble(c, i) { this.spr(c, 'bub', this.stampTex(i), 4.6, 2.4, 256 / 120); },
+  // 自分あての大きなスタンプ
+  sticker(from, i) {
+    const S = STAMPS[i] || STAMPS[0], el = $('stampIn'); if (!el) return;
+    el.innerHTML = `<div class='st-from'>${escHtml(from)} から</div><div class='st-txt' style='--sc:${S.c}'>${escHtml(S.t)}</div>`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(this.stT); this.stT = setTimeout(() => el.classList.remove('show'), 2600);
+    SND.horn(); vib([30, 40, 30]);
   },
   tick(dt) {
+    for (const c of cars) for (const key of ['emo', 'bub']) {
+      const sp = c[key]; if (!sp || !sp.visible) continue; const u = sp.userData; u.t -= dt;
+      const k = u.dur - u.t, base = key === 'bub' ? 0.085 : 0.11, sc = base * (k < 0.15 ? k / 0.15 * 1.25 : k < 0.3 ? 1.25 - (k - 0.15) * 1.67 : 1);
+      sp.scale.set(sc * u.ratio, sc, 1); sp.position.y = u.y + Math.sin(k * 12) * 0.12; if (u.t <= 0) sp.visible = false;
+    }
+    if (game.state !== 'play') { if (this.open) this.close(); this.queue.length = 0; return; }
+    if (this.open && (this.openT -= dt) <= 0) this.close();
+    // CPU の言い返し
+    for (let j = this.queue.length - 1; j >= 0; j--) { const q = this.queue[j]; if ((q.t -= dt) > 0) continue; this.queue.splice(j, 1); if (cars.includes(q.c) && !q.c.finished) { this.bubble(q.c, q.i); this.sticker(q.c.name, q.i); } }
+    // CPU もたまに煽ってくる（スタンプだけ・プレイヤーはふらつかない）
     for (const c of cars) {
-      if (c.emoT > 0) { c.emoT -= dt; const k = 1.6 - c.emoT, sc = 0.11 * (k < 0.15 ? k / 0.15 * 1.3 : k < 0.3 ? 1.3 - (k - 0.15) * 2 : 1); c.emo.scale.set(sc, sc, 1); c.emo.position.y = 3.4 + Math.sin(k * 14) * 0.15; if (c.emoT <= 0) c.emo.visible = false; }
-      // CPU もたまに煽ってくる（見た目とクラクションだけ・プレイヤーはふらつかない）
-      if (game.state === 'play' && !c.ctrl && !c.remote && !c.finished && c.s > player.s && c.s - player.s < 18 && Math.random() < TAUNT.cpuRate * dt && game.t - (c.tauntCd ?? -9) > TAUNT.cd * 3) {
-        c.tauntCd = game.t; this.emote(c, 'taunt'); this.emote(player, 'angry');
-        if (nearCam(c)) { SND.horn(); pop(`${c.name}に煽られた！`, '#ff8ad8', 22); if (Math.random() < 0.5) say([`${c.name}、挑発してきた！`, 'おっと、煽られています！ 見返してやれ！'], 1); }
+      if (c.ctrl || c.remote || c.finished || c === player) continue;
+      if (c.s > player.s && c.s - player.s < 18 && Math.random() < TAUNT.cpuRate * dt && game.t - (c.tauntCd ?? -9) > TAUNT.cd * 4) {
+        c.tauntCd = game.t; const i = this.cpuStamp(); this.bubble(c, i); this.emote(player);
+        if (nearCam(c)) { this.sticker(c.name, i); if (Math.random() < 0.4) say([`${c.name}、挑発してきた！`, 'おっと、煽られています！ 見返してやれ！'], 1); }
       }
     }
   },
-  use(c) {
-    if (game.state !== 'play' || !c || c.finished) return false;
+  cpuStamp() { const t = STAMPS.map((s, i) => s.taunt ? i : -1).filter(i => i >= 0); return t[(Math.random() * t.length) | 0]; },
+  targets() { return cars.filter(o => o !== player && !o.finished).sort((a, b) => Math.abs(a.s - player.s) - Math.abs(b.s - player.s)).slice(0, 6); },
+  toggle() { if (this.open) this.close(); else this.show(); },
+  show() {
+    if (game.state !== 'play') return;
+    const T = this.targets(); if (!T.length) { SND.buzz(); return; }
+    if (!T.includes(this.sel)) this.sel = T[0];
+    this.open = true; this.openT = TAUNT.panelT; SND.tick();
+    const p = $('tauntPick'); p.classList.add('show');
+    const cool = game.t - (player.tauntCd ?? -9) < TAUNT.cd;
+    p.innerHTML = `<div class='tp-h'>相手をえらぶ</div><div class='tp-row'>${T.map((o, k) => `<button class='tp-tgt ${o === this.sel ? 'on' : ''}' data-k='${k}'><b>${o.rank}位</b>${escHtml(o.name)}</button>`).join('')}</div>
+      <div class='tp-h'>スタンプを送る${cool ? '（少し待ってね）' : ''}</div><div class='tp-grid'>${STAMPS.map((st, i) => `<button class='tp-st' data-i='${i}' style='--sc:${st.c}'>${escHtml(st.t)}</button>`).join('')}</div>`;
+    p.querySelectorAll('.tp-tgt').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); this.sel = T[+b.dataset.k]; this.openT = TAUNT.panelT; p.querySelectorAll('.tp-tgt').forEach(x => x.classList.toggle('on', x === b)); SND.tick(); }));
+    p.querySelectorAll('.tp-st').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); this.pick(+b.dataset.i); }));
+  },
+  close() { this.open = false; const p = $('tauntPick'); if (p) { p.classList.remove('show'); p.innerHTML = ''; } },
+  pick(i) {
+    if (!STAMPS[i]) return;
+    if (!this.send(player, this.sel, i)) { SND.buzz(); return; }
+    this.close();
+  },
+  send(c, tgt, i) {
+    if (game.state !== 'play' || !c || c.finished || !tgt || !cars.includes(tgt)) return false;
     if (game.t - (c.tauntCd ?? -9) < TAUNT.cd) return false;
-    c.tauntCd = game.t; this.emote(c, 'taunt');
-    if (c.isPlayer) { SND.horn(); vib([20, 30, 20]); }
-    let tgt = null, bd = TAUNT.range;
-    for (const o of cars) { if (o === c || o.finished) continue; const d = Math.abs(o.s - c.s); if (d < bd) { bd = d; tgt = o; } }
-    if (tgt && NET.teams && tgt.remote && NET.teams[tgt.remote] !== undefined && NET.teams[tgt.remote] === NET.teams[NET.me]) tgt = null;   // チーム戦の味方は煽らない
-    if (!tgt) { if (c.isPlayer && live()) pop('ププー！', '#ff8ad8', 24); return true; }
-    if (tgt.remote) netTaunt(tgt.remote); else { tgt.tauntT = TAUNT.fluster; this.emote(tgt, 'angry'); }
+    c.tauntCd = game.t; this.bubble(c, i); SND.horn(); vib([20, 30, 20]);
+    const near = Math.abs(tgt.s - c.s) < TAUNT.range;
+    const mate = tgt.remote && NET.teams && NET.teams[tgt.remote] !== undefined && NET.teams[tgt.remote] === NET.teams[NET.me];
+    if (tgt.remote) netTaunt(tgt.remote, i);
+    else {
+      if (near) { tgt.tauntT = TAUNT.fluster; this.emote(tgt); }
+      if (Math.random() < TAUNT.cpuReply) this.queue.push({ c: tgt, i: this.cpuStamp(), t: 1.1 + Math.random() * 0.8 });
+    }
     if (c.isPlayer && live()) {
-      RUN.taunt = (RUN.taunt || 0) + 1; addScore(TAUNT.score); c.nitro = Math.min(100, c.nitro + TAUNT.nitro); Dopa.ev('near');
-      pop(`${tgt.s > c.s ? '後ろから煽った！' : '煽り返し！'} ${tgt.name} +${TAUNT.score}`, '#ff8ad8', 28);
-      if (Math.random() < 0.6) say([`${tgt.name}を挑発！ 相手はカッカしています！`, 'クラクション一発！ 心理戦です！', `煽った！ ${tgt.name}、ハンドルが乱れる！`], 1);
+      if (near && !mate) {
+        RUN.taunt = (RUN.taunt || 0) + 1; addScore(TAUNT.score); c.nitro = Math.min(100, c.nitro + TAUNT.nitro); Dopa.ev('near');
+        pop(`${tgt.name}に「${STAMPS[i].t}」 +${TAUNT.score}`, STAMPS[i].c, 26);
+        if (Math.random() < 0.5) say([`${tgt.name}を挑発！ 相手はカッカしています！`, `煽った！ ${tgt.name}、ハンドルが乱れる！`, '心理戦です！'], 1);
+      } else pop(`${tgt.name}に「${STAMPS[i].t}」`, STAMPS[i].c, 22);
     }
     return true;
   },
-  // オンラインで受け取った「煽り」
-  recv(atk, toMe, cpu) {
-    if (atk) this.emote(atk, 'taunt');
-    if (toMe) { this.emote(player, 'angry'); SND.horn(); vib([30, 40, 30]); pop(`${atk ? atk.name : 'だれか'}に煽られた！`, '#ff8ad8', 26); }
-    else if (cpu) { cpu.tauntT = TAUNT.fluster; this.emote(cpu, 'angry'); }
+  // オンラインで受け取ったスタンプ
+  recv(atk, toMe, cpu, i) {
+    i = STAMPS[i] ? i : 2;
+    if (atk) this.bubble(atk, i);
+    if (toMe) { this.emote(player); this.sticker(atk ? atk.name : 'だれか', i); }
+    else if (cpu) { cpu.tauntT = TAUNT.fluster; this.emote(cpu); }
   },
 };
-function netTaunt(target) {
+function escHtml(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function netTaunt(target, i) {
   if (!NET.r) return;
-  NET.tnSeq = (NET.tnSeq || 0) + 1; NET.tnOut = NET.tnOut || []; NET.tnOut.push([NET.tnSeq, target]); if (NET.tnOut.length > 4) NET.tnOut.shift();
+  NET.tnSeq = (NET.tnSeq || 0) + 1; NET.tnOut = NET.tnOut || []; NET.tnOut.push([NET.tnSeq, target, i | 0]); if (NET.tnOut.length > 4) NET.tnOut.shift();
   netPresence({ tn: NET.tnOut });
 }
 function hitCar(c, owner) {
@@ -4395,7 +4478,7 @@ function onNetPeers(ch) {
       if (!NET.racing || game.state !== 'play') continue;
       const atk = NET.remotes.get(p.peer) || null;
       const cpu = NET.host && typeof tk[1] === 'string' && tk[1].startsWith('cpu:') ? cpuPool[+tk[1].slice(4)] : null;
-      Taunt.recv(atk, tk[1] === NET.me, cpu && cars.includes(cpu) ? cpu : null);
+      Taunt.recv(atk, tk[1] === NET.me, cpu && cars.includes(cpu) ? cpu : null, tk[2] | 0);
     }
     // ホストのシリーズ（3レースの合計）
     if (pr.h && pr.ser && typeof pr.ser === 'object' && JSON.stringify(pr.ser) !== JSON.stringify(NET.hostSer)) { NET.hostSer = pr.ser; if (game.state === 'result' && NET.racing) NetSeries.render(); }
@@ -6587,7 +6670,7 @@ function update(dt) {
   if (st === 'countdown') countdownTick(dt);
   Pad.poll();
   if (input.boostReq) { input.boostReq = false; tryBoost(); }
-  if (input.tauntReq) { input.tauntReq = false; if (st === 'play' && !Taunt.use(player)) SND.buzz(); }
+  if (input.tauntReq) { input.tauntReq = false; if (st === 'play') Taunt.toggle(); }
   if (st === 'play' || st === 'result') Taunt.tick(dt);
   if (input.itemReq) { input.itemReq = false; if (st === 'play') { if (player.item && player.roulette <= 0) useItem(player); else SND.buzz(); } }
   if (game.split && p2) {
