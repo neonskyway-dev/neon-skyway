@@ -156,11 +156,11 @@
   #itemTip.show{opacity:1;transform:translateX(-50%) translateY(0)}
   #btnDrift{width:62px;height:62px;border-radius:50%;font-weight:900;font-size:11px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a1a6a,#1a0626);border:2px solid #ff2bd6;box-shadow:0 0 10px #ff2bd666;align-self:center}
   #btnDrift.on{background:#ff2bd6;box-shadow:0 0 18px #ff2bd6}
-  #btnJump{width:62px;height:62px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:900;font-size:10px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a4a0a,#1a1406);border:2px solid #ffd400;box-shadow:0 0 10px #ffd40066;align-self:center}
+  #btnJump{position:absolute;right:max(10px,env(safe-area-inset-right));top:42%;transform:translateY(-50%);width:58px;height:58px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:900;font-size:10px;letter-spacing:.1em;color:#fff;background:radial-gradient(circle at 50% 35%,#5a4a0a,#1a1406);border:2px solid #ffd400;box-shadow:0 0 10px #ffd40066;align-self:center}
   #btnJump .ic{width:22px;height:22px;color:#ffd400}
-  #btnJump:active{transform:scale(.92)}
+  #btnJump:active{transform:translateY(-50%) scale(.92)}
   #btnJump.cool{opacity:.45}
-  #btnTaunt{width:50px;height:50px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:9px;color:#fff;background:rgba(40,8,40,.75);border:2px solid #ff8ad8;align-self:center;line-height:1.1}
+  #btnTaunt{width:46px;height:46px;margin-left:10px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:9px;letter-spacing:0;color:#fff;background:rgba(40,8,40,.6);border:2px solid #ff8ad8;align-self:center;line-height:1.1;font-family:system-ui,sans-serif}
   #btnTaunt .em{font-size:20px}
   #btnTaunt:active{transform:scale(.9)}
   #btnTaunt.cool{opacity:.4}
@@ -402,6 +402,7 @@
       <span id="hPos" class="text-5xl sm:text-7xl font-black neon-pink tabular-nums">1</span>
       <span id="hPosSuf" class="text-xl sm:text-3xl font-black neon-pink">st</span>
       <span id="hPosTot" class="ml-1 text-sm sm:text-lg font-bold text-white/60">/6</span>
+      <button id="btnTaunt" class="pointer-events-auto" aria-label="煽る"><span class="em">😜</span><span>煽る</span></button>
       <span id="hAssist" style="display:none"><i data-i="wheels"></i><span id="hAssistT">FULL</span></span>
     </div>
     <div class="mt-1 flex items-center gap-2 text-xs sm:text-base">
@@ -432,14 +433,13 @@
     </div>
   </div>
 
+  <button id="btnJump" class="pointer-events-auto"><i data-i="jump"></i><span>JUMP</span></button>
   <div class="absolute bottom-1 right-2 sm:bottom-3 sm:right-4">
     <canvas id="speedo" width="300" height="300" class="w-[112px] h-[112px] sm:w-[156px] sm:h-[156px]"></canvas>
   </div>
 
   <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-end gap-4">
     <button id="btnItem" class="pointer-events-auto empty"><span class="in" id="itemIcon"></span><span id="itemCount" class="hidden">x3</span></button>
-    <button id="btnTaunt" class="pointer-events-auto" aria-label="煽る"><span class="em">😜</span><span>煽る</span></button>
-    <button id="btnJump" class="pointer-events-auto"><i data-i="jump"></i><span>JUMP</span></button>
     <button id="btnDrift" class="pointer-events-auto" style="display:none">DRIFT</button>
     <button id="btnBoost" class="pointer-events-auto"><div id="heatG"><i id="heatFill"></i><b></b></div><span>BOOST</span></button>
   </div>
