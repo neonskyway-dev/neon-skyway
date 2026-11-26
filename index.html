@@ -708,6 +708,8 @@ const CRANK = {
   just: { full: 0.8, pts: 20 },                 // ジャスト率 80% で満点
   assistCap: 'A',                               // アシスト中はAまで
 };
+// スコアの倍率（足し算）
+const SCORE = { fever: 1, maxMul: 4 };
 // 車の性能の効き方（CAR_TYPES の stats と組み合わせて使う）
 const CARK = {
   accPow: 2.2,        // 加速（acc）の効き: 再加速の速さ = 基本 × acc^accPow（パッド・ブースト後・壁や被弾のあと）
@@ -2447,10 +2449,12 @@ setPlayerType(store.get('ns_car', 'VIPER'));
 let cars = [player];
 const cam = { back: 6, pos: new V3(), up: new V3(0, 1, 0), fov: 66, kick: 0, shake: 0, intro: 0, look: new V3() };
 let best = store.get('neonSkywayBest', 0);
-const bestKeyFor = i => `ns_best_s${i}_lv${game.lv}`;
+// スコアの倍率を掛け算→足し算に変えたので（v2）、ベストは新しいキーに保存。前の方式のベストは「旧記録」として残す
+const bestKeyFor = i => `ns_best2_s${i}_lv${game.lv}`;
+const oldBestFor = i => store.get(`ns_best_s${i}_lv${game.lv}`, i === 0 ? store.get('ns_best_lv' + game.lv, game.lv === 2 ? best : 0) : 0);
 const bestKey = () => bestKeyFor(stageIdx);
-const bestFor = () => store.get(bestKey(), stageIdx === 0 ? store.get('ns_best_lv' + game.lv, game.lv === 2 ? best : 0) : 0);
-const showBest = () => $('bestTxt').textContent = `BEST ${bestFor().toLocaleString()}  (${STAGE.jp} / ${LV().name})`;
+const bestFor = () => store.get(bestKey(), 0);
+const showBest = () => { const o = oldBestFor(stageIdx); $('bestTxt').textContent = `BEST ${bestFor().toLocaleString()}  (${STAGE.jp} / ${LV().name})${o ? `　旧記録 ${o.toLocaleString()}` : ''}`; };
 showBest();
 $(isTouch ? 'helpKey' : 'helpTouch').style.display = 'none';
 
@@ -2557,7 +2561,9 @@ function pop(text, color = '#29f3ff', size = 30) {
 }
 let flashA = 0;
 function flash(col, a) { flashA = Math.max(flashA, a); $('flash').style.background = col; }
-function addScore(p) { game.score += p * (game.fever > 0 ? 2 : 1) * Dopa.mul() * Flow.mul; }
+// スコアの倍率は足し算: 1 + フィーバー + (脳汁倍率−1) + (フロー倍率−1)、合計の上限は SCORE.maxMul
+function scoreMul() { return Math.min(SCORE.maxMul, 1 + (game.fever > 0 ? SCORE.fever : 0) + (Dopa.mul() - 1) + (Flow.mul - 1)); }
+function addScore(p) { game.score += p * scoreMul(); }
 const live = () => game.state === 'play';
 
 function startBoost(c, dur, free) {
