@@ -229,6 +229,26 @@
   .h2panel{position:absolute;top:6px;display:flex;flex-direction:column;gap:3px;padding:4px 8px;border-radius:12px;background:rgba(0,0,0,.35)}
   .h2bar{height:6px;width:96px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden}
   .h2bar>i{display:block;height:100%;background:linear-gradient(90deg,#29f3ff,#ff2bd6)}
+  /* フレンド */
+  #netFriends .fr-h{font-size:12px;font-weight:900;letter-spacing:.25em;color:#29f3ff;margin-bottom:6px}
+  #netFriends .fr-h span{color:rgba(255,255,255,.45);letter-spacing:.05em;margin-left:6px}
+  #netFriends .fr-me{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.75)}
+  #netFriends .fr-me b{font-size:18px;letter-spacing:.18em;color:#fff;font-family:Orbitron,monospace;user-select:text;-webkit-user-select:text}
+  #netFriends .fr-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  #netFriends .fr-add input{width:150px;min-height:44px;text-transform:uppercase;letter-spacing:.15em;font-size:16px}
+  #netFriends .fr-sub{font-size:10px;font-weight:900;letter-spacing:.2em;color:rgba(255,255,255,.55);margin:10px 0 4px}
+  #netFriends .fr-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
+  #netFriends .fr-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  #netFriends .fr-name{font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #netFriends .fr-dev{font-size:10px;color:#ffd400;border:1px solid #ffd400;border-radius:2px;padding:0 3px;margin-right:4px}
+  #netFriends .fr-st{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap}
+  .fr-b{min-height:44px;min-width:44px;padding:0 12px;border-radius:3px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);font-size:12px;font-weight:800;color:#fff}
+  .fr-b.go{border-color:#29f3ff;background:rgba(41,243,255,.15)}
+  .fr-b.warn{border-color:#ff2050;color:#ff6b86}
+  #frInv{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:70;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:min(94vw,560px);padding:8px 12px;background:rgba(8,6,18,.94);border:1px solid rgba(255,255,255,.18);border-left:3px solid #3bff9d;border-radius:3px;font-size:13px;color:#fff;transition:transform .3s}
+  #frInv.show{transform:translate(-50%,0)}
+  #frInv button{min-height:44px;padding:0 14px;border-radius:3px;font-weight:800;font-size:13px;border:1px solid rgba(255,255,255,.35)}
+  #frInv #frInvGo{background:#3bff9d;color:#05010f;border:0}
   .netinput{background:rgba(0,0,0,.45);border:1px solid rgba(41,243,255,.5);border-radius:10px;padding:.45em .7em;font-weight:700;color:#fff;outline:none}
   .netinput:focus{box-shadow:0 0 10px rgba(41,243,255,.6)}
   body.fever #glow,body.fever #lines{animation:huespin .5s linear infinite}
@@ -587,6 +607,7 @@
         <button id="netLeave" class="rounded-full px-4 py-1.5 text-xs font-bold border border-white/40 bg-black/40">退出</button>
       </div>
     </div>
+    <div id="netFriends" class="jp mt-4 pt-3 border-t border-white/15"></div>
   </div>
 </div>
 
@@ -711,6 +732,7 @@
   <div class="jp text-xs text-white/60">スマホを横持ちにすると最高のスピード感で遊べます</div>
 </div>
 
+<div id="frInv" class="jp"></div>
 <div id="loading" class="fixed inset-0 z-50 flex items-center justify-center bg-[#05010f]">
   <div class="text-xl font-black tracking-[.4em] neon-cyan animate-pulse">LOADING...</div>
 </div>
@@ -4137,7 +4159,7 @@ $('netPick').addEventListener('change', e => { NET.myPk = +e.target.value; netPr
 document.querySelectorAll('#netTeams button').forEach(b => b.addEventListener('click', () => { NET.myTm = +b.dataset.tm; netPresence({ tm: NET.myTm }); SND.tick(); renderNet(); }));
 $('netCar').addEventListener('click', () => { game.netEdit = true; openGarage(); });
 $('netStage').addEventListener('click', () => { game.netEdit = true; openStageSel(); });
-$('netName').addEventListener('change', () => { store.set('ns_name', safeName($('netName').value)); netPresence({ n: safeName($('netName').value) }); renderNet(); });
+$('netName').addEventListener('change', () => { store.set('ns_name', safeName($('netName').value)); Friends.sync(); netPresence({ n: safeName($('netName').value) }); renderNet(); });
 $('btnLobby').addEventListener('click', netBackToLobby);
 function openStageSel() {
   SND.init(); Voice.unlock();
@@ -4409,6 +4431,159 @@ function makeSupaRoomApi() {
   }
   updateNetAvail();
 })();
+// フレンド: 端末ごとの「フレンドコード」を交換して登録（申請 → 承認）。オンライン状態が見え、部屋に招待・参加できる。
+// Supabase Realtime のチャンネル nsf-<コード> を使う（自分のチャンネルで状態を出し、メッセージを受け取る）。claude.ai の中では使えない
+const FRIEND = { max: 30, maxReq: 20, tempMs: 4000 };
+const Friends = {
+  id: '', list: [], reqIn: [], out: [], client: null, me: null, chs: new Map(), st: {}, inv: null, invShown: false, lastPres: '', connecting: false, delAsk: null,
+  ok() { return NET.mode === 'supabase' && !window.__NS_UNOFFICIAL; },
+  valid(id) { return typeof id === 'string' && /^[A-Z2-9]{8}$/.test(id); },
+  init() {
+    let id = store.get('ns_fid', '');
+    if (!this.valid(id)) { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint32Array(8)); id = [...r].map(x => A[x % A.length]).join(''); store.set('ns_fid', id); }
+    this.id = id;
+    const clean = a => (Array.isArray(a) ? a : []).filter(f => f && this.valid(f.id) && f.id !== id).map(f => ({ id: f.id, n: safeName(f.n) }));
+    this.list = clean(store.get('ns_friends', [])).slice(0, FRIEND.max);
+    this.reqIn = clean(store.get('ns_freq', [])).slice(0, FRIEND.maxReq);
+    this.out = (store.get('ns_fout', []) || []).filter(x => this.valid(x)).slice(-FRIEND.max);
+    setInterval(() => this.checkInvite(), 1000);
+  },
+  save() { store.set('ns_friends', this.list); store.set('ns_freq', this.reqIn); store.set('ns_fout', this.out); },
+  fmt(id) { return id.slice(0, 4) + '-' + id.slice(4); },
+  parse(t) { const s = String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return this.valid(s) ? s : null; },
+  isFriend(id) { return this.list.some(f => f.id === id); },
+  myName() { return safeName(store.get('ns_name', '')); },
+  pres() { return { n: this.myName(), st: NET.racing ? 'race' : NET.r ? 'lobby' : 'online', rm: NET.r && !NET.racing && NET.code ? NET.code : null, dv: Dev.ok ? 1 : null }; },
+  async connect() {
+    if (this.client || this.connecting || !this.ok()) return;
+    this.connecting = true;
+    try {
+      const lib = await loadSupaLib();
+      this.client = lib.createClient(SUPA.url, SUPA.key, { auth: { persistSession: false, autoRefreshToken: false }, realtime: { params: { eventsPerSecond: 5 } } });
+      this.me = await this.sub(this.id, true);
+      for (const f of this.list) this.sub(f.id, false);
+    } catch (e) { this.client = null; this.me = null; }
+    this.connecting = false; this.render();
+  },
+  sub(id, mine) {
+    if (this.chs.has(id)) return Promise.resolve(this.chs.get(id));
+    if (!this.client) return Promise.resolve(null);
+    const ch = this.client.channel('nsf-' + id.toLowerCase(), { config: { presence: { key: mine ? 'me' : 'w' + this.id }, broadcast: { self: false } } });
+    if (mine) ch.on('broadcast', { event: 'm' }, ({ payload }) => this.onMsg(payload));
+    else ch.on('presence', { event: 'sync' }, () => { const m = ch.presenceState().me; this.st[id] = m && m.length ? m[m.length - 1] : null; const f = this.list.find(f => f.id === id); if (f && this.st[id] && this.st[id].n) f.n = safeName(this.st[id].n); this.render(); });
+    this.chs.set(id, ch);
+    return new Promise(res => {
+      let done = false;
+      ch.subscribe(status => {
+        if (done) return;
+        if (status === 'SUBSCRIBED') { done = true; if (mine) { this.lastPres = ''; this.sync(); } res(ch); }
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') { done = true; this.chs.delete(id); try { this.client.removeChannel(ch); } catch (e) {} res(null); }
+      });
+    });
+  },
+  unsub(id) { const ch = this.chs.get(id); if (ch) { this.chs.delete(id); try { this.client.removeChannel(ch); } catch (e) {} } delete this.st[id]; },
+  sync() { if (!this.me) return; const p = this.pres(), j = JSON.stringify(p); if (j === this.lastPres) return; this.lastPres = j; this.me.track(p).catch(() => {}); },
+  async send(id, msg) {
+    if (!this.client) await this.connect();
+    if (!this.client) return false;
+    const temp = !this.chs.has(id), ch = await this.sub(id, false); if (!ch) return false;
+    try { await ch.send({ type: 'broadcast', event: 'm', payload: { ...msg, from: this.id, n: this.myName() } }); } catch (e) { return false; }
+    if (temp && !this.isFriend(id)) setTimeout(() => { if (!this.isFriend(id)) this.unsub(id); }, FRIEND.tempMs);
+    return true;
+  },
+  onMsg(m) {
+    if (!m || typeof m !== 'object' || !this.valid(m.from) || m.from === this.id) return;
+    const id = m.from, n = safeName(m.n);
+    if (m.t === 'req') {
+      if (this.isFriend(id)) { this.send(id, { t: 'acc' }); return; }
+      if (this.out.includes(id)) { this.addFriend(id, n); this.send(id, { t: 'acc' }); toast(`${escHtml(n)} とフレンドになりました`, '#3bff9d'); return; }   // おたがいに申請していた
+      if (!this.reqIn.some(r => r.id === id)) { this.reqIn.unshift({ id, n }); this.reqIn = this.reqIn.slice(0, FRIEND.maxReq); this.save(); }
+      toast(`${escHtml(n)} からフレンド申請が届きました（オンライン画面で承認）`, '#ff8ad8', 4500); vib([20, 30, 20]);
+    } else if (m.t === 'acc') {
+      if (!this.out.includes(id) && !this.isFriend(id)) return;
+      if (!this.isFriend(id)) { this.addFriend(id, n); toast(`${escHtml(n)} がフレンド申請を承認しました`, '#3bff9d'); }
+    } else if (m.t === 'inv') {
+      if (!this.isFriend(id)) return;
+      const code = String(m.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); if (code.length !== 4) return;
+      this.inv = { id, n, code }; this.invShown = false; this.checkInvite();
+    } else if (m.t === 'del') {
+      if (this.isFriend(id)) { this.list = this.list.filter(f => f.id !== id); this.unsub(id); this.save(); }
+      this.reqIn = this.reqIn.filter(r => r.id !== id); this.save();
+    }
+    this.render();
+  },
+  addFriend(id, n) {
+    if (!this.isFriend(id)) { if (this.list.length >= FRIEND.max) { toast(`フレンドは${FRIEND.max}人までです`, '#ff2050'); return; } this.list.push({ id, n }); }
+    this.out = this.out.filter(x => x !== id); this.reqIn = this.reqIn.filter(r => r.id !== id); this.save(); this.sub(id, false); this.render();
+  },
+  async request(raw) {
+    const id = this.parse(raw);
+    if (!id) return toast('フレンドコードは8文字です（例: ABCD-2345）', '#ff2050');
+    if (id === this.id) return toast('自分のコードです', '#ff2050');
+    if (this.isFriend(id)) return toast('もうフレンドです', '#ffd400');
+    if (this.reqIn.some(r => r.id === id)) return this.accept(id);
+    if (!this.out.includes(id)) this.out.push(id); this.save();
+    const ok = await this.send(id, { t: 'req' });
+    toast(ok ? '申請を送りました。相手が承認するとフレンドになります（相手がゲームを開いていないと届きません）' : '送れませんでした。通信を確かめてください', ok ? '#29f3ff' : '#ff2050', 4500);
+    this.render();
+  },
+  accept(id) { const r = this.reqIn.find(r => r.id === id); if (!r) return; this.addFriend(id, r.n); this.send(id, { t: 'acc' }); SND.tick(); },
+  decline(id) { this.reqIn = this.reqIn.filter(r => r.id !== id); this.save(); this.render(); SND.tick(); },
+  remove(id) { this.list = this.list.filter(f => f.id !== id); this.send(id, { t: 'del' }); this.unsub(id); this.save(); this.render(); },
+  invite(id) {
+    if (!NET.r || !NET.code) return;
+    this.send(id, { t: 'inv', code: NET.code }).then(ok => toast(ok ? '招待を送りました' : '送れませんでした', ok ? '#29f3ff' : '#ff2050'));
+  },
+  async joinRoom(code) {
+    if (NET.r && NET.code === code) return;
+    if (game.state === 'play' || game.state === 'countdown') return;
+    if (NET.r) await netLeave(true);
+    openNet(); netEnter(code, false);
+  },
+  checkInvite() {
+    const el = $('frInv'); if (!el) return;
+    if (!this.inv || this.invShown || game.state === 'play' || game.state === 'countdown' || (NET.r && NET.code === this.inv.code)) return;
+    this.invShown = true; const v = this.inv;
+    el.innerHTML = `<span><b>${escHtml(v.n)}</b> から部屋 <b>${v.code}</b> に招待されました</span><button id='frInvGo'>参加する</button><button id='frInvNo'>あとで</button>`;
+    el.classList.add('show'); SND.itemGet(); vib([20, 30, 20, 30, 60]);
+    $('frInvGo').onclick = () => { el.classList.remove('show'); this.inv = null; this.joinRoom(v.code); };
+    $('frInvNo').onclick = () => { el.classList.remove('show'); this.inv = null; };
+    setTimeout(() => { if (this.inv === v) { el.classList.remove('show'); this.inv = null; } }, 20000);
+  },
+  render() {
+    this.sync();
+    const box = $('netFriends'); if (!box || box.offsetParent === null && !box.dataset.force) return;
+    if (!this.ok()) { box.innerHTML = `<div class='fr-h'>FRIENDS</div><div class='text-[11px] text-white/55'>フレンド機能は公式サイト（${location.hostname.endsWith('claude.ai') || window.claude ? 'GitHub Pages など claude.ai の外' : 'インターネット対戦が使えるページ'}）で使えます。</div>`; return; }
+    const stTxt = s => !s ? ['#6b6b80', 'オフライン'] : s.st === 'race' ? ['#ff8ad8', 'レース中'] : s.st === 'lobby' ? ['#ffd400', `部屋 ${s.rm || ''} にいる`] : ['#3bff9d', 'オンライン'];
+    const rows = this.list.map(f => {
+      const s = this.st[f.id], [col, txt] = stTxt(s);
+      const canJoin = s && s.st === 'lobby' && s.rm && !(NET.r && NET.code === s.rm), canInv = NET.r && NET.code && s && !(s.st === 'lobby' && s.rm === NET.code);
+      const del = this.delAsk === f.id;
+      return `<div class='fr-row'><i class='fr-dot' style='background:${col};box-shadow:0 0 6px ${col}'></i><span class='fr-name'>${s && s.dv ? '<b class=fr-dev>開発者</b>' : ''}${escHtml(f.n)}</span><span class='fr-st' style='color:${col}'>${txt}</span>
+        ${canJoin ? `<button class='fr-b go' data-a='join' data-id='${f.id}'>参加</button>` : ''}${canInv ? `<button class='fr-b go' data-a='inv' data-id='${f.id}'>招待</button>` : ''}
+        <button class='fr-b ${del ? 'warn' : ''}' data-a='${del ? 'delok' : 'del'}' data-id='${f.id}'>${del ? '本当に削除' : '削除'}</button></div>`;
+    }).join('');
+    const reqs = this.reqIn.map(r => `<div class='fr-row'><i class='fr-dot' style='background:#ff8ad8'></i><span class='fr-name'>${escHtml(r.n)}</span><span class='fr-st'>申請が届いています</span><button class='fr-b go' data-a='acc' data-id='${r.id}'>承認</button><button class='fr-b' data-a='dec' data-id='${r.id}'>拒否</button></div>`).join('');
+    box.innerHTML = `<div class='fr-h'>FRIENDS <span>${this.list.length}/${FRIEND.max}</span></div>
+      <div class='fr-me'>あなたのフレンドコード <b id='frMyCode'>${this.fmt(this.id)}</b><button class='fr-b' id='frCopy'>コピー</button></div>
+      <div class='fr-add'><input id='frCode' class='netinput' maxlength='9' placeholder='友達のコード' autocomplete='off' autocapitalize='characters' spellcheck='false'><button class='fr-b go' id='frReq'>フレンド申請</button></div>
+      ${reqs ? `<div class='fr-sub'>届いた申請</div>${reqs}` : ''}
+      ${rows ? `<div class='fr-sub'>フレンド</div>${rows}` : `<div class='text-[11px] text-white/55 mt-1'>まだフレンドがいません。友達とフレンドコードを交換して「フレンド申請」してください。</div>`}
+      ${this.out.length ? `<div class='text-[10px] text-white/45 mt-1'>承認待ちの申請 ${this.out.length}件</div>` : ''}
+      ${!this.me ? `<div class='text-[10px] text-yellow-300/80 mt-1'>${this.connecting ? '接続中…' : 'フレンドのサーバーにつながっていません'}</div>` : ''}`;
+    $('frCopy').onclick = () => { const t = this.fmt(this.id); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('フレンドコードをコピーしました', '#29f3ff'), () => toast('コード: ' + t, '#29f3ff')); };
+    $('frReq').onclick = () => { this.request($('frCode').value); };
+    box.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const id = b.dataset.id, a = b.dataset.a;
+      if (a === 'acc') this.accept(id); else if (a === 'dec') this.decline(id);
+      else if (a === 'inv') this.invite(id);
+      else if (a === 'join') { const s = this.st[id]; if (s && s.rm) this.joinRoom(s.rm); }
+      else if (a === 'del') { this.delAsk = id; this.render(); }
+      else if (a === 'delok') { this.delAsk = null; this.remove(id); }
+    });
+  },
+};
+setTimeout(() => Friends.init(), 0); setTimeout(() => Friends.connect(), 3000);   // 起動を遅くしないよう少し後でつなぐ（申請・招待を受け取るため）
 const netUnavailMsg = () => NET.mode === '' && !window.claude
   ? 'オンライン対戦の設定（Supabase）がまだ入っていないため、今は使えません。'
   : 'オンライン対戦は claude.ai でこのページを開き、サインインしているときだけ使えます。友達にはこのアーティファクトを共有（招待）してください。';
@@ -4510,6 +4685,7 @@ function netHumans() {
   return NET.peers.filter(p => p.kind === 'viewer' && !(p.isMe && !p.sameTab));
 }
 function renderNet() {
+  Friends.render();
   const inRoom = !!NET.r;
   $('netJoinBox').classList.toggle('hidden', inRoom); $('netJoinBox').classList.toggle('flex', !inRoom);
   $('netRoomBox').classList.toggle('hidden', !inRoom); $('netRoomBox').classList.toggle('flex', inRoom);
@@ -4556,6 +4732,7 @@ function netHostStart() {
 }
 // レース開始 (全員)
 function netBeginRace(cfg) {
+  setTimeout(() => Friends.sync(), 0);
   // GO の時刻を自分の時計に直す。端末の時計はふつう数十ms以内でそろっているのでそのまま使い、大きくずれているときだけホストの時計に合わせる
   NET.goAt = 0;
   if (typeof cfg.at === 'number' && typeof cfg.hn === 'number') { const off = cfg.hn - Date.now(); NET.goAt = cfg.at - (Math.abs(off) < NET_SYNC.clockTrust ? 0 : off); }
@@ -4617,6 +4794,7 @@ function netSendHit(target, owner, extra) {
   return true;
 }
 function netBackToLobby() {
+  setTimeout(() => Friends.sync(), 0);
   NET.racing = false; NET.rules = {}; NET.teams = null; if (NET.host && NET.ser && !NET.ser.done && game.state === 'result') NET.ser = null;
   for (const r of NET.remotes.values()) scene.remove(r.model.root);
   NET.remotes.clear();
