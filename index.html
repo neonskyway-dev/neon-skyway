@@ -6841,6 +6841,54 @@ setTimeout(() => {
   $('tutAgain2').onclick = () => { Meta.close(); TUT.start('full'); };
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>シリアルコード</div><div class='flex flex-wrap items-center gap-2 text-xs'><input id='serialIn' autocomplete='off' autocapitalize='characters' spellcheck='false' maxlength='40' placeholder='コードを入力' class='jp rounded px-3 bg-black/50 border border-white/30 text-white' style='min-height:44px;width:min(60vw,240px);font-size:16px;user-select:text;-webkit-user-select:text'><button id='serialGo' class='mbtn'>決定</button></div>`);
   $('serialGo').onclick = async () => { const ok = await Dev.redeem($('serialIn').value); if (ok) { $('serialIn').value = ''; SND.itemGet(); vib([30, 30, 30, 30, 120]); toast('称号「開発者」を解放して装備しました', '#ffd400', 4000); } else { SND.buzz(); toast('コードがちがいます', '#ff2050'); } };
+  // データの引き継ぎ: セーブを「引き継ぎコード」（文字）にして書き出す → 別のアプリ・端末で貼り付けて読み込む
+  // iPhone のホーム画面アプリは Safari とセーブが別で、アイコンを消すとセーブも消えるため
+  set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>データの引き継ぎ</div>
+    <div class='text-[10px] text-white/60 leading-relaxed'>アイコンを入れ直す・機種変更の前に「書き出す」でコードをコピーし、メモなどに貼って保存してください。新しい方で「読み込む」に貼り付けると、レベル・ネオン・コレクション・記録・フレンドが戻ります（自分の曲は入りません）。</div>
+    <div class='flex flex-wrap gap-2 mt-1.5'><button id='xferOut' class='mbtn'>書き出す（コピー）</button><button id='xferIn' class='mbtn'>読み込む</button></div>
+    <div id='xferBox' class='hidden mt-1.5 flex-col gap-1.5'><textarea id='xferTxt' rows='3' class='netinput w-full text-[11px]' style='font-size:16px;user-select:text;-webkit-user-select:text' spellcheck='false' autocomplete='off'></textarea><div id='xferBtns' class='flex flex-wrap gap-2'></div></div>`);
+  const XF = {
+    keys() { const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if ((/^ns_/.test(k) && !/^ns_(backup_|pf_broken)/.test(k)) || k === 'neonSkywayBest') o[k] = localStorage.getItem(k); } } catch (e) {} return o; },
+    b64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); },
+    async pack() {
+      const json = JSON.stringify({ v: 1, t: Date.now(), d: this.keys() }), raw = new TextEncoder().encode(json);
+      if (window.CompressionStream) { try { const gz = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); return 'NSZ1:' + this.b64(gz); } catch (e) {} }
+      return 'NSJ1:' + this.b64(raw);
+    },
+    async unpack(code) {
+      code = String(code || '').replace(/\s+/g, '');
+      const m = code.match(/^(NSZ1|NSJ1):([A-Za-z0-9+/=]+)$/); if (!m) throw new Error('形式');
+      const bin = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0));
+      const raw = m[1] === 'NSZ1' ? new Uint8Array(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()) : bin;
+      const o = JSON.parse(new TextDecoder().decode(raw)); if (!o || o.v !== 1 || !o.d || typeof o.d !== 'object') throw new Error('中身');
+      return o;
+    },
+  };
+  const box = $('xferBox'), txt = $('xferTxt'), btns = $('xferBtns');
+  const openBox = html => { box.classList.remove('hidden'); box.classList.add('flex'); btns.innerHTML = html; };
+  $('xferOut').onclick = async () => {
+    savePF(); const code = await XF.pack(); txt.value = code; txt.readOnly = true;
+    openBox(`<button id='xferCopy' class='mbtn'>もう一度コピー</button>${navigator.share ? `<button id='xferShare' class='mbtn'>メモなどに送る</button>` : ''}<span class='text-[10px] text-white/55 self-center'>${code.length.toLocaleString()}文字</span>`);
+    const copy = () => (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast('引き継ぎコードをコピーしました。メモなどに貼って保存してください', '#3bff9d', 4500), () => { txt.focus(); txt.select(); toast('自動でコピーできませんでした。枠の中を全部選んでコピーしてください', '#ffd400', 4500); });
+    copy(); $('xferCopy').onclick = copy;
+    if ($('xferShare')) $('xferShare').onclick = () => navigator.share({ title: 'NEON SKYWAY 引き継ぎコード', text: code }).catch(() => {});
+  };
+  $('xferIn').onclick = () => {
+    txt.value = ''; txt.readOnly = false; txt.placeholder = '引き継ぎコード（NSZ1: から始まる文字）を貼り付け';
+    openBox(`<button id='xferLoad' class='start-btn !px-5 !py-2 text-sm'>この内容で読み込む</button>`);
+    txt.focus();
+    $('xferLoad').onclick = async () => {
+      let o; try { o = await XF.unpack(txt.value); } catch (e) { SND.buzz(); toast('コードが読めませんでした。全部コピーできているか確かめてください', '#ff2050', 4500); return; }
+      let lv = '?'; try { lv = JSON.parse(o.d.ns_pf || '{}').lv || 1; } catch (e) {}
+      if (!confirm(`Lv.${lv} のセーブ（${new Date(o.t).toLocaleString()} に書き出し）を読み込みます。今のセーブは退避（ns_backup_）してから置きかえます。よろしいですか？`)) return;
+      try {
+        const cur = XF.keys(); localStorage.setItem('ns_backup_' + Date.now(), JSON.stringify(cur));
+        for (const k of Object.keys(cur)) localStorage.removeItem(k);
+        for (const [k, v] of Object.entries(o.d)) if ((/^ns_/.test(k) || k === 'neonSkywayBest') && typeof v === 'string') localStorage.setItem(k, v);
+      } catch (e) { toast('保存できませんでした（容量不足など）', '#ff2050', 4500); return; }
+      toast('読み込みました。再起動します', '#3bff9d'); setTimeout(() => location.reload(), 900);
+    };
+  };
   set.insertAdjacentHTML('beforeend', `<div class='mhd mt-4'>DATA</div><div id='resetBox' class='flex flex-wrap items-center gap-2 text-xs'></div>`);
   const drawReset = ask => {
     const b = $('resetBox');
@@ -7245,7 +7293,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27i</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27j</span></div>
 
 <style id="proSkin">
 /* =====================================================================
