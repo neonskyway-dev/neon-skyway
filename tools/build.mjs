@@ -66,7 +66,7 @@ if (obf) {
     controlFlowFlattening: false,
     deadCodeInjection: false,
     identifierNamesGenerator: 'hexadecimal',
-    renameGlobals: false,
+    renameGlobals: true,   // ゲーム本体は module なので、関数名・定数名（buildDriver など）も読めない名前にしてよい
     selfDefending: false,
     simplify: true,
     stringArray: true,
