@@ -5199,16 +5199,16 @@ const ACH = [
   { id: 'devBeat', n: '開発者超え', d: 'アシスト「オフ」で5コース、開発者ゴーストに勝つ', f: () => Object.keys(PF.skill?.dev || {}).length >= 5, p: () => [Object.keys(PF.skill?.dev || {}).length, 5], rw: 4000, title: 'T_DEVBEAT' },
   cnt('mSSS', 'SSSコレクター', '3コースでSSSランク', 'sss', 3, 2000, 'M_SSS'),
   cnt('mCoast', '絶叫マシン中毒', 'ドリームパークのドロップを30回', 'drop', 30, 600, 'M_COAST'),
-  cnt('aori50', '煽り職人', '近くの相手に煽りスタンプを通算50回', 'taunt', 50, 600, 'T_AORI'),
-  cnt('bash50', '体当たり番長', 'サイドアタック通算50回', 'bash', 50, 800, 'T_BASH'),
-  cnt('pass500', '追い抜きの鬼', 'オーバーテイク通算500回', 'pass', 500, 1000, 'T_PASS'),
-  cnt('bearWin', '白クマ使い', 'ホッキョクグマで優勝', 'bearWin', 1, 1000, 'T_BEAR'),
-  cnt('bikeWin', '真のライダー', 'バイクで通算10勝', 'bikeWin', 10, 1200, 'T_RIDER'),
-  cnt('netWin', 'ネット最速', 'オンライン対戦で1位', 'netWin', 1, 800, 'T_NETW'),
-  cnt('netRace', 'オンラインの常連', 'オンライン対戦を30回完走', 'netRace', 30, 800, 'T_NETV'),
-  { id: 'friend3', n: '友達思い', d: 'フレンドを3人つくる', f: () => Friends.list.length >= 3, p: () => [Friends.list.length, 3], rw: 500, title: 'T_FRIEND' },
-  cnt('race200', '鉄人', 'レース通算200回', 'races', 200, 2000, 'T_IRON'),
-  { id: 'lv50', n: '生ける伝説', d: 'レベル50に到達', f: () => PF.lv >= 50, p: () => [PF.lv, 50], rw: 5000, title: 'T_LV50' },
+  cnt('aori50', '煽り職人', '近くの相手に煽りスタンプを通算300回', 'taunt', 300, 1500, 'T_AORI'),
+  cnt('bash50', '体当たり番長', 'サイドアタック通算300回', 'bash', 300, 2000, 'T_BASH'),
+  cnt('pass500', '追い抜きの鬼', 'オーバーテイク通算3,000回', 'pass', 3000, 2500, 'T_PASS'),
+  cnt('bearWin', '白クマ使い', 'ホッキョクグマで CPU「鬼」以上に10回優勝', 'bearOni', 10, 3000, 'T_BEAR'),
+  cnt('bikeWin', '真のライダー', 'バイクで CPU「鬼」以上に30回優勝', 'bikeOni', 30, 4000, 'T_RIDER'),
+  cnt('netWin', 'ネット最速', 'オンライン対戦（相手が2人以上）で通算50回1位', 'netWin', 50, 4000, 'T_NETW'),
+  cnt('netRace', 'オンラインの常連', 'オンライン対戦を300回完走', 'netRace', 300, 3000, 'T_NETV'),
+  { id: 'friend3', n: '友達思い', d: 'フレンドを15人つくる', f: () => Friends.list.length >= 15, p: () => [Friends.list.length, 15], rw: 1500, title: 'T_FRIEND' },
+  cnt('race200', '鉄人', 'レース通算1,000回', 'races', 1000, 5000, 'T_IRON'),
+  { id: 'lv50', n: '生ける伝説', d: 'レベル100に到達', f: () => PF.lv >= 100, p: () => [PF.lv, 100], rw: 10000, title: 'T_LV50' },
   { id: 'comp', n: 'コンプリート', d: 'スロット景品を全部そろえる（GODを除く）', f: () => COS.every(c => c.g === false || c.r === 'GOD' || PF.owned[c.id]), rw: 5000 },
   { id: 'god777', n: 'GOD降臨', d: '？？？', secret: true, f: t => (t.god777 || 0) >= 1, rw: 7777 },
 ];
@@ -6451,8 +6451,8 @@ const Meta = {
     if (!taRes && !game.split) Assist.afterRace(r === 1);
     add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
     for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop', 'taunt', 'bash', 'pass']) add(k, RUN[k]);
-    if (r === 1 && !taRes && !game.split) { if (player.type === 'BEAR') add('bearWin', 1); if (player.type === 'BIKE') add('bikeWin', 1); }
-    if (NET.racing) { add('netRace', 1); if (r === 1) add('netWin', 1); }
+    if (r === 1 && !taRes && !game.split && game.lv >= 5 && !NET.racing) { if (player.type === 'BEAR') add('bearOni', 1); if (player.type === 'BIKE') add('bikeOni', 1); }
+    if (NET.racing) { add('netRace', 1); if (r === 1 && NET.remotes.size >= 2) add('netWin', 1); }
     if (!player.retired && game.lv >= 3 && (RUN.fail || 0) + (RUN.wallHit || 0) === 0) add('noHit', 1);
     if (r === 1 && !taRes && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
     if ((RUN.flowMax || 1) >= FLOW.max) add('flow3', 1);
