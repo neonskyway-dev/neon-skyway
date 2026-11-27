@@ -6351,7 +6351,9 @@ const Meta = {
     for (const k of TYPE_KEYS) {
       const m = playerModels[k].body.children[0].material;
       if (!p || !p.c) m.color.setHex(CAR_TYPES[k].paint); else if (p.c !== 'rainbow' && p.c !== 'sss' && p.c !== 'god') m.color.setHex(p.c);
-      m.metalness = p && p.metal ? 1 : 0.85; m.roughness = p && p.metal ? 0.1 : 0.25;
+      // ほぼ鏡の金属にすると夜の景色が映るだけで色が見えなくなるので、ふつうの塗装は金属感を弱めて色を出す
+      m.metalness = p && p.metal ? 0.7 : 0.15; m.roughness = p && p.metal ? 0.2 : 0.32; m.needsUpdate = true;
+      m.emissive.copy(m.color).multiplyScalar(0.14);   // 夜でも色がわかるよう少しだけ自分で光る
     }
   },
   gradeTag(i) { const cr = CourseRank.tag(i); if (game.mode === 'ta') return TA.cardTag(i) + (cr ? ' ' + cr : ''); const g = PF.grade[i]; return (g ? `<b class='g-${gcls(g)} italic'>${g}</b>` : '') + (cr ? ` <span class='text-[9px] text-white/50'>COURSE</span>${cr}` : ''); },
