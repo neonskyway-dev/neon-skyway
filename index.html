@@ -2054,34 +2054,55 @@ function seatOf(k) {
 }
 function buildDriver(k, cos, col) {
   const S = seatOf(k), H = S.H, R = S.R, G = new THREE.Group(), bin = new Map();
-  const suit = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5, emissive: col, emissiveIntensity: 0.12 });
+  // つやのあるレーシングスーツとヘルメット（なめらかな形で作る）
+  const suit = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.38, metalness: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.3, emissive: col, emissiveIntensity: 0.1 });
+  const shell = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.18, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.05, emissive: col, emissiveIntensity: 0.08 });
   const glow = new THREE.MeshBasicMaterial({ color: col });
+  const visorMat = new THREE.MeshPhysicalMaterial({ color: 0x0a0a14, metalness: 0.9, roughness: 0.08, clearcoat: 1, emissive: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.55), emissiveIntensity: 0.9 });   // スーツより明るく光るバイザー
   const put = (mat, geo) => { (bin.get(mat) || bin.set(mat, []).get(mat)).push(prepGeo(geo)); };
   const at = (geo, dx, dy, dz) => geo.translate(H.x + dx, H.y + dy, H.z + dz);
-  const ball = (r, sx = 1, sy = 1, sz = 1) => new THREE.SphereGeometry(r, 14, 10).scale(sx, sy, sz);
+  const ball = (r, sx = 1, sy = 1, sz = 1) => new THREE.SphereGeometry(r, 28, 20).scale(sx, sy, sz);
+  const UP = new V3(0, 1, 0);
+  // 2点を結ぶ丸い棒（腕・脚・胴）
+  const limb = (mat, a, b2, r) => { const d = new V3().subVectors(b2, a), L = d.length(); const g = new THREE.CapsuleGeometry(r, Math.max(0.01, L), 6, 16); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, d.normalize())); g.translate((a.x + b2.x) / 2, (a.y + b2.y) / 2, (a.z + b2.z) / 2); put(mat, g); };
   // 体
   if (S.pose === 'bike') {
-    put(suit, box(0.42, 0.5, 0.42, 0, 0, 0).rotateX(-0.75).translate(0, 1.55, 0.05));
-    for (const sx of [-1, 1]) { put(suit, box(0.12, 0.12, 0.6, 0, 0, 0).rotateX(0.45).translate(0.24 * sx, 1.42, -0.42)); put(drvMats.dark, box(0.14, 0.5, 0.16, 0, 0, 0).rotateX(0.6).translate(0.22 * sx, 0.95, 0.35)); }
+    const hipP = new V3(0, 1.3, 0.38), neck = new V3(0, 1.7, -0.2);
+    limb(suit, hipP, neck, 0.19);                                                    // 胴（前傾）
+    put(suit, ball(0.24, 1.25, 0.9, 1).translate(0, 1.66, -0.12));                  // 肩
+    limb(glow, new V3(0, 1.38, 0.32), new V3(0, 1.72, -0.18), 0.03);               // 背中の光るライン
+    for (const sx of [-1, 1]) {
+      const sh2 = new V3(0.25 * sx, 1.66, -0.12), hand = new V3(0.3 * sx, 1.36, -0.82);
+      limb(suit, sh2, hand, 0.07); put(drvMats.dark, ball(0.075).translate(hand.x, hand.y, hand.z));   // 腕・グローブ
+      const knee = new V3(0.27 * sx, 1.18, -0.2), foot = new V3(0.24 * sx, 0.72, 0.18);
+      limb(suit, new V3(0.15 * sx, 1.3, 0.36), knee, 0.09); limb(drvMats.dark, knee, foot, 0.075);     // ももとすね（ブーツ）
+    }
   } else {
-    const sh = H.y - R * 1.15, th = Math.max(0.18, sh - S.hip);
-    put(suit, box(0.4, th, 0.26, H.x, S.hip + th / 2, H.z + 0.05));
-    for (const sx of [-1, 1]) put(suit, box(0.09, 0.09, 0.34, H.x + sx * 0.17, sh - 0.06, H.z - 0.16));
-    put(drvMats.dark, new THREE.TorusGeometry(0.13, 0.025, 6, 16).translate(H.x, sh - 0.04, H.z - 0.36));   // ハンドル
+    const sh = H.y - R * 1.25, th = Math.max(0.22, sh - S.hip), cz = H.z + 0.06;
+    limb(suit, new V3(H.x, S.hip + 0.1, cz + 0.03), new V3(H.x, sh, cz), 0.15);    // 胴
+    put(suit, ball(0.2, 1.3, 0.75, 0.95).translate(H.x, sh, cz));                   // 肩
+    limb(drvMats.dark, new V3(H.x, sh, cz), new V3(H.x, H.y - R * 0.6, H.z), 0.06); // 首
+    for (const sx of [-1, 1]) {
+      const s0 = new V3(H.x + sx * 0.2, sh - 0.02, cz), el = new V3(H.x + sx * 0.23, sh - 0.2, cz - 0.16), hand = new V3(H.x + sx * 0.13, sh - 0.12, H.z - 0.34);
+      limb(suit, s0, el, 0.055); limb(suit, el, hand, 0.05); put(drvMats.dark, ball(0.055).translate(hand.x, hand.y, hand.z));
+    }
+    limb(glow, new V3(H.x + 0.09, S.hip + 0.12, cz - 0.13), new V3(H.x + 0.09, sh - 0.04, cz - 0.16), 0.014);   // 胸の光るライン
+    put(drvMats.dark, new THREE.TorusGeometry(0.14, 0.022, 10, 28).translate(H.x, sh - 0.1, H.z - 0.38));   // ハンドル
   }
   // 頭とコスチューム（前は -z）
-  const visor = () => put(glow, at(box(R * 1.5, R * 0.34, 0.04, 0, 0, 0), 0, 0.02, -R * 1.08));
+  // バイザー: ヘルメットに沿って曲がった光るガラス
+  const visor = (rr = R * 1.17) => put(visorMat, at(new THREE.SphereGeometry(rr, 28, 12, Math.PI * 1.5 - 1.05, 2.1, Math.PI / 2 - 0.4, 0.66).scale(1, 1, 1.08), 0, 0.01, 0));
   switch (cos) {
-    case 'CAP': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(suit, at(new THREE.SphereGeometry(R * 1.06, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, 0.03, 0)); put(suit, at(box(R * 1.3, 0.03, R * 0.9, 0, 0, 0), 0, 0.05, -R * 1.1)); put(drvMats.dark, at(box(R * 1.5, R * 0.3, 0.04, 0, 0, 0), 0, -0.01, -R * 0.98)); break;
+    case 'CAP': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(suit, at(new THREE.SphereGeometry(R * 1.06, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, 0.03, 0)); put(suit, at(ball(R * 0.9, 1.05, 0.1, 0.8), 0, 0.05, -R * 0.95)); limb(visorMat, new V3(H.x - R * 0.75, H.y - 0.01, H.z - R * 0.93), new V3(H.x + R * 0.75, H.y - 0.01, H.z - R * 0.93), R * 0.15); break;
     case 'NINJA': put(drvMats.dark, at(ball(R * 1.05), 0, 0, 0)); put(drvMats.skin, at(box(R * 1.3, R * 0.26, 0.04, 0, 0, 0), 0, 0.02, -R * 1.0)); put(glow, at(new THREE.TorusGeometry(R * 1.07, 0.025, 6, 18).rotateX(Math.PI / 2), 0, R * 0.38, 0)); for (const sx of [-1, 1]) put(glow, at(box(0.05, 0.26, 0.03, 0, 0, 0).rotateZ(sx * 0.3), sx * 0.06, R * 0.1, R * 1.12)); break;
     case 'ASTRO': put(drvMats.white, at(ball(R * 1.38), 0, 0, 0)); put(drvMats.gold, at(ball(R * 0.95, 1.15, 0.8, 0.5), 0, 0, -R * 0.95)); put(drvMats.white, at(new THREE.CylinderGeometry(0.012, 0.012, R * 1.2, 5), R * 0.8, R * 1.4, 0)); put(glow, at(ball(0.035), R * 0.8, R * 2.0, 0)); break;
-    case 'CAT': put(suit, at(ball(R * 1.12), 0, 0, 0)); for (const sx of [-1, 1]) put(suit, at(new THREE.ConeGeometry(R * 0.42, R * 0.75, 4).rotateZ(-sx * 0.25), sx * R * 0.62, R * 1.1, 0)); visor(); break;
+    case 'CAT': put(shell, at(ball(R * 1.12, 1, 1.02, 1.06), 0, 0, 0)); for (const sx of [-1, 1]) put(suit, at(new THREE.ConeGeometry(R * 0.42, R * 0.75, 4).rotateZ(-sx * 0.25), sx * R * 0.62, R * 1.1, 0)); visor(); break;
     case 'SAMURAI': put(drvMats.dark, at(ball(R * 1.12), 0, 0, 0)); put(drvMats.gold, at(new THREE.TorusGeometry(R * 0.85, 0.03, 6, 16, Math.PI), 0, R * 0.85, -R * 0.75)); put(drvMats.dark, at(box(R * 2.5, R * 0.45, R * 1.3, 0, 0, 0), 0, -R * 0.55, R * 0.45)); visor(); break;
     case 'KING': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.gold, at(new THREE.CylinderGeometry(R * 0.85, R * 0.75, R * 0.65, 8, 1, true), 0, R * 1.0, 0)); put(glow, at(ball(0.04), 0, R * 1.05, -R * 0.82)); for (const sx of [-1, 1]) put(drvMats.dark, at(ball(R * 0.12), sx * R * 0.38, R * 0.15, -R * 0.9)); break;
     case 'ROBOT': put(drvMats.white, at(box(R * 2, R * 1.8, R * 1.9, 0, 0, 0), 0, 0, 0)); put(glow, at(box(R * 1.6, R * 0.3, 0.04, 0, 0, 0), 0, R * 0.1, -R * 0.98)); put(drvMats.dark, at(new THREE.CylinderGeometry(0.012, 0.012, R * 0.9, 5), 0, R * 1.35, 0)); put(glow, at(ball(0.045), 0, R * 1.85, 0)); break;
     case 'BEARH': put(sharedMats.fur, at(ball(R * 1.15), 0, 0, 0)); for (const sx of [-1, 1]) put(sharedMats.fur, at(ball(R * 0.36), sx * R * 0.78, R * 0.85, 0)); put(sharedMats.fur, at(ball(R * 0.5, 1, 0.8, 1), 0, -R * 0.25, -R * 0.95)); put(drvMats.dark, at(ball(R * 0.16), 0, -R * 0.12, -R * 1.42)); for (const sx of [-1, 1]) put(drvMats.dark, at(ball(R * 0.1), sx * R * 0.4, R * 0.25, -R * 1.02)); break;
     case 'ALIEN': put(drvMats.green, at(ball(R, 1.15, 1.45, 1.15), 0, R * 0.25, 0)); for (const sx of [-1, 1]) put(drvMats.dark, at(ball(R * 0.3, 1.4, 0.8, 0.5).rotateZ(sx * 0.5), sx * R * 0.42, R * 0.2, -R * 1.02)); break;
-    case 'BUNNY': put(suit, at(ball(R * 1.12), 0, 0, 0)); visor(); for (const sx of [-1, 1]) { put(drvMats.white, at(ball(R * 0.22, 1, 3.2, 0.6).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, 0)); put(glow, at(ball(R * 0.1, 1, 2.6, 0.5).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, -R * 0.1)); } break;
+    case 'BUNNY': put(shell, at(ball(R * 1.12, 1, 1.02, 1.06), 0, 0, 0)); visor(); for (const sx of [-1, 1]) { put(drvMats.white, at(ball(R * 0.22, 1, 3.2, 0.6).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, 0)); put(glow, at(ball(R * 0.1, 1, 2.6, 0.5).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, -R * 0.1)); } break;
     case 'FIRE': put(drvMats.red, at(ball(R * 1.12), 0, 0, 0)); put(drvMats.red, at(new THREE.CylinderGeometry(R * 1.5, R * 1.5, 0.03, 18), 0, -R * 0.1, R * 0.15)); put(drvMats.gold, at(box(R * 0.5, R * 0.6, 0.04, 0, 0, 0), 0, R * 0.55, -R * 1.02)); visor(); break;
     case 'POLICE': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.black, at(new THREE.CylinderGeometry(R * 1.1, R * 1.0, R * 0.55, 16), 0, R * 0.75, 0)); put(drvMats.black, at(box(R * 1.6, 0.03, R * 0.8, 0, 0, 0), 0, R * 0.5, -R * 0.9)); put(drvMats.gold, at(ball(R * 0.16, 1, 1, 0.4), 0, R * 0.8, -R * 1.08)); put(drvMats.dark, at(box(R * 1.5, R * 0.28, 0.04, 0, 0, 0), 0, 0, -R * 0.98)); break;
     case 'PIRATE': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.black, at(new THREE.CylinderGeometry(R * 1.5, R * 1.5, R * 0.5, 3), 0, R * 0.85, 0)); put(drvMats.white, at(ball(R * 0.2), 0, R * 0.9, -R * 0.78)); put(drvMats.black, at(ball(R * 0.22, 1, 1, 0.4), R * 0.38, R * 0.15, -R * 0.95)); put(drvMats.dark, at(box(R * 2.1, 0.025, 0.025, 0, 0, 0).rotateZ(0.35), 0, R * 0.25, -R * 0.9)); break;
@@ -2095,7 +2116,7 @@ function buildDriver(k, cos, col) {
     case 'DINO': put(drvMats.green, at(ball(R, 1.1, 1.0, 1.5), 0, 0, -R * 0.25)); for (const i of [0, 1, 2, 3]) put(glow, at(new THREE.ConeGeometry(R * 0.18, R * 0.5, 4), 0, R * (1.0 - i * 0.15), R * (-0.5 + i * 0.45))); for (const sx of [-1, 1]) put(drvMats.black, at(ball(R * 0.12), sx * R * 0.5, R * 0.35, -R * 1.0)); put(drvMats.white, at(box(R * 1.3, R * 0.12, 0.04, 0, 0, 0), 0, -R * 0.35, -R * 1.62)); break;
     case 'GOLDM': put(drvMats.gold, at(ball(R * 1.1), 0, 0, 0)); for (const sx of [-1, 1]) put(glow, at(ball(R * 0.17, 1.4, 0.7, 0.5), sx * R * 0.4, R * 0.15, -R * 1.02)); put(drvMats.gold, at(new THREE.ConeGeometry(R * 0.2, R * 0.7, 6), 0, R * 1.35, 0)); put(glow, at(ball(0.04), 0, R * 1.75, 0)); break;
     case 'GHOST': put(drvMats.ghost, at(ball(R * 1.25, 1, 1.15, 1), 0, R * 0.1, 0)); for (const sx of [-1, 1]) put(drvMats.black, at(ball(R * 0.2, 1, 1.4, 0.5), sx * R * 0.4, R * 0.2, -R * 1.15)); put(drvMats.black, at(ball(R * 0.22, 1, 1.3, 0.5), 0, -R * 0.4, -R * 1.18)); break;
-    default: put(suit, at(ball(R * 1.15), 0, 0, 0)); visor(); put(drvMats.white, at(box(R * 0.35, R * 0.18, R * 2.3, 0, 0, 0), 0, R * 1.08, 0));   // レーサー: ヘルメット＋バイザー＋白いライン
+    default: put(shell, at(ball(R * 1.15, 1, 1.02, 1.08), 0, 0, 0)); visor(); put(drvMats.white, at(new THREE.TorusGeometry(R * 1.16, R * 0.07, 8, 32, Math.PI).rotateY(Math.PI / 2), 0, 0, 0));   // レーサー: つやのあるヘルメット＋曲面バイザー＋白いセンターライン
   }
   for (const [mat, geos] of bin) G.add(new THREE.Mesh(mergeGeometries(geos), mat));
   G.userData = { cos, col };
@@ -7173,7 +7194,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27e</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27f</span></div>
 
 <style id="proSkin">
 /* =====================================================================
