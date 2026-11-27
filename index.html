@@ -2150,7 +2150,7 @@ function setDriver(model, k, cos, col) {
 const CPU_DEFS = [['VOLT', 0x5a0a1a, 0xff3b5c], ['NOVA', 0x0a3a2a, 0x3bff9d], ['KAGE', 0x15121f, 0xb36bff], ['RAZOR', 0x4a3a00, 0xffd400], ['JINX', 0x3a0a4a, 0xff2bd6],
   ['ORCA', 0x0a2a5a, 0x3b8bff], ['HAYATE', 0x5a2a00, 0xff8a00], ['PIXEL', 0x2a4a00, 0xb8ff3b], ['ZERO', 0x333344, 0xffffff], ['MIKA', 0x5a0a3a, 0xff6ab0],
   ['BLAZE', 0x5a1a00, 0xff5a1a], ['LUNA', 0x1a1a4a, 0x9fb8ff]];
-const CPU_MIN = 1, CPU_MAX = 12;   // ステージ選択で選べる CPU の台数
+const CPU_MIN = 0, CPU_MAX = 12;   // 0 = CPU なし（ひとりで走る）   // ステージ選択で選べる CPU の台数
 
 /* =====================================================================
    7. パーティクル
@@ -2834,7 +2834,7 @@ const LEVELS = {
 const LV = () => LEVELS[game.lv] || LEVELS[2];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
 const game = { state: 'title', t: 0, score: 0, coins: 0, combo: 0, comboT: 0, elapsed: 0, cpIdx: 0, maxV: 0, hits: 0, endT: 0, cdT: 0, cdLast: 0, segIdx: 0,
-  finishCount: 0, nCpu: clamp(store.get('ns_cpu', 5) | 0 || 5, 1, 12), lv: store.get('ns_lv', 2), stage: store.get('ns_stage', 0), fever: 0, feverCd: 0, beat: 0, lastRank: 0, rankT: 0, announcedRank: 0 };
+  finishCount: 0, nCpu: clamp(Number.isFinite(+store.get('ns_cpu', 5)) ? +store.get('ns_cpu', 5) | 0 : 5, 0, 12), lv: store.get('ns_lv', 2), stage: store.get('ns_stage', 0), fever: 0, feverCd: 0, beat: 0, lastRank: 0, rankT: 0, announcedRank: 0 };
 function newRacer(isPlayer, def, idx, typeOv) {
   const type = typeOv || (isPlayer ? 'VIPER' : CPU_TYPES[idx % CPU_TYPES.length]);
   const isP2 = !isPlayer && def[0] === '2P';
@@ -4391,7 +4391,7 @@ $('btnQuit').addEventListener('click', () => { if (SND.ctx) SND.ctx.resume(); to
 document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.racing && (game.state === 'play' || game.state === 'countdown')) togglePause(true); });
 // タイトルのオプション
 function syncOpts() {
-  $('cpuN').textContent = `CPU ${game.nCpu}台`; $('cpuMinus').disabled = game.nCpu <= CPU_MIN; $('cpuPlus').disabled = game.nCpu >= CPU_MAX;
+  $('cpuN').textContent = game.nCpu ? `CPU ${game.nCpu}台` : 'CPU なし'; $('cpuMinus').disabled = game.nCpu <= CPU_MIN; $('cpuPlus').disabled = game.nCpu >= CPU_MAX;
   document.querySelectorAll('#segLv button').forEach(b => b.classList.toggle('on', +b.dataset.l === game.lv));
   $('togSound').classList.toggle('on', SND.on); $('togVoice').classList.toggle('on', Voice.on);
   $('btnMute').innerHTML = I(SND.on ? 'sound' : 'mute');
@@ -7292,7 +7292,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27k</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27l</span></div>
 
 <style id="proSkin">
 /* =====================================================================
