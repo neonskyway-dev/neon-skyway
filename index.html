@@ -5125,6 +5125,18 @@ COS.push(
   { id: 'TR_ICE', k: 'trail', n: 'ダイヤモンドダスト', r: 'SR', c: [0xdff8ff, 0x7fd6ff] }, { id: 'TR_PLSM', k: 'trail', n: 'プラズマ', r: 'SSR', c: [0xff2bd6, 0x29f3ff] }, { id: 'TR_VOID', k: 'trail', n: 'ブラックホール', r: 'UR', c: [0x0a0014, 0x9d6bff] },
   { id: 'T_NIGHT', k: 'title', n: '夜の走り屋', r: 'N' }, { id: 'T_LATE', k: 'title', n: 'ブレーキ不要論者', r: 'N' }, { id: 'T_LUCK', k: 'title', n: '強運の持ち主', r: 'R' },
   { id: 'T_COAST', k: 'title', n: 'ジェットコースター愛好家', r: 'R' }, { id: 'T_ICON', k: 'title', n: 'ネオン街のアイコン', r: 'SR' }, { id: 'T_LEG', k: 'title', n: '伝説のレーサー', r: 'SSR' }, { id: 'T_STAR', k: 'title', n: '流星', r: 'UR' },
+  // 追加の称号（スロットの景品）
+  { id: 'T_SUNDAY', k: 'title', n: '日曜ドライバー', r: 'N' }, { id: 'T_SAFE', k: 'title', n: '安全運転（笑）', r: 'N' }, { id: 'T_HUNGRY', k: 'title', n: '腹ペコレーサー', r: 'N' },
+  { id: 'T_NEONFAN', k: 'title', n: 'ネオン好き', r: 'N' }, { id: 'T_LOST', k: 'title', n: '方向音痴', r: 'N' },
+  { id: 'T_TOUGE', k: 'title', n: '深夜の峠', r: 'R' }, { id: 'T_WAVE', k: 'title', n: '波乗りドライバー', r: 'R' }, { id: 'T_KUMA', k: 'title', n: 'クマ注意', r: 'R' }, { id: 'T_ICEQ', k: 'title', n: '氷上の舞姫', r: 'R' },
+  { id: 'T_RAIDEN', k: 'title', n: '雷神', r: 'SR' }, { id: 'T_STAR', k: 'title', n: '流れ星', r: 'SR' }, { id: 'T_HWKING', k: 'title', n: '首都高の王', r: 'SR' },
+  { id: 'T_PHX', k: 'title', n: '不死鳥', r: 'SSR' }, { id: 'T_SHOGUN', k: 'title', n: '将軍', r: 'SSR' }, { id: 'T_GALAXY', k: 'title', n: '銀河最速', r: 'SSR' },
+  { id: 'T_INFIN', k: 'title', n: '∞インフィニティ', r: 'UR' }, { id: 'T_SKYKING', k: 'title', n: 'スカイウェイの覇者', r: 'UR' },
+  // 追加の称号（実績で解放）
+  { id: 'T_AORI', k: 'title', n: '煽り職人', r: 'SR', g: false }, { id: 'T_BASH', k: 'title', n: '体当たり番長', r: 'SR', g: false }, { id: 'T_PASS', k: 'title', n: '追い抜きの鬼', r: 'SR', g: false },
+  { id: 'T_BEAR', k: 'title', n: '白クマ使い', r: 'SSR', g: false }, { id: 'T_RIDER', k: 'title', n: '真のライダー', r: 'SSR', g: false },
+  { id: 'T_NETW', k: 'title', n: 'ネット最速', r: 'SSR', g: false }, { id: 'T_NETV', k: 'title', n: 'オンラインの常連', r: 'SR', g: false },
+  { id: 'T_FRIEND', k: 'title', n: '友達思い', r: 'R', g: false }, { id: 'T_IRON', k: 'title', n: '鉄人', r: 'SSR', g: false }, { id: 'T_LV50', k: 'title', n: '生ける伝説', r: 'UR', g: false },
   // アンダーネオン（車の下の光）
   { id: 'NE_NONE', k: 'neon', n: 'カスタムの色', r: 'N', g: false },
   { id: 'NE_RED', k: 'neon', n: 'レッド', r: 'N', c: 0xff2050 }, { id: 'NE_GRN', k: 'neon', n: 'グリーン', r: 'N', c: 0x3bff9d }, { id: 'NE_BLU', k: 'neon', n: 'ブルー', r: 'N', c: 0x3b6bff },
@@ -5187,6 +5199,16 @@ const ACH = [
   { id: 'devBeat', n: '開発者超え', d: 'アシスト「オフ」で5コース、開発者ゴーストに勝つ', f: () => Object.keys(PF.skill?.dev || {}).length >= 5, p: () => [Object.keys(PF.skill?.dev || {}).length, 5], rw: 4000, title: 'T_DEVBEAT' },
   cnt('mSSS', 'SSSコレクター', '3コースでSSSランク', 'sss', 3, 2000, 'M_SSS'),
   cnt('mCoast', '絶叫マシン中毒', 'ドリームパークのドロップを30回', 'drop', 30, 600, 'M_COAST'),
+  cnt('aori50', '煽り職人', '近くの相手に煽りスタンプを通算50回', 'taunt', 50, 600, 'T_AORI'),
+  cnt('bash50', '体当たり番長', 'サイドアタック通算50回', 'bash', 50, 800, 'T_BASH'),
+  cnt('pass500', '追い抜きの鬼', 'オーバーテイク通算500回', 'pass', 500, 1000, 'T_PASS'),
+  cnt('bearWin', '白クマ使い', 'ホッキョクグマで優勝', 'bearWin', 1, 1000, 'T_BEAR'),
+  cnt('bikeWin', '真のライダー', 'バイクで通算10勝', 'bikeWin', 10, 1200, 'T_RIDER'),
+  cnt('netWin', 'ネット最速', 'オンライン対戦で1位', 'netWin', 1, 800, 'T_NETW'),
+  cnt('netRace', 'オンラインの常連', 'オンライン対戦を30回完走', 'netRace', 30, 800, 'T_NETV'),
+  { id: 'friend3', n: '友達思い', d: 'フレンドを3人つくる', f: () => Friends.list.length >= 3, p: () => [Friends.list.length, 3], rw: 500, title: 'T_FRIEND' },
+  cnt('race200', '鉄人', 'レース通算200回', 'races', 200, 2000, 'T_IRON'),
+  { id: 'lv50', n: '生ける伝説', d: 'レベル50に到達', f: () => PF.lv >= 50, p: () => [PF.lv, 50], rw: 5000, title: 'T_LV50' },
   { id: 'comp', n: 'コンプリート', d: 'スロット景品を全部そろえる（GODを除く）', f: () => COS.every(c => c.g === false || c.r === 'GOD' || PF.owned[c.id]), rw: 5000 },
   { id: 'god777', n: 'GOD降臨', d: '？？？', secret: true, f: t => (t.god777 || 0) >= 1, rw: 7777 },
 ];
@@ -6428,7 +6450,9 @@ const Meta = {
     if ((RUN.flowMax || 1) >= 2) msgs.push([`${I('turbo')} 最高フロー ×${RUN.flowMax.toFixed(2).replace(/0$/, '')}`, '#ffd400']);
     if (!taRes && !game.split) Assist.afterRace(r === 1);
     add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
-    for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop']) add(k, RUN[k]);
+    for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop', 'taunt', 'bash', 'pass']) add(k, RUN[k]);
+    if (r === 1 && !taRes && !game.split) { if (player.type === 'BEAR') add('bearWin', 1); if (player.type === 'BIKE') add('bikeWin', 1); }
+    if (NET.racing) { add('netRace', 1); if (r === 1) add('netWin', 1); }
     if (!player.retired && game.lv >= 3 && (RUN.fail || 0) + (RUN.wallHit || 0) === 0) add('noHit', 1);
     if (r === 1 && !taRes && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
     if ((RUN.flowMax || 1) >= FLOW.max) add('flow3', 1);
@@ -7022,7 +7046,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27b</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27c</span></div>
 
 <style id="proSkin">
 /* =====================================================================
