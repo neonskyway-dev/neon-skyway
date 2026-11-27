@@ -240,6 +240,8 @@
   #netFriends .fr-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
   #netFriends .fr-dot{width:9px;height:9px;border-radius:50%;flex:none}
   #netFriends .fr-name{font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #netFriends .fr-tt{display:block;font-size:10px;font-weight:800;color:#ff8ad8;line-height:1.2}
+  #netFriends .fr-tt.dev{color:#ffd400}
   #netFriends .fr-dev{font-size:10px;color:#ffd400;border:1px solid #ffd400;border-radius:2px;padding:0 3px;margin-right:4px}
   #netFriends .fr-st{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap}
   .fr-b{min-height:44px;min-width:44px;padding:0 12px;border-radius:3px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);font-size:12px;font-weight:800;color:#fff}
@@ -4453,7 +4455,7 @@ const Friends = {
   parse(t) { const s = String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return this.valid(s) ? s : null; },
   isFriend(id) { return this.list.some(f => f.id === id); },
   myName() { return safeName(store.get('ns_name', '')); },
-  pres() { return { n: this.myName(), st: NET.racing ? 'race' : NET.r ? 'lobby' : 'online', rm: NET.r && !NET.racing && NET.code ? NET.code : null, dv: Dev.ok ? 1 : null }; },
+  pres() { return { tt: PF.eq.title, n: this.myName(), st: NET.racing ? 'race' : NET.r ? 'lobby' : 'online', rm: NET.r && !NET.racing && NET.code ? NET.code : null, dv: Dev.ok ? 1 : null }; },
   async connect() {
     if (this.client || this.connecting || !this.ok()) return;
     this.connecting = true;
@@ -4559,7 +4561,7 @@ const Friends = {
       const s = this.st[f.id], [col, txt] = stTxt(s);
       const canJoin = s && s.st === 'lobby' && s.rm && !(NET.r && NET.code === s.rm), canInv = NET.r && NET.code && s && !(s.st === 'lobby' && s.rm === NET.code);
       const del = this.delAsk === f.id;
-      return `<div class='fr-row'><i class='fr-dot' style='background:${col};box-shadow:0 0 6px ${col}'></i><span class='fr-name'>${s && s.dv ? '<b class=fr-dev>開発者</b>' : ''}${escHtml(f.n)}</span><span class='fr-st' style='color:${col}'>${txt}</span>
+      return `<div class='fr-row'><i class='fr-dot' style='background:${col};box-shadow:0 0 6px ${col}'></i><span class='fr-name'>${escHtml(f.n)}${titleOf(s) ? `<small class='fr-tt ${s.tt === 'T_DEV' ? 'dev' : ''}'>「${escHtml(titleOf(s))}」</small>` : ''}</span><span class='fr-st' style='color:${col}'>${txt}</span>
         ${canJoin ? `<button class='fr-b go' data-a='join' data-id='${f.id}'>参加</button>` : ''}${canInv ? `<button class='fr-b go' data-a='inv' data-id='${f.id}'>招待</button>` : ''}
         <button class='fr-b ${del ? 'warn' : ''}' data-a='${del ? 'delok' : 'del'}' data-id='${f.id}'>${del ? '本当に削除' : '削除'}</button></div>`;
     }).join('');
@@ -4612,7 +4614,8 @@ async function netEnter(code, asHost) {
   NET.code = code; NET.host = !!asHost; NET.active = true; NET.seenRace = 0; NET.synced = !!asHost; NET.joinT = performance.now(); NET.noHostT = 0; NET.raceId = 0; NET.seenHits.clear(); NET.hitsOut = []; NET.tnOut = [];
   NET.unsub = NET.r.onPeers(ch => onNetPeers(ch), err => { netStatus('接続が切れました（' + err.code + '）'); netLeave(true); });
   if (NET.myPk === null) NET.myPk = stageIdx;
-  netPresence({ v: 1, dv: Dev.ok ? 1 : undefined, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
+  _sentTitle = PF.eq.title;
+  netPresence({ v: 1, dv: Dev.ok ? 1 : undefined, tt: PF.eq.title, n: name, car: game.carType, h: NET.host ? 1 : 0, st: 'lobby', rid: 0, pk: NET.myPk, tm: NET.myTm, md: NET.host ? NET.md : undefined });
   netStatus(asHost ? '部屋を作りました。友達にコードを伝えてください。' : '部屋に入りました。ホストのスタートを待っています。');
   vib([20, 30, 20]); renderNet();
 }
@@ -4699,7 +4702,7 @@ function renderNet() {
     row.className = 'flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1';
     const car = CAR_TYPES[pr.car] ? pr.car : 'VIPER';
     const dot = document.createElement('span'); dot.className = 'inline-block w-2.5 h-2.5 rounded-full'; dot.style.background = hex(CAR_TYPES[car].neon); dot.style.boxShadow = '0 0 6px ' + hex(CAR_TYPES[car].neon);
-    const nm = document.createElement('span'); nm.className = 'font-bold truncate flex-1'; nm.textContent = (pr.h ? '[HOST] ' : '') + (pr.dv ? '【開発者】' : '') + safeName(pr.n) + (p.isMe ? ' (あなた)' : '') + (p.guest ? ' ・ゲスト' : '');
+    const nm = document.createElement('span'); nm.className = 'font-bold truncate flex-1'; nm.textContent = (pr.h ? '[HOST] ' : '') + (titleOf(pr) ? `「${titleOf(pr)}」` : '') + safeName(pr.n) + (p.isMe ? ' (あなた)' : '') + (p.guest ? ' ・ゲスト' : '');
     const cr = document.createElement('span'); cr.className = 'text-[10px] text-white/60'; cr.textContent = car + (pr.st === 'race' ? ' ・走行中' : '');
     const md = NetSeries.hostMd(), ex = document.createElement('span'); ex.className = 'text-[10px] font-black';
     if (md === 'gachi' && STAGES[pr.pk]) { ex.textContent = '希望: ' + STAGES[pr.pk].jp; ex.style.color = '#ffd400'; }
@@ -4731,6 +4734,21 @@ function netHostStart() {
   netBeginRace(cfg);
 }
 // レース開始 (全員)
+// 車の名前の上に称号を出す（オンラインの相手）
+function titleTag(r, t, dev) {
+  if (!t || !r.model) return;
+  const col = dev ? '#ffd400' : '#ff8ad8';
+  const tex = canvasTex(256, 48, (c, w, h) => {
+    c.font = '900 26px "Zen Kaku Gothic New", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    const s = `「${t}」`; for (let fs = 26; fs > 14 && c.measureText(s).width > w - 30; fs -= 2) c.font = `900 ${fs}px "Zen Kaku Gothic New", system-ui, sans-serif`;
+    const tw = Math.min(w - 8, c.measureText(s).width + 26);
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.beginPath(); if (c.roundRect) c.roundRect((w - tw) / 2, 4, tw, h - 8, 14); else c.rect((w - tw) / 2, 4, tw, h - 8); c.fill();
+    c.lineWidth = 2; c.strokeStyle = col; c.stroke();
+    c.shadowColor = col; c.shadowBlur = 8; c.fillStyle = dev ? '#ffe680' : '#fff'; c.fillText(s, w / 2, h / 2 + 1);
+  });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true, sizeAttenuation: false }));
+  sp.scale.set(0.24, 0.045, 1); sp.position.y = 3.1; r.model.root.add(sp); r.model.ttl = sp;
+}
 function netBeginRace(cfg) {
   setTimeout(() => Friends.sync(), 0);
   // GO の時刻を自分の時計に直す。端末の時計はふつう数十ms以内でそろっているのでそのまま使い、大きくずれているときだけホストの時計に合わせる
@@ -4750,9 +4768,10 @@ function netBeginRace(cfg) {
     if (id === NET.me || NET.remotes.has(id)) continue;
     const pr = (NET.data.get(id) || {}).pr || {};
     const type = CAR_TYPES[pr.car] ? pr.car : 'VIPER';
-    const nm = (pr.dv ? '開発者 ' : '') + safeName(pr.n);
+    const nm = safeName(pr.n);
     const r = newRacer(false, [nm, CAR_TYPES[type].paint, CAR_TYPES[type].neon], 0, type, true);
     r.remote = id; NET.remotes.set(id, r);
+    titleTag(r, titleOf(pr), pr.tt === 'T_DEV');
   }
   NET.racing = true;
   game.split = false;
@@ -5178,7 +5197,12 @@ const PF = (() => {
   return { ...d, ...s, v: Math.max(SAVE_VERSION, num(s.v, 0)), xp: num(s.xp, d.xp), lv: Math.max(1, num(s.lv, d.lv)), neon: num(s.neon, d.neon), tix: num(s.tix, d.tix), pity: num(s.pity, d.pity),
     owned: { ...d.owned, ...obj(s.owned) }, eq: { ...d.eq, ...obj(s.eq) }, tot: { ...obj(s.tot) }, grade: { ...obj(s.grade) }, ta: { ...obj(s.ta) }, crank: { ...obj(s.crank) }, sc: { ...obj(s.sc) }, cars: { ...obj(s.cars) }, ach: { ...obj(s.ach) }, login: { ...d.login, ...obj(s.login) } };
 })();
-const savePF = () => store.set('ns_pf', PF);
+const savePF = () => { store.set('ns_pf', PF); try { titleSync(); } catch (e) {} };
+// オンライン: 装備している称号を部屋とフレンドに知らせる（変わったときだけ）
+let _sentTitle = null;
+function titleSync() { const t = PF.eq.title; if (t === _sentTitle) return; _sentTitle = t; if (NET.r) netPresence({ tt: t }); Friends.sync(); }
+// 相手の称号の名前（知らない ID は出さない。「開発者」は開発者の印 dv がある人だけ）
+function titleOf(pr) { const c = pr && COS_BY[pr.tt]; if (!c || c.k !== 'title') return ''; if (c.id === 'T_DEV' && !pr.dv) return ''; return c.n; }
 const needXP = lv => 400 + lv * 200;
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 function ensureDaily() {
