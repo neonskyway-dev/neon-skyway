@@ -126,6 +126,9 @@
     50%{box-shadow:0 0 34px rgba(255,43,214,.95),inset 0 0 22px rgba(41,243,255,.5)}}
   .seg{display:inline-flex;border:1px solid rgba(41,243,255,.5);border-radius:999px;overflow:hidden}
   .seg button{padding:.35em .8em;font-weight:700;font-size:11px;letter-spacing:.04em;color:rgba(255,255,255,.75)}
+  .seg .cpu-n{display:inline-flex;align-items:center;justify-content:center;min-width:78px;padding:0 .6em;font-weight:900;font-size:11px;color:#fff}
+  .seg button:disabled{opacity:.3}
+  #segCpu #cpuMinus,#segCpu #cpuPlus{font-size:18px;font-weight:900;color:#fff;padding:0 .7em}
   .seg button.on{background:linear-gradient(90deg,#29f3ff,#ff2bd6);color:#0a0218}
   .tog{padding:.35em .9em;border-radius:999px;border:1px solid rgba(255,255,255,.35);font-size:12px;font-weight:700}
   .tog.on{border-color:#29f3ff;color:#29f3ff;box-shadow:0 0 10px rgba(41,243,255,.5)}
@@ -627,7 +630,7 @@
     </div>
     <div class="flex flex-col items-end gap-2">
       <button id="sBack" class="rounded-full px-4 py-1.5 text-xs font-bold tracking-[.2em] border border-white/40 bg-black/40">BACK</button>
-      <div class="seg bg-black/50 jp" id="segCpu"><button data-n="5" class="on">CPU 5台</button><button data-n="10">CPU 10台</button></div>
+      <div class="seg bg-black/50 jp" id="segCpu"><button id="cpuMinus" aria-label="CPUを減らす">−</button><span id="cpuN" class="cpu-n">CPU 5台</span><button id="cpuPlus" aria-label="CPUを増やす">＋</button></div>
       <div class="seg bg-black/50 jp" id="segLv"><button data-l="1">かんたん</button><button data-l="2" class="on">ふつう</button><button data-l="3">むずかしい</button><button data-l="4">エキスパート</button><button data-l="5">鬼</button><button data-l="6">神</button><button data-l="7" style="color:#ff2050;font-weight:900">HARDCORE</button></div>
     </div>
   </div>
@@ -1886,13 +1889,13 @@ const sym = (f) => [f(-1), f(1)];
 const CAR_TYPES = {
   VIPER: { jp: 'バランス型スポーツ', desc: 'クセのない万能マシン。迷ったらコレ。', paint: 0x2b1660, neon: 0x29f3ff,
     body: [[2.3, 0.28], [2.4, 0.5], [0.75, 0.8], [-0.05, 1.18], [-1.25, 1.14], [-2.1, 0.88], [-2.22, 0.3]], w: 1.96,
-    glass: [[0.72, 0.8], [-0.05, 1.22], [-1.2, 1.18], [-1.55, 0.92], [-0.6, 0.78]], gw: 1.98,
+    glass: [[0.72, 0.8], [-0.05, 1.34], [-1.2, 1.3], [-1.55, 0.92], [-0.6, 0.78]], gw: 1.98,
     wh: { r: 0.42, w: 0.34, x: 1.02, zf: -1.45, zr: 1.5 }, zf: -2.42, zr: 2.22, ny: 0.5, ty: 0.78, flameX: 0.5, flameY: 0.45,
     stats: { top: 1.0, acc: 1.0, hdl: 1.0, mass: 1.0, dmg: 0.32, justW: 1.5, coolWin: [76, 96] }, bars: [3, 3, 3, 3],   // バランス型の長所: ジャスト窓1.5倍・急冷の枠が広い
     extras: () => [['p', box(2.3, 0.07, 0.5, 0, 1.34, 1.95)], ...sym(k => ['p', box(0.07, 0.25, 0.2, 0.7 * k, 1.2, 1.95)]), [N, box(2.32, 0.03, 0.04, 0, 1.38, 2.2)]] },
   PHANTOM: { jp: '最高速特化スーパーカー', desc: '直線番長。最高速はトップクラスだが立ち上がりは重い。', paint: 0x0b0b12, neon: 0xff2bd6,
     body: [[2.7, 0.25], [2.82, 0.42], [1.05, 0.62], [0.15, 1.0], [-1.0, 1.0], [-2.5, 0.75], [-2.62, 0.28]], w: 2.2,
-    glass: [[1.0, 0.62], [0.15, 1.04], [-0.95, 1.04], [-1.45, 0.8], [-0.2, 0.6]], gw: 2.1,
+    glass: [[1.0, 0.62], [0.15, 1.18], [-0.95, 1.18], [-1.45, 0.8], [-0.2, 0.6]], gw: 2.1,
     wh: { r: 0.45, w: 0.4, x: 1.15, zf: -1.75, zr: 1.8 }, zf: -2.84, zr: 2.62, ny: 0.48, ty: 0.68, flameX: 0.6, flameY: 0.4,
     stats: { top: 1.02, acc: 0.84, hdl: 0.9, mass: 1.05, dmg: 0.32 }, bars: [5, 2, 2, 3],
     extras: () => [['p', box(2.7, 0.08, 0.75, 0, 1.52, 2.3)], ...sym(k => ['p', box(0.08, 0.5, 0.25, 0.75 * k, 1.25, 2.25)]), [N, box(2.72, 0.03, 0.05, 0, 1.58, 2.66)],
@@ -1913,7 +1916,7 @@ const CAR_TYPES = {
       ...sym(k => ['d', box(0.1, 0.5, 0.1, 0.7 * k, 0.6, -2.62)]), ...sym(k => ['d', box(0.26, 0.26, 0.5, 0.62 * k, 0.4, 2.5)])] },
   AERO: { jp: 'フォーミュラ型エアロ', desc: '軽くて速いオープンホイール。ただし被弾するとダメージ大。', paint: 0xe8e8f0, neon: 0xff3b5c,
     body: [[2.85, 0.25], [2.95, 0.38], [0.9, 0.62], [0.05, 0.92], [-0.6, 1.05], [-2.0, 0.8], [-2.3, 0.3]], w: 1.05,
-    glass: [[0.6, 0.66], [0.02, 1.02], [-0.55, 1.08], [-0.8, 0.8], [0, 0.64]], gw: 0.9,
+    glass: [[0.6, 0.66], [0.02, 1.12], [-0.55, 1.18], [-0.8, 0.8], [0, 0.64]], gw: 0.9,
     wh: { r: 0.45, w: 0.46, x: 1.18, zf: -1.6, zr: 1.55 }, zf: -2.96, zr: 2.3, ny: 0.55, ty: 0.8, flameX: 0.25, flameY: 0.55,
     stats: { top: 1.01, acc: 1.05, hdl: 1.05, mass: 0.7, dmg: 0.2 }, bars: [4, 3, 3, 1],
     extras: () => [['p', box(2.7, 0.06, 0.55, 0, 0.22, -2.7)], [N, box(2.72, 0.03, 0.05, 0, 0.27, -2.98)], ...sym(k => ['p', box(0.05, 0.32, 0.62, 1.35 * k, 0.32, -2.7)]),
@@ -2047,10 +2050,17 @@ const drvMats = {
 function seatOf(k) {
   const T = CAR_TYPES[k];
   if (T.bike) return { pose: 'bike', H: new V3(0, 1.86, -0.42), R: 0.21 };
-  const gx = T.glass.map(p => p[0]), gy = T.glass.map(p => p[1]);
-  const z = -(Math.min(...gx) + Math.max(...gx)) / 2 + 0.12, hip = Math.min(...gy) - 0.1, top = Math.max(...gy);
-  const R = 0.2, hy = Math.min(top - R - 0.04, hip + 0.8), x = T.w > 1.5 ? 0.36 : 0;
-  return { pose: 'seat', H: new V3(x, hy, z), R, hip };
+  // 車体の上の線（ベルトライン）より上に頭と肩が出るように座らせる（埋まって見えないように）
+  const gx = T.glass.map(p => p[0]), px = (Math.min(...gx) + Math.max(...gx)) / 2 - 0.12, z = -px;
+  const belt = profTop(cabinCut(T), px) + 0.07, gTop = profTop(T.glass, px);
+  const R = clamp((gTop - belt - 0.06) / 2.35, 0.12, 0.18), hy = belt + R * 1.15 + 0.04, x = T.w > 1.5 ? 0.36 : 0;
+  return { pose: 'seat', H: new V3(x, hy, z), R, hip: belt - 0.34 };
+}
+// 横から見た形（点の列）の、x の位置でのいちばん上の高さ
+function profTop(pts, x) {
+  let top = -9;
+  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; if (a[0] !== b[0] && (a[0] - x) * (b[0] - x) <= 0) top = Math.max(top, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])); }
+  return top;
 }
 function buildDriver(k, cos, col) {
   const S = seatOf(k), H = S.H, R = S.R, G = new THREE.Group(), bin = new Map();
@@ -2130,7 +2140,9 @@ function setDriver(model, k, cos, col) {
   model.driver = buildDriver(k, cos, col); model.body.add(model.driver);
 }
 const CPU_DEFS = [['VOLT', 0x5a0a1a, 0xff3b5c], ['NOVA', 0x0a3a2a, 0x3bff9d], ['KAGE', 0x15121f, 0xb36bff], ['RAZOR', 0x4a3a00, 0xffd400], ['JINX', 0x3a0a4a, 0xff2bd6],
-  ['ORCA', 0x0a2a5a, 0x3b8bff], ['HAYATE', 0x5a2a00, 0xff8a00], ['PIXEL', 0x2a4a00, 0xb8ff3b], ['ZERO', 0x333344, 0xffffff], ['MIKA', 0x5a0a3a, 0xff6ab0]];
+  ['ORCA', 0x0a2a5a, 0x3b8bff], ['HAYATE', 0x5a2a00, 0xff8a00], ['PIXEL', 0x2a4a00, 0xb8ff3b], ['ZERO', 0x333344, 0xffffff], ['MIKA', 0x5a0a3a, 0xff6ab0],
+  ['BLAZE', 0x5a1a00, 0xff5a1a], ['LUNA', 0x1a1a4a, 0x9fb8ff]];
+const CPU_MIN = 1, CPU_MAX = 12;   // ステージ選択で選べる CPU の台数
 
 /* =====================================================================
    7. パーティクル
@@ -2812,7 +2824,7 @@ const LEVELS = {
 const LV = () => LEVELS[game.lv] || LEVELS[2];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
 const game = { state: 'title', t: 0, score: 0, coins: 0, combo: 0, comboT: 0, elapsed: 0, cpIdx: 0, maxV: 0, hits: 0, endT: 0, cdT: 0, cdLast: 0, segIdx: 0,
-  finishCount: 0, nCpu: store.get('ns_cpu', 5), lv: store.get('ns_lv', 2), stage: store.get('ns_stage', 0), fever: 0, feverCd: 0, beat: 0, lastRank: 0, rankT: 0, announcedRank: 0 };
+  finishCount: 0, nCpu: clamp(store.get('ns_cpu', 5) | 0 || 5, 1, 12), lv: store.get('ns_lv', 2), stage: store.get('ns_stage', 0), fever: 0, feverCd: 0, beat: 0, lastRank: 0, rankT: 0, announcedRank: 0 };
 function newRacer(isPlayer, def, idx, typeOv) {
   const type = typeOv || (isPlayer ? 'VIPER' : CPU_TYPES[idx % CPU_TYPES.length]);
   const isP2 = !isPlayer && def[0] === '2P';
@@ -4368,7 +4380,7 @@ $('btnQuit').addEventListener('click', () => { if (SND.ctx) SND.ctx.resume(); to
 document.addEventListener('visibilitychange', () => { if (document.hidden && !NET.racing && (game.state === 'play' || game.state === 'countdown')) togglePause(true); });
 // タイトルのオプション
 function syncOpts() {
-  document.querySelectorAll('#segCpu button').forEach(b => b.classList.toggle('on', +b.dataset.n === game.nCpu));
+  $('cpuN').textContent = `CPU ${game.nCpu}台`; $('cpuMinus').disabled = game.nCpu <= CPU_MIN; $('cpuPlus').disabled = game.nCpu >= CPU_MAX;
   document.querySelectorAll('#segLv button').forEach(b => b.classList.toggle('on', +b.dataset.l === game.lv));
   $('togSound').classList.toggle('on', SND.on); $('togVoice').classList.toggle('on', Voice.on);
   $('btnMute').innerHTML = I(SND.on ? 'sound' : 'mute');
@@ -4379,7 +4391,14 @@ function syncOpts() {
   $('btnMusicSwap').classList.toggle('hidden', !nTr);
 }
 document.querySelectorAll('#segLv button').forEach(b => b.addEventListener('click', () => { game.lv = +b.dataset.l; store.set('ns_lv', game.lv); syncOpts(); showBest(); renderStageSel(); setupRace(game.nCpu); for (const c of cars) c.v = 40; }));
-document.querySelectorAll('#segCpu button').forEach(b => b.addEventListener('click', () => { game.nCpu = +b.dataset.n; store.set('ns_cpu', game.nCpu); syncOpts(); setupRace(game.nCpu); for (const c of cars) c.v = 40; }));
+// CPU の台数（1〜12台）。ボタンで1台ずつ増減、押し続けると連続で変わる
+for (const [id, d] of [['cpuMinus', -1], ['cpuPlus', 1]]) {
+  let rep = 0;
+  const step = () => { const n = clamp(game.nCpu + d, CPU_MIN, CPU_MAX); if (n === game.nCpu) return; game.nCpu = n; store.set('ns_cpu', n); syncOpts(); setupRace(n); for (const c of cars) c.v = 40; SND.tick(); };
+  const stop = () => { clearTimeout(rep); clearInterval(rep); rep = 0; };
+  $(id).addEventListener('pointerdown', e => { e.preventDefault(); step(); stop(); rep = setTimeout(() => { rep = setInterval(step, 110); }, 380); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $(id).addEventListener(ev, stop);
+}
 $('togSound').addEventListener('click', () => { SND.setOn(!SND.on); syncOpts(); });
 $('togVoice').addEventListener('click', () => { Voice.setOn(!Voice.on); syncOpts(); });
 $('togVibe').addEventListener('click', () => { HAPT.lv = (HAPT.lv + 1) % 4; store.set('ns_vibe', HAPT.lv); syncOpts(); vib([60, 40, 60 * HAPT.lv]); });
@@ -6579,25 +6598,26 @@ const Meta = {
     let grade0 = taRes ? taRes.grade : calcGrade(r, cars.length);
     if (assisted && taRes && GRADES.indexOf(grade0) > GRADES.indexOf(ASSIST.taRankCap)) grade0 = ASSIST.taRankCap;   // アシスト中のTAはランクA止まり
     const n = cars.length, grade = grade0, msgs = taRes ? taRes.msgs : [], t = PF.tot, add = (k, v) => { t[k] = (t[k] || 0) + (v || 0); };
-    const neon = Math.round(aMul * ((taRes ? taRes.neon : 0) + Math.floor(game.coins / REWARD.coinDiv) + (taRes ? REWARD.taBase : REWARD.place[Math.min(r, 4) - 1]) + (RUN.maxTier || 0) * REWARD.tier + (REWARD.grade[grade] || 0) + (RUN.neonBonus || 0)));
+    const neon = Math.round(aMul * ((taRes ? taRes.neon : 0) + Math.floor(game.coins / REWARD.coinDiv) + (taRes ? REWARD.taBase : Math.round(REWARD.place[Math.min(r, 4) - 1] * Math.min(1, cars.length / 6))) + (RUN.maxTier || 0) * REWARD.tier + (REWARD.grade[grade] || 0) + (RUN.neonBonus || 0)));
+    const win1 = r === 1 && !taRes && (cars.length >= 4 || NET.racing || game.split);   // CPU 2台以下で勝っても勝ち数・実績には数えない
     let xp = Math.min(1500, Math.round(score / 150)) + (r === 1 ? 200 : 0) + 100;
     if (assisted) msgs.push([`${I('wheels')} アシスト使用中: XP・ネオン ×${ASSIST.rewardMul}${taRes ? `／タイムアタックのランクは${ASSIST.taRankCap}まで` : ''}`, '#3bff9d']);
     if ((RUN.flowMax || 1) >= 2) msgs.push([`${I('turbo')} 最高フロー ×${RUN.flowMax.toFixed(2).replace(/0$/, '')}`, '#ffd400']);
     if (!taRes && !game.split) Assist.afterRace(r === 1);
-    add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
+    add('races', 1); if (win1) add('wins', 1); add('coins', game.coins);
     for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop', 'taunt', 'bash', 'pass']) add(k, RUN[k]);
-    if (r === 1 && !taRes && !game.split && game.lv >= 5 && !NET.racing) { if (player.type === 'BEAR') add('bearOni', 1); if (player.type === 'BIKE') add('bikeOni', 1); t['oni_' + player.type] = 1; }
-    if (r === 1 && !taRes && LV().noAssist && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.hc = PF.skill.hc || {})[stageIdx] = 1; }
+    if (win1 && !game.split && game.lv >= 5 && !NET.racing) { if (player.type === 'BEAR') add('bearOni', 1); if (player.type === 'BIKE') add('bikeOni', 1); t['oni_' + player.type] = 1; }
+    if (win1 && LV().noAssist && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.hc = PF.skill.hc || {})[stageIdx] = 1; }
     if (!taRes) t.maxScore = Math.max(t.maxScore || 0, Math.floor(game.score));
     if (NET.racing) { add('netRace', 1); if (r === 1 && NET.remotes.size >= 2) add('netWin', 1); }
     if (!player.retired && game.lv >= 3 && (RUN.fail || 0) + (RUN.wallHit || 0) === 0) add('noHit', 1);
-    if (r === 1 && !taRes && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
+    if (win1 && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
     if ((RUN.flowMax || 1) >= FLOW.max) add('flow3', 1);
-    if (r === 1 && !taRes && LV().noAssist) add('hcWin', 1);
+    if (win1 && LV().noAssist) add('hcWin', 1);
     if (game.daily) Daily.result(r, msgs);
     t.maxStyle = Math.max(t.maxStyle || 0, RUN.maxTier || 0);
-    if (r === 1 && !taRes && game.lv >= 5) add('oniWin', 1);
-    if (r === 1 && !taRes && game.lv === 6) add('godWin', 1);
+    if (win1 && game.lv >= 5) add('oniWin', 1);
+    if (win1 && game.lv === 6) add('godWin', 1);
     if (GRADES.indexOf(grade) > GRADES.indexOf(PF.grade[stageIdx])) PF.grade[stageIdx] = grade;
     PF.neon += neon;
     const D = ensureDaily(), val = { coins: game.coins, drift: RUN.drift || 0, trick: RUN.trick || 0, win: r === 1 && !taRes ? 1 : 0, smash: RUN.smash || 0, near: RUN.near || 0, rankS: RUN.rankS || 0, rankMax: RUN.rankMax || 0, race: 1, hit: RUN.hit || 0, fever: RUN.fever || 0, ring: RUN.ring || 0, slotHit: RUN.slotHit || 0, pass: RUN.pass || 0 };
@@ -7194,7 +7214,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27f</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27g</span></div>
 
 <style id="proSkin">
 /* =====================================================================
