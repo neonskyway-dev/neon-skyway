@@ -796,6 +796,7 @@ const ICONS = {
   swipeDown: '<path d="M12 3v16M6 13l6 6 6-6"/>',
   wheels: '<circle cx="5" cy="17" r="3"/><circle cx="19" cy="17" r="3"/><circle cx="12" cy="14" r="5"/><path d="M5 17h14M12 9V5"/>',
   swap: '<path d="M4 8h14l-4-4M20 16H6l4 4"/>',
+  helmet: '<path d="M4 16a8 8 0 0 1 16 0v2H4z" fill="currentColor" fill-opacity=".2"/><path d="M12 16h8M8 10.5a5 5 0 0 1 4-2.5"/>',
   horn: '<path d="M3 10v4h4l7 5V5L7 10z" fill="currentColor" fill-opacity=".25"/><path d="M17 9a4 4 0 0 1 0 6 M19.5 6.5a7.5 7.5 0 0 1 0 11"/>',
   anger: '<path d="M9 3v3a3 3 0 0 1-3 3H3 M15 3v3a3 3 0 0 0 3 3h3 M9 21v-3a3 3 0 0 0-3-3H3 M15 21v-3a3 3 0 0 1 3-3h3"/>',
 };
@@ -2026,7 +2027,11 @@ function cabinCut(T) {
 }
 /* ---- ドライバー（車の中の人・バイクのライダー）とコスチューム ---- */
 // [ID, 名前, 解放レベル]
-const DRIVER_COS = [['STD', 'レーサー', 1], ['CAP', 'キャップ', 1], ['NINJA', '忍者', 3], ['ASTRO', '宇宙飛行士', 5], ['CAT', 'ネコ耳', 8], ['SAMURAI', '侍', 12], ['KING', '王様', 16], ['ROBOT', 'ロボ', 20], ['BEARH', 'クマの着ぐるみ', 25], ['ALIEN', '宇宙人', 30]];
+const DRIVER_COS = [['STD', 'レーサー', 1], ['CAP', 'キャップ', 1], ['NINJA', '忍者', 3], ['ASTRO', '宇宙飛行士', 5], ['CAT', 'ネコ耳', 8], ['SAMURAI', '侍', 12], ['KING', '王様', 16], ['ROBOT', 'ロボ', 20], ['BEARH', 'クマの着ぐるみ', 25], ['ALIEN', '宇宙人', 30],
+  // スロットの景品（4つ目 = レア度）。COS に D_<ID> として入る
+  ['BUNNY', 'ウサギ耳', 0, 'N'], ['FIRE', '消防士', 0, 'N'], ['POLICE', 'おまわりさん', 0, 'N'], ['PIRATE', '海賊', 0, 'R'], ['SANTA', 'サンタ', 0, 'R'], ['PANDA', 'パンダ', 0, 'R'],
+  ['WITCH', '魔女', 0, 'SR'], ['ONI', '鬼', 0, 'SR'], ['CLOWN', 'ピエロ', 0, 'SR'], ['ANGEL', '天使', 0, 'SSR'], ['DEVIL', '悪魔', 0, 'SSR'], ['DINO', '恐竜', 0, 'SSR'],
+  ['GOLDM', '黄金のマスク', 0, 'UR'], ['GHOST', 'ネオンゴースト', 0, 'UR']];
 const DRIVER_COLS = [0x29f3ff, 0xff2bd6, 0xffd400, 0x3bff9d, 0xff6a00, 0xb36bff, 0xffffff, 0xff2050, 0x222230, 0x2a5cff];
 const drvMats = {
   skin: new THREE.MeshStandardMaterial({ color: 0xf1c7a5, roughness: 0.6 }),
@@ -2034,6 +2039,9 @@ const drvMats = {
   white: new THREE.MeshStandardMaterial({ color: 0xf4f4f8, roughness: 0.45, emissive: 0x222630, emissiveIntensity: 0.6 }),
   gold: new THREE.MeshStandardMaterial({ color: 0xffc83a, metalness: 0.8, roughness: 0.3, emissive: 0x3a2400, emissiveIntensity: 0.6 }),
   green: new THREE.MeshStandardMaterial({ color: 0x7dff7a, roughness: 0.5, emissive: 0x0a3a10, emissiveIntensity: 0.6 }),
+  red: new THREE.MeshStandardMaterial({ color: 0xe0222e, roughness: 0.45, emissive: 0x3a0408, emissiveIntensity: 0.6 }),
+  black: new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.6 }),
+  ghost: new THREE.MeshBasicMaterial({ color: 0x9ffcff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
 };
 // 座る位置（車体のガラスから計算）。右ハンドル、1人乗りは真ん中
 function seatOf(k) {
@@ -2073,6 +2081,20 @@ function buildDriver(k, cos, col) {
     case 'ROBOT': put(drvMats.white, at(box(R * 2, R * 1.8, R * 1.9, 0, 0, 0), 0, 0, 0)); put(glow, at(box(R * 1.6, R * 0.3, 0.04, 0, 0, 0), 0, R * 0.1, -R * 0.98)); put(drvMats.dark, at(new THREE.CylinderGeometry(0.012, 0.012, R * 0.9, 5), 0, R * 1.35, 0)); put(glow, at(ball(0.045), 0, R * 1.85, 0)); break;
     case 'BEARH': put(sharedMats.fur, at(ball(R * 1.15), 0, 0, 0)); for (const sx of [-1, 1]) put(sharedMats.fur, at(ball(R * 0.36), sx * R * 0.78, R * 0.85, 0)); put(sharedMats.fur, at(ball(R * 0.5, 1, 0.8, 1), 0, -R * 0.25, -R * 0.95)); put(drvMats.dark, at(ball(R * 0.16), 0, -R * 0.12, -R * 1.42)); for (const sx of [-1, 1]) put(drvMats.dark, at(ball(R * 0.1), sx * R * 0.4, R * 0.25, -R * 1.02)); break;
     case 'ALIEN': put(drvMats.green, at(ball(R, 1.15, 1.45, 1.15), 0, R * 0.25, 0)); for (const sx of [-1, 1]) put(drvMats.dark, at(ball(R * 0.3, 1.4, 0.8, 0.5).rotateZ(sx * 0.5), sx * R * 0.42, R * 0.2, -R * 1.02)); break;
+    case 'BUNNY': put(suit, at(ball(R * 1.12), 0, 0, 0)); visor(); for (const sx of [-1, 1]) { put(drvMats.white, at(ball(R * 0.22, 1, 3.2, 0.6).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, 0)); put(glow, at(ball(R * 0.1, 1, 2.6, 0.5).rotateZ(-sx * 0.18), sx * R * 0.38, R * 1.55, -R * 0.1)); } break;
+    case 'FIRE': put(drvMats.red, at(ball(R * 1.12), 0, 0, 0)); put(drvMats.red, at(new THREE.CylinderGeometry(R * 1.5, R * 1.5, 0.03, 18), 0, -R * 0.1, R * 0.15)); put(drvMats.gold, at(box(R * 0.5, R * 0.6, 0.04, 0, 0, 0), 0, R * 0.55, -R * 1.02)); visor(); break;
+    case 'POLICE': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.black, at(new THREE.CylinderGeometry(R * 1.1, R * 1.0, R * 0.55, 16), 0, R * 0.75, 0)); put(drvMats.black, at(box(R * 1.6, 0.03, R * 0.8, 0, 0, 0), 0, R * 0.5, -R * 0.9)); put(drvMats.gold, at(ball(R * 0.16, 1, 1, 0.4), 0, R * 0.8, -R * 1.08)); put(drvMats.dark, at(box(R * 1.5, R * 0.28, 0.04, 0, 0, 0), 0, 0, -R * 0.98)); break;
+    case 'PIRATE': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.black, at(new THREE.CylinderGeometry(R * 1.5, R * 1.5, R * 0.5, 3), 0, R * 0.85, 0)); put(drvMats.white, at(ball(R * 0.2), 0, R * 0.9, -R * 0.78)); put(drvMats.black, at(ball(R * 0.22, 1, 1, 0.4), R * 0.38, R * 0.15, -R * 0.95)); put(drvMats.dark, at(box(R * 2.1, 0.025, 0.025, 0, 0, 0).rotateZ(0.35), 0, R * 0.25, -R * 0.9)); break;
+    case 'SANTA': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.red, at(new THREE.ConeGeometry(R * 1.0, R * 1.6, 14).rotateX(0.35), 0, R * 1.2, R * 0.25)); put(drvMats.white, at(new THREE.TorusGeometry(R * 0.95, R * 0.18, 8, 18).rotateX(Math.PI / 2), 0, R * 0.55, 0)); put(drvMats.white, at(ball(R * 0.25), 0, R * 1.85, R * 0.75)); put(drvMats.white, at(ball(R * 0.75, 1, 0.9, 0.6), 0, -R * 0.55, -R * 0.6)); break;
+    case 'PANDA': put(drvMats.white, at(ball(R * 1.15), 0, 0, 0)); for (const sx of [-1, 1]) { put(drvMats.black, at(ball(R * 0.36), sx * R * 0.78, R * 0.85, 0)); put(drvMats.black, at(ball(R * 0.25, 1, 1.3, 0.5).rotateZ(sx * 0.5), sx * R * 0.42, R * 0.15, -R * 1.0)); } put(drvMats.black, at(ball(R * 0.14), 0, -R * 0.25, -R * 1.12)); break;
+    case 'WITCH': put(drvMats.skin, at(ball(R), 0, 0, 0)); put(drvMats.black, at(new THREE.CylinderGeometry(R * 1.9, R * 1.9, 0.03, 20), 0, R * 0.55, 0)); put(drvMats.black, at(new THREE.ConeGeometry(R * 0.9, R * 2.4, 14).rotateZ(0.25), -R * 0.25, R * 1.7, 0)); put(glow, at(new THREE.TorusGeometry(R * 0.82, 0.03, 6, 18).rotateX(Math.PI / 2), 0, R * 0.7, 0)); break;
+    case 'ONI': put(drvMats.red, at(ball(R * 1.1), 0, 0, 0)); for (const sx of [-1, 1]) put(drvMats.gold, at(new THREE.ConeGeometry(R * 0.22, R * 0.8, 8).rotateZ(-sx * 0.35), sx * R * 0.5, R * 1.15, 0)); put(drvMats.white, at(box(R * 1.2, R * 0.2, 0.04, 0, 0, 0), 0, -R * 0.45, -R * 1.0)); for (const sx of [-1, 1]) put(glow, at(ball(R * 0.12), sx * R * 0.38, R * 0.2, -R * 1.0)); break;
+    case 'CLOWN': put(drvMats.white, at(ball(R), 0, 0, 0)); put(drvMats.red, at(ball(R * 0.24), 0, 0, -R * 1.08)); for (const sx of [-1, 1]) for (const dy of [0.2, 0.7]) put(glow, at(ball(R * 0.42), sx * R * 0.9, R * dy, R * 0.1)); put(drvMats.red, at(box(R * 1.0, R * 0.16, 0.04, 0, 0, 0), 0, -R * 0.5, -R * 0.95)); break;
+    case 'ANGEL': put(drvMats.white, at(ball(R * 1.12), 0, 0, 0)); put(glow, at(new THREE.TorusGeometry(R * 0.85, 0.04, 6, 20).rotateX(Math.PI / 2), 0, R * 1.55, 0)); for (const sx of [-1, 1]) put(drvMats.white, at(ball(R * 0.9, 0.25, 1.4, 1).rotateZ(-sx * 0.5), sx * R * 1.5, -R * 1.2, R * 1.2)); visor(); break;
+    case 'DEVIL': put(drvMats.black, at(ball(R * 1.12), 0, 0, 0)); for (const sx of [-1, 1]) put(drvMats.red, at(new THREE.ConeGeometry(R * 0.25, R * 0.95, 8).rotateZ(-sx * 0.6), sx * R * 0.75, R * 1.0, -R * 0.2)); for (const sx of [-1, 1]) put(drvMats.red, at(ball(R * 0.14), sx * R * 0.38, R * 0.15, -R * 1.02)); put(drvMats.red, at(new THREE.ConeGeometry(R * 0.2, R * 0.5, 4).rotateX(-Math.PI / 2), 0, -R * 0.6, R * 1.6)); break;
+    case 'DINO': put(drvMats.green, at(ball(R, 1.1, 1.0, 1.5), 0, 0, -R * 0.25)); for (const i of [0, 1, 2, 3]) put(glow, at(new THREE.ConeGeometry(R * 0.18, R * 0.5, 4), 0, R * (1.0 - i * 0.15), R * (-0.5 + i * 0.45))); for (const sx of [-1, 1]) put(drvMats.black, at(ball(R * 0.12), sx * R * 0.5, R * 0.35, -R * 1.0)); put(drvMats.white, at(box(R * 1.3, R * 0.12, 0.04, 0, 0, 0), 0, -R * 0.35, -R * 1.62)); break;
+    case 'GOLDM': put(drvMats.gold, at(ball(R * 1.1), 0, 0, 0)); for (const sx of [-1, 1]) put(glow, at(ball(R * 0.17, 1.4, 0.7, 0.5), sx * R * 0.4, R * 0.15, -R * 1.02)); put(drvMats.gold, at(new THREE.ConeGeometry(R * 0.2, R * 0.7, 6), 0, R * 1.35, 0)); put(glow, at(ball(0.04), 0, R * 1.75, 0)); break;
+    case 'GHOST': put(drvMats.ghost, at(ball(R * 1.25, 1, 1.15, 1), 0, R * 0.1, 0)); for (const sx of [-1, 1]) put(drvMats.black, at(ball(R * 0.2, 1, 1.4, 0.5), sx * R * 0.4, R * 0.2, -R * 1.15)); put(drvMats.black, at(ball(R * 0.22, 1, 1.3, 0.5), 0, -R * 0.4, -R * 1.18)); break;
     default: put(suit, at(ball(R * 1.15), 0, 0, 0)); visor(); put(drvMats.white, at(box(R * 0.35, R * 0.18, R * 2.3, 0, 0, 0), 0, R * 1.08, 0));   // レーサー: ヘルメット＋バイザー＋白いライン
   }
   for (const [mat, geos] of bin) G.add(new THREE.Mesh(mergeGeometries(geos), mat));
@@ -5204,6 +5226,17 @@ COS.push(
   { id: 'T_BEAR', k: 'title', n: '白クマ使い', r: 'SSR', g: false }, { id: 'T_RIDER', k: 'title', n: '真のライダー', r: 'SSR', g: false },
   { id: 'T_NETW', k: 'title', n: 'ネット最速', r: 'SSR', g: false }, { id: 'T_NETV', k: 'title', n: 'オンラインの常連', r: 'SR', g: false },
   { id: 'T_FRIEND', k: 'title', n: '友達思い', r: 'R', g: false }, { id: 'T_IRON', k: 'title', n: '鉄人', r: 'SSR', g: false }, { id: 'T_LV50', k: 'title', n: '生ける伝説', r: 'UR', g: false },
+  // 追加の称号 第2弾（スロットの景品）
+  { id: 'T_SLEEPY', k: 'title', n: 'ねむい', r: 'N' }, { id: 'T_NOODLE', k: 'title', n: 'カップ麺待ち', r: 'N' }, { id: 'T_DETOUR', k: 'title', n: '寄り道好き', r: 'N' }, { id: 'T_FULLTANK', k: 'title', n: 'ガソリン満タン', r: 'N' }, { id: 'T_BEGINNER', k: 'title', n: '初心者マーク', r: 'N' },
+  { id: 'T_NIGHTOWL', k: 'title', n: '夜更かし', r: 'R' }, { id: 'T_NEONDRUNK', k: 'title', n: 'ネオン酔い', r: 'R' }, { id: 'T_WIND', k: 'title', n: '風になりたい', r: 'R' }, { id: 'T_DRIFTJR', k: 'title', n: 'ドリフト見習い', r: 'R' }, { id: 'T_HONK', k: 'title', n: 'クラクション魔', r: 'R' },
+  { id: 'T_FLASH', k: 'title', n: '電光石火', r: 'SR' }, { id: 'T_CYBNIN', k: 'title', n: 'サイバー忍者', r: 'SR' }, { id: 'T_MOON', k: 'title', n: '月まで走る', r: 'SR' }, { id: 'T_GOLDFOOT', k: 'title', n: '黄金の右足', r: 'SR' },
+  { id: 'T_METEOR', k: 'title', n: '流星群', r: 'SSR' }, { id: 'T_LIGHTSPD', k: 'title', n: '光の速さで', r: 'SSR' }, { id: 'T_HAOU', k: 'title', n: '覇王', r: 'SSR' },
+  { id: 'T_MYTH', k: 'title', n: 'ネオンの神話', r: 'UR' }, { id: 'T_TIME', k: 'title', n: '時を超えた走り屋', r: 'UR' },
+  // 追加の称号 第2弾（実績で解放・どれも難しい）
+  { id: 'T_COSPLAY', k: 'title', n: 'コスプレイヤー', r: 'SSR', g: false }, { id: 'T_HISCORE', k: 'title', n: 'ハイスコアラー', r: 'SSR', g: false }, { id: 'T_RICH', k: 'title', n: 'コイン長者', r: 'SSR', g: false },
+  { id: 'T_100WIN', k: 'title', n: '百戦錬磨', r: 'SSR', g: false }, { id: 'T_EMPEROR', k: 'title', n: '無敗の帝王', r: 'UR', g: false }, { id: 'T_SLOTJ', k: 'title', n: 'スロット中毒', r: 'SR', g: false },
+  { id: 'T_LUCKY', k: 'title', n: '豪運', r: 'UR', g: false }, { id: 'T_PERFECT', k: 'title', n: '皆勤賞', r: 'SSR', g: false }, { id: 'T_ALLCAR', k: 'title', n: 'オールラウンダー', r: 'UR', g: false },
+  { id: 'T_HCKING', k: 'title', n: 'ハードコアの覇者', r: 'UR', g: false }, { id: 'T_MATSURI', k: 'title', n: 'お祭り男', r: 'SR', g: false }, { id: 'T_SNIPER', k: 'title', n: '百発百中', r: 'SSR', g: false },
   // アンダーネオン（車の下の光）
   { id: 'NE_NONE', k: 'neon', n: 'カスタムの色', r: 'N', g: false },
   { id: 'NE_RED', k: 'neon', n: 'レッド', r: 'N', c: 0xff2050 }, { id: 'NE_GRN', k: 'neon', n: 'グリーン', r: 'N', c: 0x3bff9d }, { id: 'NE_BLU', k: 'neon', n: 'ブルー', r: 'N', c: 0x3b6bff },
@@ -5214,8 +5247,9 @@ COS.push(
   { id: 'FL_RED', k: 'flame', n: 'レッド', r: 'N', c: [0xff6a3b, 0xff2050] }, { id: 'FL_GRN', k: 'flame', n: 'グリーン', r: 'N', c: [0x6bff9d, 0x3bff9d] }, { id: 'FL_PURP', k: 'flame', n: 'パープル', r: 'R', c: [0xb38bff, 0x7a1cff] },
   { id: 'FL_GOLD', k: 'flame', n: 'ゴールド', r: 'SR', c: [0xffe680, 0xffb000] }, { id: 'FL_WHT', k: 'flame', n: '白炎', r: 'SSR', c: [0xffffff, 0xbff4ff] }, { id: 'FL_RBOW', k: 'flame', n: 'レインボー', r: 'UR', c: 'rainbow' },
 );
+for (const [id, n, , r] of DRIVER_COS) if (r) COS.push({ id: 'D_' + id, k: 'drv', n, r });   // ドライバーのコスチューム（スロットの景品）
 const COS_BY = Object.fromEntries(COS.map(c => [c.id, c]));
-const KIND_JP = { paint: 'ボディカラー', trail: 'トレイル', title: '称号', neon: 'アンダーネオン', flame: 'ブーストの炎' };
+const KIND_JP = { paint: 'ボディカラー', trail: 'トレイル', title: '称号', neon: 'アンダーネオン', flame: 'ブーストの炎', drv: 'ドライバー' };
 const gv = (t, k) => t[k] || 0;
 const cnt = (id, n, d, k, goal, rw, title) => ({ id, n, d, f: t => gv(t, k) >= goal, p: t => [gv(t, k), goal], rw, title });
 const GRADES = ['C', 'B', 'A', 'S', 'S+'];
@@ -5275,6 +5309,18 @@ const ACH = [
   cnt('netRace', 'オンラインの常連', 'オンライン対戦を300回完走', 'netRace', 300, 3000, 'T_NETV'),
   { id: 'friend3', n: '友達思い', d: 'フレンドを15人つくる', f: () => Friends.list.length >= 15, p: () => [Friends.list.length, 15], rw: 1500, title: 'T_FRIEND' },
   cnt('race200', '鉄人', 'レース通算1,000回', 'races', 1000, 5000, 'T_IRON'),
+  { id: 'cosplay', n: 'コスプレイヤー', d: 'スロットのドライバーコスチュームを10種類あつめる', f: () => COS.filter(c => c.k === 'drv' && PF.owned[c.id]).length >= 10, p: () => [COS.filter(c => c.k === 'drv' && PF.owned[c.id]).length, 10], rw: 3000, title: 'T_COSPLAY' },
+  { id: 'hiscore', n: 'ハイスコアラー', d: '1レースでスコア500,000以上', f: t => (t.maxScore || 0) >= 500000, p: t => [Math.min(t.maxScore || 0, 500000), 500000], rw: 3000, title: 'T_HISCORE' },
+  cnt('coin50k', 'コイン長者', 'コイン通算50,000枚', 'coins', 50000, 3000, 'T_RICH'),
+  cnt('win100', '百戦錬磨', '通算100勝', 'wins', 100, 3000, 'T_100WIN'),
+  cnt('win300', '無敗の帝王', '通算300勝', 'wins', 300, 10000, 'T_EMPEROR'),
+  cnt('pull500', 'スロット中毒', 'スロットを500回まわす', 'pulls', 500, 2000, 'T_SLOTJ'),
+  cnt('ur10', '豪運', 'URを10回引き当てる', 'ur', 10, 5000, 'T_LUCKY'),
+  cnt('daily60', '皆勤賞', '日替わり縛りを60回クリア', 'daily', 60, 5000, 'T_PERFECT'),
+  { id: 'allcar', n: 'オールラウンダー', d: '全車種（ホッキョクグマも）で CPU「鬼」以上に優勝', f: t => TYPE_KEYS.every(k => t['oni_' + k]), p: t => [TYPE_KEYS.filter(k => t['oni_' + k]).length, TYPE_KEYS.length], rw: 8000, title: 'T_ALLCAR' },
+  { id: 'hcAll', n: 'ハードコアの覇者', d: 'HARDCORE で全コース優勝', f: () => STAGES.every((_, i) => PF.skill?.hc?.[i]), p: () => [STAGES.filter((_, i) => PF.skill?.hc?.[i]).length, STAGES.length], rw: 15000, title: 'T_HCKING' },
+  cnt('fever500', 'お祭り男', 'フィーバー通算500回', 'fever', 500, 3000, 'T_MATSURI'),
+  cnt('hit1000', '百発百中', 'アイテム命中 通算1,000回', 'hit', 1000, 4000, 'T_SNIPER'),
   { id: 'lv50', n: '生ける伝説', d: 'レベル100に到達', f: () => PF.lv >= 100, p: () => [PF.lv, 100], rw: 10000, title: 'T_LV50' },
   { id: 'comp', n: 'コンプリート', d: 'スロット景品を全部そろえる（GODを除く）', f: () => COS.every(c => c.g === false || c.r === 'GOD' || PF.owned[c.id]), rw: 5000 },
   { id: 'god777', n: 'GOD降臨', d: '？？？', secret: true, f: t => (t.god777 || 0) >= 1, rw: 7777 },
@@ -5413,6 +5459,7 @@ function checkAch(msgs) {
 const cosIcon = (c, big) => {
   const sz = big ? 'width:30px;height:30px;' : '';
   if (c.k === 'title') return I('tag');
+  if (c.k === 'drv') return I('helmet');
   if (c.k === 'neon') { const b2 = c.c === 'pulse' ? 'linear-gradient(90deg,#ff2bd6,#29f3ff)' : c.c === 'police' ? 'linear-gradient(90deg,#ff2050 50%,#2060ff 50%)' : c.c === 'rainbow' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : c.c != null ? hex(c.c) : 'repeating-linear-gradient(45deg,#555 0 4px,#333 4px 8px)';
     return `<span class='swatch' style='${sz}background:${b2};box-shadow:0 0 8px ${typeof c.c === 'number' ? hex(c.c) : '#ff2bd6'}'></span>`; }
   const bg = c.c === 'god' ? 'conic-gradient(#fff6c0,#ffc400,#b07800,#fff6c0,#ffc400)' : c.c === 'sss' ? 'conic-gradient(#ff2bd6,#29f3ff,#ffffff,#ff2bd6)' : c.c === 'rainbow' ? (c.k === 'paint' ? 'conic-gradient(#ff2bd6,#ffd400,#3bff9d,#29f3ff,#7a1cff,#ff2bd6)' : 'linear-gradient(90deg,#ff2bd6,#ffd400,#3bff9d,#29f3ff)')
@@ -5747,11 +5794,11 @@ function htmlCus() {
   const sec = k => {
     const list = COS.filter(c => c.k === k && (!c.hide || PF.owned[c.id])), own = list.filter(c => PF.owned[c.id]).length;
     return `<div class='mhd mt-2'>${KIND_JP[k]} <span class='text-white/45'>${own}/${list.length}</span></div><div class='flex flex-wrap gap-1.5'>${list.map(c => PF.owned[c.id]
-      ? `<button class='cchip ${PF.eq[k] === c.id ? 'on' : ''}' data-k='${k}' data-id='${c.id}' style='--rc:${RAR[c.r].c}'>${cosIcon(c)}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small class='opacity-60'>${c.r}</small></button>`
+      ? `<button class='cchip ${(k === 'drv' ? 'D_' + drvOf().c : PF.eq[k]) === c.id ? 'on' : ''}' data-k='${k}' data-id='${c.id}' style='--rc:${RAR[c.r].c}'>${cosIcon(c)}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small class='opacity-60'>${c.r}</small></button>`
       : c.r === 'GOD' ? `<div class='cchip lock' style='--rc:#555'>${I('lock')}<span class='opacity-60'>？？？</span><small class='opacity-60'>SECRET</small></div>`
       : `<div class='cchip lock' style='--rc:${RAR[c.r].c}'>${I('lock')}${k === 'title' ? '' : `<span class='opacity-50'>${cosIcon(c)}</span>`}<span>${k === 'title' ? '「' + c.n + '」' : c.n}</span><small style='color:${RAR[c.r].c}'>${c.g === false ? '実績で解放' : c.r}</small></div>`).join('')}</div>`;
   };
-  return `<div class='text-[11px] text-white/60 mt-1'>タップで装備。ボディカラーは全車種に反映、トレイルは走ると光の帯が出ます。</div>` + sec('paint') + sec('trail') + sec('neon') + sec('flame') + sec('title');
+  return `<div class='text-[11px] text-white/60 mt-1'>タップで装備。ボディカラーは全車種に反映、トレイルは走ると光の帯が出ます。</div>` + sec('paint') + sec('trail') + sec('neon') + sec('flame') + sec('drv') + sec('title');
 }
 function htmlAch() {
   const t = PF.tot, done = ACH.filter(a => PF.ach[a.id]).length;
@@ -6490,7 +6537,7 @@ const Meta = {
     body.innerHTML = this.tab === 'mis' ? htmlMis() : this.tab === 'gacha' ? htmlGacha() : this.tab === 'cus' ? htmlCus() : this.tab === 'shop' ? htmlShop() : htmlAch();
     if (this.tab === 'shop') bindShop(body);
     if (this.tab === 'gacha') { $('gx1').onclick = () => pull(1, false); $('gx10').onclick = () => pull(10, false); $('gxT').onclick = () => pull(1, true); }
-    if (this.tab === 'cus') body.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => { PF.eq[b.dataset.k] = b.dataset.id; savePF(); this.applyPaint(); this.render(); SND.tick(); vibSoft(15); }));
+    if (this.tab === 'cus') body.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => { if (b.dataset.k === 'drv') { PF.drv = { ...drvOf(), c: b.dataset.id.slice(2) }; Meta.applyDriver(); } else PF.eq[b.dataset.k] = b.dataset.id; savePF(); this.applyPaint(); this.render(); SND.tick(); vibSoft(15); }));
   },
   onStart() {
     if (game.mode === 'ta') TA.prepare();
@@ -6518,7 +6565,9 @@ const Meta = {
     if (!taRes && !game.split) Assist.afterRace(r === 1);
     add('races', 1); if (r === 1 && !taRes) add('wins', 1); add('coins', game.coins);
     for (const k of ['drift', 'trick', 'smash', 'hit', 'fever', 'near', 'ring', 'jackpot', 'just', 'pland', 'cool', 'drop', 'taunt', 'bash', 'pass']) add(k, RUN[k]);
-    if (r === 1 && !taRes && !game.split && game.lv >= 5 && !NET.racing) { if (player.type === 'BEAR') add('bearOni', 1); if (player.type === 'BIKE') add('bikeOni', 1); }
+    if (r === 1 && !taRes && !game.split && game.lv >= 5 && !NET.racing) { if (player.type === 'BEAR') add('bearOni', 1); if (player.type === 'BIKE') add('bikeOni', 1); t['oni_' + player.type] = 1; }
+    if (r === 1 && !taRes && LV().noAssist && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.hc = PF.skill.hc || {})[stageIdx] = 1; }
+    if (!taRes) t.maxScore = Math.max(t.maxScore || 0, Math.floor(game.score));
     if (NET.racing) { add('netRace', 1); if (r === 1 && NET.remotes.size >= 2) add('netWin', 1); }
     if (!player.retired && game.lv >= 3 && (RUN.fail || 0) + (RUN.wallHit || 0) === 0) add('noHit', 1);
     if (r === 1 && !taRes && game.lv >= 5 && !NET.racing && !game.split) { PF.skill = PF.skill || {}; (PF.skill.oni = PF.skill.oni || {})[stageIdx] = 1; }
@@ -6575,9 +6624,9 @@ Meta.renderCus = () => {
   box.innerHTML = `<div class='flex items-center justify-between'><div class='text-sm font-black neon-cyan tracking-wider'>CUSTOMIZE ・ ${k}</div><button id='cusClose' class='rounded-full px-3 py-1 text-xs font-bold border border-white/40 bg-black/40'>閉じる</button></div>
     <div class='text-[10px] text-white/55 mt-1'>パーツは車種ごとに保存。ボディカラーは全車種共通。レベルが上がるとパーツが増えます。</div>
     <div class='mhd mt-2'>ボディカラー</div><div class='flex flex-wrap gap-1.5'>${own.map(c => `<button class='cchip ${PF.eq.paint === c.id ? 'on' : ''}' style='--rc:${RAR[c.r].c}' data-paint='${c.id}'>${cosIcon(c)}<span>${c.n}</span></button>`).join('')}</div>
-    <div class='mhd mt-2'>ドライバーのコスチューム（全車種共通）</div>${k === 'BEAR' ? `<div class='text-[10px] text-white/55'>ホッキョクグマはクマ自身が運転手です。ほかの車種で見えます。</div>` : ''}<div class='flex flex-wrap gap-1.5'>${DRIVER_COS.map(([id, nm, lv]) => PF.lv >= lv
-      ? `<button class='cchip ${drvOf().c === id ? 'on' : ''}' style='--rc:#ffd400' data-drv='${id}'>${nm}</button>`
-      : `<div class='cchip lock' style='--rc:#888'>${I('lock')}<span>${nm}</span><small>Lv.${lv}</small></div>`).join('')}</div>
+    <div class='mhd mt-2'>ドライバーのコスチューム（全車種共通）</div>${k === 'BEAR' ? `<div class='text-[10px] text-white/55'>ホッキョクグマはクマ自身が運転手です。ほかの車種で見えます。</div>` : ''}<div class='flex flex-wrap gap-1.5'>${DRIVER_COS.map(c => { const [id, nm, lv, r] = c, col = r ? RAR[r].c : '#ffd400'; return drvOk(c)
+      ? `<button class='cchip ${drvOf().c === id ? 'on' : ''}' style='--rc:${col}' data-drv='${id}'>${nm}${r ? `<small class='opacity-60'>${r}</small>` : ''}</button>`
+      : `<div class='cchip lock' style='--rc:#888'>${I('lock')}<span>${nm}</span><small${r ? ` style='color:${col}'` : ''}>${r ? 'スロット ' + r : 'Lv.' + lv}</small></div>`; }).join('')}</div>
     <div class='mhd mt-2'>スーツの色</div><div class='flex flex-wrap gap-1.5'>${DRIVER_COLS.map((c, i) => `<button class='cchip ${drvOf().col === i ? 'on' : ''}' data-dcol='${i}' style='--rc:${hex(c)};min-width:44px'><i style='display:inline-block;width:16px;height:16px;border-radius:50%;background:${hex(c)};box-shadow:0 0 6px ${hex(c)}'></i></button>`).join('')}</div>
     ${cusRow(k, 'rim')}${colorRow(k, 'rimC', 'リム・アクセントの色')}${cusRow(k, 'wing')}${cusRow(k, 'roof')}${cusRow(k, 'front')}${colorRow(k, 'glow', 'アンダーネオン')}`;
   const set = (key, v) => { PF.cars = PF.cars || {}; PF.cars[k] = { ...cusOf(k), [key]: v }; savePF(); applyCusTo(k); Meta.renderCus(); SND.tick(); vibSoft(12); emit(player.pos.clone().addScaledVector(player.up, 1), 20, { speed: 8, color: 0x29f3ff, color2: 0xffffff, size: 0.5, life: 0.5 }); };
@@ -6593,7 +6642,8 @@ Meta.startPress = () => START.press();
 Meta.judgeStart = () => START.judge();
 Meta.taTarget = () => TA.taTarget();
 // プレイヤーのドライバー（全車種共通のコスチューム）
-const drvOf = () => { const d = PF.drv || {}, c = DRIVER_COS.find(x => x[0] === d.c); return { c: c && PF.lv >= c[2] ? c[0] : 'STD', col: DRIVER_COLS[d.col] !== undefined ? d.col | 0 : 0 }; };
+const drvOk = c => c && (c[3] ? !!PF.owned['D_' + c[0]] : PF.lv >= c[2]);
+const drvOf = () => { const d = PF.drv || {}, c = DRIVER_COS.find(x => x[0] === d.c); return { c: drvOk(c) ? c[0] : 'STD', col: DRIVER_COLS[d.col] !== undefined ? d.col | 0 : 0 }; };
 Meta.applyDriver = () => { const d = drvOf(); for (const k of TYPE_KEYS) setDriver(playerModels[k], k, d.c, DRIVER_COLS[d.col]); if (NET.r) netPresence({ drv: [d.c, d.col] }); };
 Meta.applyPaint();
 Meta.applyCus();
@@ -7123,7 +7173,7 @@ if (DEBUG) window.__game = { game, player, get cars() { return cars; }, get TR()
   setTimeout(() => { const l = document.getElementById('loading'); if (l) l.innerHTML = '<div class="text-center text-sm text-white/80 px-6">読み込みに失敗しました。<br>インターネット接続を確認して再読み込みしてください。</div>'; }, 15000);
 </script>
 
-<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27d</span></div>
+<div id="copyright" style="position:fixed;left:0;right:0;bottom:2px;text-align:center;font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.35);pointer-events:none;z-index:5">© 2026 NEON SKYWAY. All rights reserved. <span id="verTxt">ver 2026.11.27e</span></div>
 
 <style id="proSkin">
 /* =====================================================================
